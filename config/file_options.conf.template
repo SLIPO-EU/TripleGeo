@@ -1,0 +1,130 @@
+##############################
+## Template for TripleGeo configuration in order to convert geographical data from files.
+## Specify parameters according to the examples for your specific input file(s).
+##############################
+
+##############################
+## Input and output parameters 
+##############################
+
+## Specify format for the input geographical file(s):
+## Possible input formats: 
+##     SHAPEFILE ; 
+##     CSV ;
+##     GPX ;
+##     GEOJSON ;
+##     OSM (currently, only supporting OpenStreetMap XML format).
+#inputFormat = SHAPEFILE
+inputFormat = ${inputFormat}
+
+## Conversion mode: specify either 'GRAPH' (on disk) or 'STREAM' (in-memory).
+#mode = STREAM
+mode = ${mode}
+
+## Local paths to directories and files used during processing (all paths are RELATIVE to executable)
+## CURRENTLY SUPPORTED: You can specify MULTIPLE input files (of exactly the same format and attributes) separating them by ';' in order to activate multiple concurrent threads for their transformation.
+## By default, the output file name(s) are composed from the original file name(s) with the extension of the respective RDF serialization.
+#tmpDir = ./tmp
+#inputFiles = ./test/data/points.shp
+#outputDir = ./test/output/
+tmpDir = ${tmpDir}
+inputFiles = ${inputFiles}
+outputDir = ${outputDir}
+
+## Specify export serialization for the output file.
+## Possible export formats: 
+##   RDF/XML ;
+##   RDF/XML-ABBREV ;
+##   N-TRIPLES (used as default for the STREAM conversion mode);
+##   TURTLE (or TTL);
+##   N3.
+#serialization = N-TRIPLES
+serialization = ${serialization}
+
+## Specify the type of the spatial ontology where the exported data will refer to.
+## Possible values: 
+##    GeoSPARQL ;
+##    Virtuoso (for point features in Virtuoso RDF namespace);
+##    wgs84_pos (for WGS84 Geoposition RDF vocabulary).
+#targetOntology = GeoSPARQL
+targetOntology = ${outputSpatialOntology}
+
+
+##############################
+## Data parameters (CASE-sensitive for shapefiles!!!)
+## Change parameters to reflect the contents that will be extracted from the input file
+##############################
+
+## MANDATORY field name containing unique identifier for each entity (i.e., each record in the shapefile)
+#attrKey = osm_id
+attrKey = ${resourceIdentityAttribute}
+
+## OPTIONAL field name from which name literals (i.e., strings) will be extracted. 
+## Set value UNK if non applicable.
+#attrName = name
+attrName = ${resourceNameAttribute}
+
+## OPTIONAL field name from which classification literals (e.g., type of points, road classes etc.) will be extracted.
+## Set value UNK if non applicable.
+#attrCategory = type
+attrCategory = ${resourceCategoryAttribute}
+
+## MANDATORY parameter that specifies particular values (e.g., UNK) in attributes that should not be exported as literals
+## By default, NULL values in attributes are suppressed and never exported
+#valIgnore = UNK
+valIgnore = ${ignoredAttributeValue}
+
+## MANDATORY for CSV input only (case-insensitive): specify delimiter character; Remove for any other types of input.
+delimiter=|
+
+## MANDATORY for CSV input only (case-insensitive): specify attribute holding X-coordinates of point locations; Remove for any other types of input.
+attrX=lon
+
+## MANDATORY for CSV input only (case-insensitive): specify attribute holding Y-coordinates of point locations; Remove for any other types of input.
+attrY=lat
+
+
+##############################
+## Namespaces parameters
+## Change these parameters if you want to use different values for the namespaces and prefixes
+##############################
+
+## MANDATORY parameter that specifies a user-defined name for the resources that will be created
+## Required for constructing the resource URI
+#featureName = points
+featureName = ${featureName}
+
+## Optional parameter. Specify the common URI namespace for all generated resources
+#nsFeatureURI = http://slipo.eu/geodata#
+nsFeatureURI = http://slipo.eu/geodata#
+
+## Optional parameter. Define a prefix name for the utilized URI namespace (i.e., the previously declared with nsFeatureURI)
+#prefixFeatureNS = georesource
+prefixFeatureNS = ${resourceNamespacePrefix}
+
+## Optional parameter. Specify the namespace for the underlying geospatial ontology
+#nsGeometryURI=http://www.opengis.net/ont/geosparql#
+nsGeometryURI=http://www.opengis.net/ont/geosparql#
+
+## Optional parameter. Define a prefix name for the geospatial ontology (i.e., the previously declared with nsGeometryURI)
+#prefixGeometryNS = geo
+prefixGeometryNS = ${geoontologyNamespacePrefix}
+
+
+###############################
+## Spatial Reference parameters
+###############################
+## Optional parameters. These fields should be filled in if a transformation between EPSG reference systems is needed
+## Comment out both properties if geometries are assumed in WGS84 reference system (EPSG:4326).
+#sourceCRS = EPSG:2100
+#targetCRS = EPSG:4326
+sourceCRS = ${sourceEPSG}
+targetCRS = ${targetEPSG}
+
+
+##############################
+## Other parameters
+##############################
+# Optional parameters. Default lang for the labels created in the output RDF. By default, the value will be English-en
+defaultLang=en
+

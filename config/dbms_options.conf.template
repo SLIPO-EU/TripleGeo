@@ -1,0 +1,163 @@
+##############################
+## Template for TripleGeo configuration in order to convert spatial features stored in a DBMS.
+## Specify parameters according to the examples for your specific dataset.
+## Examples given below assume an existing PostgreSQL+PostGIS database.
+##############################
+
+##############################
+# Input and output parameters
+##############################
+
+## Specify format for the input geospatial database system:
+## Possible input formats: DBMS.
+inputFormat = DBMS
+inputFormat = ${inputFormat}
+
+## Conversion mode: specify either 'GRAPH' (on disk) or 'STREAM' (in-memory).
+#mode = STREAM
+mode = ${mode}
+
+## Local paths to directories and files used during processing (all paths are RELATIVE to executable)
+## By default, the output file name is composed from the original table name in the DBMS with the extension of the respective RDF serialization.
+#tmpDir = ./tmp
+#outputDir = ./test/output/
+tmpDir = ${tmpDir}
+outputDir = ${outputDir}
+
+## Specify export serialization for the output file.
+## Possible export formats: 
+##   RDF/XML ;
+##   RDF/XML-ABBREV ;
+##   N-TRIPLES (used as default for the STREAM conversion mode);
+##   TURTLE (or TTL);
+##   N3.
+#serialization = N-TRIPLES
+serialization = ${serialization}
+
+## Specify the type of the spatial ontology where the exported data will refer to.
+## Possible values: 
+##    GeoSPARQL ;
+##    Virtuoso (for point features in Virtuoso RDF namespace);
+##    wgs84_pos (for WGS84 Geoposition RDF vocabulary).
+#targetOntology = GeoSPARQL
+targetOntology = ${outputSpatialOntology}
+
+
+##############################
+# Database connection details (case-insensitive)
+# Change parameters to reflect your database credentials
+##############################
+
+## Specify the DBMS backend where spatial data is stored.
+## Possible values for the supported DBMS: 
+##    MySQL ;
+##    Oracle ;
+##    PostGIS ; 
+##    DB2 ;
+##    SQLServer.
+#dbType = PostGIS
+dbType = ${databaseBackendType}
+
+## Name of the database to connect
+#dbName=geodb
+dbName = ${databaseName}
+
+## Username for database connection
+#dbUserName = postgres
+dbUserName = ${databaseUserName}
+
+## Password for database connection
+#dbPassword = postgres
+dbPassword = ${databasePassword}
+
+## Specify the IP host name or address on which DBMS server listens for TCP/IP connections from client applications.
+## Set value localhost if working with a local database server.
+#dbHost = localhost
+dbHost = ${databaseHost}
+
+## Specify the TCP/IP port on which the DBMS server listens for connections from client applications.
+#dbPort = 5432
+dbPort = ${databasePort}
+
+
+##############################
+# Data parameters (case-insensitive for DBMS connections)
+# Change parameters to reflect the contents that will be extracted from the database
+##############################
+
+## MANDATORY parameter that indicates the database table or view which contains spatial features
+#tableName = public.points
+tableName = ${resourceTableName}
+
+## OPTIONAL parameter that specifies a filter for selecting qualifying records
+## It has equivalent syntax to a WHERE clause in SQL, 
+## e.g. filterSQLCondition=town_type = 'TOWN' OR town_type = 'VILLAGE' OR town_type = 'CITY'  
+## Leave blank if all records should be extracted.
+#filterSQLCondition = 
+filterSQLCondition = ${filteringCondition}
+
+## MANDATORY column name containing unique identifier for each entity (i.e., each record)
+#attrKey = osm_id
+attrKey = ${resourceIdentityAttribute}
+
+## OPTIONAL column name from which name literals (i.e., strings) will be extracted. Leave blank if non applicable.
+#attrName = name
+attrName = ${resourceNameAttribute}
+
+## OPTIONAL column name from which classification literals (e.g., type of points, road classes etc.) will be extracted. Leave blank if non applicable.
+#attrCategory = type
+attrCategory = ${resourceCategoryAttribute}
+
+## MANDATORY parameter that specifies the name of the geometry column
+#attrGeometry = geom
+attrGeometry = ${resourceGeometryAttribute}
+
+## MANDATORY parameter that specifies particular values (e.g., UNK) in attributes that should not be exported as literals
+## By default, NULL values in attributes are suppressed and never exported
+#valIgnore = UNK
+valIgnore = ${ignoredAttributeValue}
+
+
+##############################
+## Namespaces parameters
+## Change these parameters if you want to use different values for the namespaces and prefixes
+##############################
+
+## MANDATORY parameter that specifies a user-defined name for the resources that will be created
+## Required for constructing the resource URI
+#featureName = points
+featureName = ${featureName}
+
+## Optional parameter. Specify the common URI namespace for all generated resources
+#nsFeatureURI = http://slipo.eu/geodata#
+nsFeatureURI = http://slipo.eu/geodata#
+
+## Optional parameter. Define a prefix name for the utilized URI namespace (i.e., the previously declared with nsFeatureURI)
+#prefixFeatureNS = georesource
+prefixFeatureNS = ${resourceNamespacePrefix}
+
+## Optional parameter. Specify the namespace for the underlying geospatial ontology
+#nsGeometryURI=http://www.opengis.net/ont/geosparql#
+nsGeometryURI=http://www.opengis.net/ont/geosparql#
+
+## Optional parameter. Define a prefix name for the geospatial ontology (i.e., the previously declared with nsGeometryURI)
+#prefixGeometryNS = geo
+prefixGeometryNS = ${geoontologyNamespacePrefix}
+
+
+###############################
+## Spatial Reference parameters
+###############################
+## Optional parameters. These fields should be filled in if a transformation between EPSG reference systems is needed
+## Comment out both properties if geometries are assumed in WGS84 reference system (EPSG:4326).
+#sourceCRS = EPSG:2100
+#targetCRS = EPSG:4326
+sourceCRS = ${sourceEPSG}
+targetCRS = ${targetEPSG}
+
+
+##############################
+## Other parameters
+##############################
+# Optional parameters. Default lang for the labels created in the output RDF. By default, the value will be English-en
+defaultLang=en
