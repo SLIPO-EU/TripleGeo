@@ -18,12 +18,7 @@
 
  
   <repositories>
-<!--
-    <repository>
-       <id>triplegeo-repo</id>
-       <url>file://${project.basedir}/repo</url>
-    </repository>
--->
+
    <repository>
         <id>maven2-repository.dev.java.net</id>
         <name>Java.net repository</name>
@@ -80,13 +75,6 @@
 	  <version>1.1.3</version>
 	</dependency>
  
-    <!--
-    <dependency>
-       <groupId>org.slf4j</groupId>
-       <artifactId>slf4j-jdk14</artifactId>
-       <version>1.5.8</version>
-    </dependency>
-    -->
  
  <!--  Jena depedencies -->
  
@@ -102,15 +90,10 @@
       <artifactId>xercesImpl</artifactId>
       <version>2.7.1</version>
    </dependency>
-<!--
-   <dependency>
-    <groupId>commons-beanutils</groupId>
-    <artifactId>commons-beanutils</artifactId>
-    <version>1.7.0</version>
-   </dependency>
--->
- <!--  JDBC drivers for connectivity to several DBMSs -->
- 
+
+
+ <!--  JDBC drivers for connectivity to several DBMSs. Either enable  the one that you are going to use or include the respective JDBC driver in the classpath at runtime.-->
+ <!--
    <dependency>
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
@@ -140,65 +123,8 @@
 		<artifactId>mssql-jdbc</artifactId>
 		<version>6.1.0.jre8</version>
 	</dependency>
-
-
-<!--   
-   <dependency>
-      <groupId>org.geotools.ogc</groupId>
-      <artifactId>net.opengis.ows</artifactId>
-      <version>2.7-M0</version>
-   </dependency>
-
-   <dependency>
-      <groupId>org.geotools.ogc</groupId>
-      <artifactId>net.opengis.wfs</artifactId>
-      <version>2.7-M0</version>
-   </dependency>
-   
-   <dependency>
-      <groupId>org.geotools.ogc</groupId>
-      <artifactId>net.opengis.wfsv</artifactId>
-      <version>2.7-M0</version>
-   </dependency>
-   
-   <dependency>
-      <groupId>org.geotools.ogc</groupId>
-      <artifactId>net.opengis.wps</artifactId>
-      <version>2.7-M0</version>
-   </dependency>
-   
-   <dependency>
-      <groupId>org.geotools.ogc</groupId>
-      <artifactId>net.opengis.wcs</artifactId>
-      <version>2.7-M0</version>
-   </dependency>
 -->
-
-<!--
-   <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-main</artifactId>
-      <version>${geotools.version}</version>
-   </dependency>    
-   
-   <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-referencing</artifactId>
-      <version>${geotools.version}</version>
-   </dependency> 
-   
-   <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-metadata</artifactId>
-      <version>${geotools.version}</version>
-   </dependency> 
-   
-   <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-api</artifactId>
-      <version>${geotools.version}</version>
-   </dependency> 
--->   
+ 
    <dependency>
       <groupId>org.geotools</groupId>
       <artifactId>gt-shapefile</artifactId>
@@ -216,94 +142,31 @@
    	  <artifactId>gt-geojson</artifactId>
    	  <version>${geotools.version}</version>
    </dependency>
-<!--         
-   <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-geojsondatastore</artifactId>
-      <version>${geotools.version}</version>
-   </dependency> 
 
-   <dependency>
-   	  <groupId>org.geotools</groupId>
-   	  <artifactId>gt-validation</artifactId>
-   	  <version>${geotools.version}</version>
-   </dependency>
--->
    <dependency>
    	  <groupId>org.geotools</groupId>
    	  <artifactId>gt-epsg-extension</artifactId>
    	  <version>${geotools.version}</version>
    </dependency>   
-<!--  
-   <dependency>
-   	  <groupId>org.geotools</groupId>
-   	  <artifactId>gt-epsg-wkt</artifactId>
-   	  <version>${geotools.version}</version>
-   </dependency>   
--->    
+  
    <dependency>
    	  <groupId>org.geotools</groupId>
    	  <artifactId>gt-epsg-hsql</artifactId>
    	  <version>${geotools.version}</version>
    </dependency>  
    
-<!--
-   <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-postgis</artifactId>
-      <version>${geotools.version}</version>
-   </dependency> 
- 
-   <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-sample-data</artifactId>
-      <version>${geotools.version}</version>
-   </dependency> 
--->
  
    <dependency>
       <groupId>org.opengis</groupId>
       <artifactId>geoapi</artifactId>
       <version>2.3-M1</version>
    </dependency>
-<!--
-   <dependency>
-      <groupId>org.opengis</groupId>
-      <artifactId>geoapi-pending</artifactId>
-      <version>2.3-M1</version>
-   </dependency>
--->
+
    <dependency>
       <groupId>com.vividsolutions</groupId>
       <artifactId>jts</artifactId>
       <version>1.11</version>
    </dependency>
- 
- <!--
-   <dependency>
-      <groupId>com.hp.hpl.jena</groupId>
-      <artifactId>jena</artifactId>
-      <version>2.6.3</version>
-   </dependency>
-
-   <dependency>
-      <groupId>com.hp.hpl.jena</groupId>
-      <artifactId>iri</artifactId>
-      <version>0.8</version>
-   </dependency>
-
-   <dependency>
-      <groupId>com.hp.hpl.jena</groupId>
-      <artifactId>arq</artifactId>
-      <version>2.8.5</version> 
-   </dependency>
-
-   <dependency>
-      <groupId>com.hp.hpl.jena</groupId>
-      <artifactId>tdb</artifactId>
-      <version>0.8.7</version>
-   </dependency>
--->
 
    <dependency>
       <groupId>net.sf.saxon</groupId>

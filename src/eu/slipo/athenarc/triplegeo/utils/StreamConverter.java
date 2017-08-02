@@ -1,5 +1,5 @@
 /*
- * @(#) StreamConverter.java 	 version 1.2   11/4/2017
+ * @(#) StreamConverter.java 	 version 1.2   2/8/2017
  *
  * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
  *
@@ -36,7 +36,7 @@ import org.apache.jena.vocabulary.RDFS;
 /**
  * Provides a set of a streaming RDF triples in memory that can be readily serialized into a file.
  * Created by: Kostas Patroumpas, 9/3/2013
- * Modified by: Kostas Patroumpas, 11/4/2017
+ * Modified by: Kostas Patroumpas, 2/8/2017
  */
 
 public class StreamConverter implements Converter {
@@ -87,7 +87,7 @@ public class StreamConverter implements Converter {
 		  	          String aux = encodingType + Constants.SEPARATOR + encodingResource;
 
 		  	          //Insert literal for name (name of feature)
-		  	          if ((!featureName.equals(currentConfig.valIgnore)) && (!featureName.equals("")))  //NOT NULL values only
+		  	          if ((featureName != null) && (!featureName.equals(currentConfig.valIgnore)) && (!featureName.equals("")))  //NOT NULL values only
 		  	          {
 		  	        	results.add(insertNameTriple(
 		  	        			  currentConfig.nsFeatureURI + aux,
@@ -97,7 +97,7 @@ public class StreamConverter implements Converter {
 		  	          }
 		  	          
 		  	          //Insert literal for class (type of feature)
-		  	          if ((!featureClass.equals(currentConfig.valIgnore)) && (!featureClass.equals("")))  //NOT NULL values only
+		  	          if ((featureClass != null) && (!featureClass.equals(currentConfig.valIgnore)) && (!featureClass.equals("")))  //NOT NULL values only
 		  	          {
 		  	        	  encodingResource =
 		  	                      URLEncoder.encode(featureClass,
