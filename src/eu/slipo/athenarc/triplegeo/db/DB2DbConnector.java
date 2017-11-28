@@ -1,7 +1,7 @@
 /*
- * @(#) DB2DbConnector.java 	version 1.2   23/3/2017
+ * @(#) DB2DbConnector.java 	version 1.3   3/11/2017
  *
- * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import eu.slipo.athenarc.triplegeo.utils.Constants;
+import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
  * IBM DB2 implementation of DbConnector class.
  *
  * @author: Kostas Patroumpas, 5/6/2013
- * Last modified: 23/3/2017
+ * Modified: 23/3/2017
+ * Modified: 3/11/2017; added support for system exit codes on abnormal termination
  */
 public class DB2DbConnector implements DbConnector {
 
@@ -75,8 +77,7 @@ public class DB2DbConnector implements DbConnector {
       resultSet = stmt.executeQuery(query);
 
     } catch (SQLException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+    	ExceptionHandler.invoke(e, "SQL query for data retrieval cannot be executed.");
     }
     return resultSet;
   }
@@ -87,7 +88,7 @@ public class DB2DbConnector implements DbConnector {
       connection.close();
       connection = null;
     } catch (SQLException ex) {
-      ex.printStackTrace();
+    	ExceptionHandler.invoke(ex, "Cannot close connection to the database.");
     }
   }
 
@@ -105,7 +106,7 @@ public class DB2DbConnector implements DbConnector {
               getDatabaseUrl(), username, password);
       System.out.println("Connected to DB2 database!");
     } catch (Exception ex) {
-      ex.printStackTrace();
+    	ExceptionHandler.invoke(ex, "Cannot connect to the database.");
     }
     return connectionResult;
   }

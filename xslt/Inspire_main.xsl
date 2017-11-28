@@ -8,8 +8,8 @@
 <!-- Project: GeoKnow, http://geoknow.eu                                   -->
 <!-- Institute for the Management of Information Systems, Athena R.C.      -->
 <!-- Author: Kostas Patroumpas, mailto:kpatro@dblab.ece.ntua.gr            -->
-<!-- Version: 0.3                                                          -->
-<!-- Last update: 2/6/2014                                                -->
+<!-- Version: 0.4                                                          -->
+<!-- Last update: 24/10/2017                                                -->
 <!-- ===================================================================== -->
 <xsl:stylesheet version="2.0" 
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -94,10 +94,10 @@
 			</xsl:if>
 			
 			<!-- Handle all other tags as specified by the custom templates, and for each feature create its RDF representation -->
-			<!-- xsl:apply-templates select="//base:member/*" / -->	
+			<xsl:apply-templates select="//base:member/*" />	
 			
 			<!-- ALTERNATIVE: Handle all other tags as required and for feature create its RDF representation-->
-			<xsl:apply-templates select="/*/node()[not(self::gml:boundedBy)]" />
+			<!-- xsl:apply-templates select="/*/node()[not(self::gml:boundedBy)]" / -->
 			
 		</rdf:RDF>
 	</xsl:template>

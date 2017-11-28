@@ -8,7 +8,7 @@ import java.util.Map;
  * Class containing information about the OSM records (nodes, ways, or relations).
  * @author Kostas Patroumpas
  * Created by: Kostas Patroumpas, 25/7/2017
- * Last modified by: Kostas Patroumpas, 28/7/2017
+ * Last modified by: Kostas Patroumpas, 7/9/2017
  */
 
 public class OSMRecord {
@@ -16,6 +16,7 @@ public class OSMRecord {
     private String id;
 	private String name;
 	private String type;
+	private String category;
     private Geometry geometry;
 	private final Map<String, String> tags = new HashMap<>(); 
     
@@ -32,6 +33,10 @@ public class OSMRecord {
         return type;
     } 
 
+    public String getCategory(){
+        return category;
+    } 
+    
     public Geometry getGeometry(){
         return this.geometry;
     }
@@ -51,6 +56,10 @@ public class OSMRecord {
     
     public void setType(String type){
         this.type = type;
+    }
+   
+    public void setCategory(String category){
+        this.category = category;
     }
     
     public void setGeometry(Geometry geometry){

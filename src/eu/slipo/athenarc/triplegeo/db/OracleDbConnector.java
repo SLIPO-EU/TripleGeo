@@ -1,7 +1,7 @@
 /*
- * @(#) OracleDbConnector.java 	 version 1.2   23/3/2017
+ * @(#) OracleDbConnector.java 	 version 1.3   3/11/2017
  *
- * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,13 +25,15 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import eu.slipo.athenarc.triplegeo.utils.Constants;
+import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
  * Oracle implementation of DbConnector class.
  * 
  * @author jonathangsc
  * initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
- * Modified by: Kostas Patroumpas, 23/3/2017
+ * Modified by: Kostas Patroumpas, 24/5/2013
+ * Modified by: Kostas Patroumpas, 3/11/2017; added support for system exit codes on abnormal termination
  */
 public class OracleDbConnector implements DbConnector {
 
@@ -78,7 +80,7 @@ public class OracleDbConnector implements DbConnector {
       resultSet = stmt.executeQuery(query);
 
     } catch (SQLException e) {
-      e.printStackTrace();
+    	ExceptionHandler.invoke(e, "SQL query for data retrieval cannot be executed.");
     }
     return resultSet;
   }
@@ -86,10 +88,10 @@ public class OracleDbConnector implements DbConnector {
   @Override
   public void closeConnection() {
     try {
-      connection.close();
-      connection = null;
+        connection.close();
+        connection = null;
     } catch (SQLException ex) {
-      ex.printStackTrace();
+    	ExceptionHandler.invoke(ex, "Cannot close connection to the database.");
     }
   }
 
@@ -106,7 +108,7 @@ public class OracleDbConnector implements DbConnector {
               getDatabaseUrl(), username, password);
       System.out.println("Connected to Oracle database!");
     } catch (Exception ex) {
-      ex.printStackTrace();
+      ExceptionHandler.invoke(ex, "Cannot connect to the database.");
     }
     return connectionResult;
   }

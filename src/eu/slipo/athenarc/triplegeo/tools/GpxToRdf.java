@@ -1,7 +1,7 @@
 /*
- * @(#) GpxToRdf.java 	 version 1.2   31/3/2017
+ * @(#) GpxToRdf.java 	 version 1.3   24/11/2017
  *
- * Copyright (C) 2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,22 +43,25 @@ import com.topografix.gpx.WptType;
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
 import eu.slipo.athenarc.triplegeo.utils.Converter;
+import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.GraphConverter;
 import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 
 
 /**
-* Main entry point of the utility for extracting RDF triples from GPX files (currently, WAYPOINT and TRACK features only!)
-* TODO: Implement transformation using a disk-based graph model; Handle non-geometric attributes for tracks (if applicable)
-* GPX manual available at: http://www.topografix.com/gpx_manual.asp
-* Created by: Kostas Patroumpas, 1/3/2017
-* Last modified by: Kostas Patroumpas, 31/3/2017
+ * Main entry point of the utility for extracting RDF triples from GPX files (currently, WAYPOINT and TRACK features only!)
+ * TODO: Implement transformation using a disk-based graph model; Handle non-geometric attributes for tracks (if applicable)
+ * GPX manual available at: http://www.topografix.com/gpx_manual.asp
+ * Created by: Kostas Patroumpas, 1/3/2017
+ * Modified: 3/11/2017, added support for system exit codes on abnormal termination
+ * Last modified by: Kostas Patroumpas, 24/11/2017
 */
 
 
 public class GpxToRdf {
 
 	Converter myConverter;
+	Assistant myAssistant;
 	public int sourceSRID;                //Source CRS according to EPSG 
 	public int targetSRID;                //Target CRS according to EPSG
 	private Configuration currentConfig;  //User-specified configuration settings
@@ -73,9 +76,10 @@ public class GpxToRdf {
 		  outputFile = outFile;
 		  this.sourceSRID = 4326;       //ASSUMPTION: All geometries in GPX are always expected in WGS84 georeference
 	      this.targetSRID = 4326;
-
+	      myAssistant = new Assistant();
+	      
 	      // Other parameters
-	      if (Assistant.isNullOrEmpty(currentConfig.defaultLang)) {
+	      if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {
 	    	  currentConfig.defaultLang = "en";
 	      }
 	      
@@ -99,9 +103,9 @@ public class GpxToRdf {
 				  executeParser4Graph(gpx);
 				  
 				  //Remove all temporary files as soon as processing is finished
-				  Assistant.removeDirectory(currentConfig.tmpDir);
+				  myAssistant.removeDirectory(currentConfig.tmpDir);
 				}
-				else
+				else if (currentConfig.mode.contains("STREAM"))
 				{
 				  //Mode STREAM: consume records and streamline them into a serialization file
 				  myConverter =  new StreamConverter(currentConfig);
@@ -110,7 +114,7 @@ public class GpxToRdf {
 				  executeParser4Stream(gpx);
 				}
 	      } catch (Exception e) {
-	  			e.printStackTrace();
+	    	  ExceptionHandler.invoke(e, "");
 	  	  }
 
 	}
@@ -175,7 +179,7 @@ public class GpxToRdf {
 			//IMPORTANT: Currently, it seems that only NTRIPLES serialization can be dealt with in a streaming fashion
 			StreamRDF stream = StreamRDFWriter.getWriterStream(outFile, RDFFormat.NTRIPLES);
 		      
-		    //System.out.println(Assistant.getGMTime() + " Started processing features...");
+		    //System.out.println(myAssistant.getGMTime() + " Started processing features...");
 		    
 		    stream.start();             //Start issuing triples
 		    	    
@@ -215,7 +219,7 @@ public class GpxToRdf {
 						numTriples++;
 					}
 					
-					Assistant.notifyProgress(++numRec);  			    
+					myAssistant.notifyProgress(++numRec);  			    
 		        }    		    
 		    }
 
@@ -249,16 +253,18 @@ public class GpxToRdf {
 					numTriples++;
 				}
 				
-				Assistant.notifyProgress(++numRec);  
+				myAssistant.notifyProgress(++numRec);  
 		    }
 		}
-		catch(Exception e) { e.printStackTrace();}
+		catch(Exception e) { 
+			ExceptionHandler.invoke(e, "An error occurred during transformation of an input record.");
+		}
 
 		stream.finish();               //Finished issuing triples
 		    
 		//Final notification
 		dt = System.currentTimeMillis() - t_start;
-		Assistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, outputFile);
+		myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, outputFile);
 	  
 	  }	  
 	  

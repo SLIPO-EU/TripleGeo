@@ -1,7 +1,7 @@
 /*
- * @(#) ShpToRdf.java	version 1.2   19/4/2017
+ * @(#) ShpToRdf.java	version 1.3   28/11/2017
  *
- * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,16 @@
  */
 package eu.slipo.athenarc.triplegeo.tools;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.FileWriter;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 //import java.util.logging.Level;
 //import java.util.logging.Logger;
@@ -41,51 +42,67 @@ import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureImpl;
-import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
+import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.referencing.crs.CRSAuthorityFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 
 import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.io.WKTWriter;
 
+import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
+import be.ugent.mmlab.rml.model.dataset.RMLDataset;
+//import be.ugent.mmlab.rml.model.dataset.StdRMLDataset;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
+import eu.slipo.athenarc.triplegeo.utils.Classification;
 import eu.slipo.athenarc.triplegeo.utils.Converter;
+import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.GraphConverter;
+import eu.slipo.athenarc.triplegeo.utils.RMLConverter;
 import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
-
 
 
 /**
  * Entry point to convert shapefiles into RDF triples.
  * @author Kostas Patroumpas
  * Created by: Kostas Patroumpas, 8/2/2013
- * Last modified by: Kostas Patroumpas, 19/4/2017
+ * Modified: 3/11/2017, added support for system exit codes on abnormal termination
+ * Modified: 7/11/2017, fixed issue with multiple instances of CRS factory
+ * Modified: 21/11/2017, added support for recognizing a user-specified classification scheme (RML mode only)
+ * Last modified by: Kostas Patroumpas, 28/11/2017
  */
 public class ShpToRdf {
 	
 //	  static final Logger LOG = Logger.getLogger(ShpToRdf.class.getName());
 
 	  Converter myConverter;
-	  MathTransform transform = null;
-	  public int sourceSRID;               //Source CRS according to EPSG 
-	  public int targetSRID;               //Target CRS according to EPSG 
-	  public Configuration currentConfig;  //User-specified configuration settings
-	  public String inputFile;             //Input shapefile
-	  public String outputFile;            //Output RDF file
+	  Assistant myAssistant;
+	  private MathTransform transform = null;
+//	  private WKTReader reader =  null;
+	  public int sourceSRID;                 //Source CRS according to EPSG 
+	  public int targetSRID;                 //Target CRS according to EPSG 
+	  private Configuration currentConfig;    //User-specified configuration settings
+	  private Classification classification; //Classification hierarchy for assigning categories to features
+	  public String inputFile;               //Input shapefile
+	  public String outputFile;              //Output RDF file
 	  
+	  //Initialize a CRS factory for possible reprojections
+	  private static final CRSAuthorityFactory crsFactory = ReferencingFactoryFinder
+		       .getCRSAuthorityFactory("EPSG", new Hints(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE));
 	
 	  //Class constructor
-	  public ShpToRdf(Configuration config, String inFile, String outFile, int sourceSRID, int targetSRID) throws ClassNotFoundException {
+	  public ShpToRdf(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) throws ClassNotFoundException {
   
 		  this.currentConfig = config;
+		  this.classification = classific;
 		  this.inputFile = inFile;
 		  this.outputFile = outFile;
 	      this.sourceSRID = sourceSRID;
 	      this.targetSRID = targetSRID;
+	      myAssistant = new Assistant();
 		   	  
 		  //System.out.println("ShpToRdf conversion from " + inputFile + " to " + outputFile);
 		  
@@ -93,18 +110,16 @@ public class ShpToRdf {
 	      if (currentConfig.sourceCRS != null)
 	  	    try {
 	  	        boolean lenient = true; // allow for some error due to different datums
+	  	        CoordinateReferenceSystem sourceCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.sourceCRS);
+	  	        CoordinateReferenceSystem targetCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.targetCRS);    
+	  	        transform = CRS.findMathTransform(sourceCRS, targetCRS, lenient);
 	  	        
-	  	        Hints hints = new Hints(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE);
-	  	        CRSAuthorityFactory factory = ReferencingFactoryFinder.getCRSAuthorityFactory("EPSG", hints);
-	  	        CoordinateReferenceSystem sourceCRS = factory.createCoordinateReferenceSystem(currentConfig.sourceCRS);
-	  	        CoordinateReferenceSystem targetCRS = factory.createCoordinateReferenceSystem(currentConfig.targetCRS);    
-	  	        transform = CRS.findMathTransform(sourceCRS, targetCRS, lenient);	  	        
 	  		} catch (Exception e) {
-	  			e.printStackTrace();
+	  			ExceptionHandler.invoke(e, "Error in CRS transformation (reprojection) of geometries.");      //Execution terminated abnormally
 	  		}
 		 	    
 		  // Other parameters
-		  if (Assistant.isNullOrEmpty(currentConfig.defaultLang)) {
+		  if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {
 		      currentConfig.defaultLang = "en";
 		  }
 		
@@ -130,18 +145,26 @@ public class ShpToRdf {
 				  executeParser4Graph(rs);
 				  
 				  //Remove all temporary files as soon as processing is finished
-				  Assistant.removeDirectory(currentConfig.tmpDir);
+				  myAssistant.removeDirectory(currentConfig.tmpDir);
 				}
+				else if (currentConfig.mode.contains("STREAM"))
+					{
+					  //Mode STREAM: consume records and streamline them into a serialization file
+					  myConverter =  new StreamConverter(currentConfig);
+					  
+					  //Export data in a streaming fashion
+					  executeParser4Stream(rs);
+					}
 				else
-				{
-				  //Mode STREAM: consume records and streamline them into a serialization file
-				  myConverter =  new StreamConverter(currentConfig);
-				  
-				  //Export data in a streaming fashion
-				  executeParser4Stream(rs);
-				}
+					{
+					  //Mode RML: consume records and apply RML mappings in order to get triples
+					  myConverter =  new RMLConverter(currentConfig);
+					  
+					  //Export data in a streaming fashion
+					  executeParser4RML(rs);
+					}
 	  		} catch (Exception e) {
-	  			e.printStackTrace();
+	  			ExceptionHandler.invoke(e, "");
 	  		}
 	
 	}
@@ -155,7 +178,7 @@ public class ShpToRdf {
    *
    * @return FeatureCollection with the collection of features filtered.
    */
-  private static FeatureCollection<?, ?> collectData(String shapePath) throws IOException 
+  private static FeatureCollection<?, ?> collectData(String shapePath) 
   {
 	    File file = new File(shapePath);
 	    DataStore dataStore = null;
@@ -169,8 +192,8 @@ public class ShpToRdf {
 		    	FeatureSource<?, ?> featureSource = dataStore.getFeatureSource(dataStore.getTypeNames()[0]);
 		    	return featureSource.getFeatures();
 		    }
-	    } catch (MalformedURLException e) {
-	    	e.printStackTrace();
+	    } catch (Exception e) {
+	    	ExceptionHandler.invoke(e, "Cannot access input file.");      //Execution terminated abnormally
 	    	//Logger.getLogger(ShpToRdf.class.getName()).log(Level.SEVERE, null, e);
 	    }
 	    finally {
@@ -185,13 +208,12 @@ public class ShpToRdf {
    * 
    * Mode: GRAPH -> Parse each record in order to create the necessary triples on disk (including geometric and non-spatial attributes)
    */
-private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) throws UnsupportedEncodingException, FileNotFoundException 
+private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) 
   {
     FeatureIterator<?> iterator = featureCollection.features();
     SimpleFeatureImpl feature;
     Geometry geometry;
-    WKTWriter writer = new WKTWriter();
-    String wkt;
+    String wkt = "";
     
     int numRec = 0;
     long t_start = System.currentTimeMillis();
@@ -199,26 +221,19 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
     
     try 
     {
-      //System.out.println(Assistant.getGMTime() + " Started processing features...");
+      //System.out.println(myAssistant.getGMTime() + " Started processing features...");
  
       while(iterator.hasNext()) {
         feature = (SimpleFeatureImpl) iterator.next();
         geometry = (Geometry) feature.getDefaultGeometry();
 
-        //Attempt to transform geometry into the target CRS
-        if (transform != null)
-	        try {
-				geometry = JTS.transform(geometry, transform);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-
-        //Convert geometry into WKT
-        if (currentConfig.targetOntology.trim().toLowerCase().equals("geosparql"))
-        	wkt = writer.writeFormatted(geometry);        //GeoSPARQL WKT representation for various types of geometries
-        else
-        	wkt = geometry.toText();                      //WKT representation for Virtuoso or WGS84 GeoPosition RDF vocabulary
-        	
+		//CRS transformation
+      	if (transform != null)
+      		geometry = myAssistant.geomTransform(geometry, transform);     
+        
+        //Get WKT representation of the transformed geometry
+      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetOntology.trim());
+      	
         //Parse geometric representation (including encoding to the target CRS)
         myConverter.parseGeom2RDF(currentConfig.featureName, feature.getAttribute(currentConfig.attrKey).toString(), wkt, targetSRID);
         
@@ -226,30 +241,37 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
         if ((!currentConfig.attrCategory.trim().equals("")) && (!currentConfig.attrName.trim().equals("")))
         	myConverter.handleNonGeometricAttributes(currentConfig.featureName, feature.getAttribute(currentConfig.attrKey).toString(), feature.getAttribute(currentConfig.attrName).toString(), feature.getAttribute(currentConfig.attrCategory).toString());
              
-        Assistant.notifyProgress(++numRec);
+        myAssistant.notifyProgress(++numRec);
 
       }
     }
+    catch(Exception e) { 
+		ExceptionHandler.invoke(e, "An error occurred during transformation of an input record.");
+	}
     finally {
       iterator.close();
     }
     
     dt = System.currentTimeMillis() - t_start;
-    System.out.println(Assistant.getGMTime() + " Parsing completed for " + numRec + " records in " + dt + " ms.");
-    System.out.println(Assistant.getGMTime() + " Starting to write triples to file...");
+    System.out.println(myAssistant.getGMTime() + " Parsing completed for " + numRec + " records in " + dt + " ms.");
+    System.out.println(myAssistant.getGMTime() + " Starting to write triples to file...");
     
     //Fetch resulting triples as stored in the model
     //model = myConverter.getModel();
     
     //Count the number of statements
     int numStmt = myConverter.getModel().listStatements().toSet().size();
-    
-    //Export model to a suitable format
-    FileOutputStream out = new FileOutputStream(outputFile);
-    myConverter.getModel().write(out, currentConfig.serialization);
+    try {
+	    //Export model to a suitable format
+	    FileOutputStream out = new FileOutputStream(outputFile);
+	    myConverter.getModel().write(out, currentConfig.serialization);
+    }
+    catch(Exception e) { 
+		ExceptionHandler.invoke(e, "Serialized output cannot be written into a file. Please check configuration file.");
+	}
     
     dt = System.currentTimeMillis() - t_start;
-    Assistant.reportStatistics(dt, numRec, numStmt, currentConfig.serialization, outputFile);
+    myAssistant.reportStatistics(dt, numRec, numStmt, currentConfig.serialization, outputFile);
   }
 
 
@@ -257,17 +279,16 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
    * 
    * Mode: STREAM -> Parse each record and streamline the resulting triples (including geometric and non-spatial attributes)
    */
-  private void executeParser4Stream(FeatureCollection<?, ?> featureCollection) throws Exception {
+  private void executeParser4Stream(FeatureCollection<?, ?> featureCollection) {
   
-	  FeatureIterator<?> iterator = featureCollection.features();
-	    SimpleFeatureImpl feature;
-	    Geometry geometry;
-	    WKTWriter writer = new WKTWriter();
-	    String wkt;
-	    
-	    int numRec = 0;
-	    long t_start = System.currentTimeMillis();
-	    long dt = 0;
+	  	FeatureIterator<?> iterator = featureCollection.features();
+		SimpleFeatureImpl feature;
+		Geometry geometry;
+		String wkt = "";
+		
+		int numRec = 0;
+		long t_start = System.currentTimeMillis();
+		long dt = 0;
 	    
 	    
 	  int numTriples = 0;
@@ -277,7 +298,7 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
 			outFile = new FileOutputStream(outputFile);   //new ByteArrayOutputStream();
 	  } 
 	  catch (FileNotFoundException e) {
-			e.printStackTrace();
+		  ExceptionHandler.invoke(e, "Output file not specified correctly.");
 	  } 
 		
 	  //CAUTION! Hard constraint: serialization into N-TRIPLES is only supported by Jena riot (stream) interface
@@ -287,7 +308,7 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
 	  
 	try 
 	{
-	  //System.out.println(Assistant.getGMTime() + " Started processing features...");
+	  //System.out.println(myAssistant.getGMTime() + " Started processing features...");
 	 
 	  //Iterate through all features
 	  while(iterator.hasNext()) {
@@ -297,20 +318,13 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
 	    feature = (SimpleFeatureImpl) iterator.next();
 	    geometry = (Geometry) feature.getDefaultGeometry();
 	
-	    //Attempt to transform geometry into the target CRS
-	    if (transform != null)
-	        try {
-				geometry = JTS.transform(geometry, transform);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-	
-	    //Convert geometry into WKT
-	    if (currentConfig.targetOntology.trim().toLowerCase().equals("geosparql"))
-	    	wkt = writer.writeFormatted(geometry);        //GeoSPARQL WKT representation for various types of geometries
-	    else
-	    	wkt = geometry.toText();                      //WKT representation for Virtuoso or WGS84 Geoposition RDF vocabulary
-	
+		//CRS transformation
+      	if (transform != null)
+      		geometry = myAssistant.geomTransform(geometry, transform);     
+        
+        //Get WKT representation of the transformed geometry
+      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetOntology.trim());
+      	
         //Parse geometric representation (including encoding to the target CRS)
         myConverter.parseGeom2RDF(currentConfig.featureName, feature.getAttribute(currentConfig.attrKey).toString(), wkt, targetSRID);
         
@@ -324,9 +338,12 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
 			numTriples++;
 		}
 		
-		Assistant.notifyProgress(++numRec);
+		myAssistant.notifyProgress(++numRec);
 	    
 	  }
+	}
+	catch(Exception e) { 
+		ExceptionHandler.invoke(e, "An error occurred during transformation of an input record.");
 	}
 	finally {
 	  iterator.close();
@@ -336,8 +353,106 @@ private void executeParser4Graph(FeatureCollection<?, ?> featureCollection) thro
 	
     //Measure execution time
     dt = System.currentTimeMillis() - t_start;
-    Assistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, outputFile);
+    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, outputFile);
 
+  }
+
+
+  /**
+   * 
+   * Mode: RML -> Parse each record and streamline the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping
+   */
+  private void executeParser4RML(FeatureCollection<?, ?> featureCollection) {
+
+	FeatureIterator<?> iterator = featureCollection.features();
+    SimpleFeatureImpl feature;
+    Geometry geometry;
+    String wkt = "";
+    
+	//Determine the attribute schema of these features  
+	final SimpleFeatureType original = (SimpleFeatureType) featureCollection.getSchema();
+	List<String> attrNames = new ArrayList<String>();
+	for(AttributeDescriptor ad : original.getAttributeDescriptors()) 
+	{
+	    final String name = ad.getLocalName();
+	    if(!"boundedBy".equals(name) && !"metadataProperty".equals(name)) 
+	    	attrNames.add(name);
+	}
+    
+    //System.out.println(myAssistant.getGMTime() + " Started processing features...");
+    long t_start = System.currentTimeMillis();
+    long dt = 0;
+   
+    int numRec = 0;
+    int numTriples = 0;
+
+//    RMLDataset dataset = new StdRMLDataset();
+    RMLDataset dataset = new SimpleRMLDataset();
+    
+    //Determine the serialization to be applied for the output triples
+    org.openrdf.rio.RDFFormat rdfFormat =  myAssistant.getRDFSerialization(currentConfig.serialization);
+    	  
+	try {
+		BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile));
+		
+		//Iterate through all features
+		while(iterator.hasNext()) {
+  
+			feature = (SimpleFeatureImpl) iterator.next();
+			geometry = (Geometry) feature.getDefaultGeometry();
+			  
+			//CRS transformation
+	      	if (transform != null)
+	      		geometry = myAssistant.geomTransform(geometry, transform);     
+	        
+	        //Get WKT representation of the transformed geometry
+	      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetOntology.trim());
+	      	
+	      	//Pass all NOT NULL attribute values into a hash map in order to apply RML mapping(s) directly
+	      	HashMap<String, String> row = new HashMap<>();	
+	      	for (int i=0; i<feature.getNumberOfAttributes(); i++)
+	      	{
+	      		if ((!attrNames.get(i).equalsIgnoreCase(currentConfig.attrGeometry)) && (feature.getAttribute(i).toString() != null))
+	      		{
+	      		    //Names of attributes in upper case; case-sensitive in RML mappings!
+	      			row.put(attrNames.get(i).toUpperCase(),  myAssistant.encodeUTF(feature.getAttribute(i).toString(), currentConfig.encoding));     
+	      			//System.out.println(attrNames.get(i) + " ");
+	      		}
+	      	}
+	      	//System.out.println("");
+	        row.put("WKT", "<http://www.opengis.net/def/crs/EPSG/0/" + targetSRID + "> " + wkt);   
+
+	      	//Include a category identifier, as found in the classification scheme
+	      	if (classification != null)
+	      		row.put("CATEGORY_URI", classification.getURI(feature.getAttribute(currentConfig.attrCategory).toString()));
+	      	//System.out.println(classification.getURI(rs.getString(currentConfig.attrCategory)));
+	      	
+	        //Apply the transformation according to the given RML mapping		      
+	        myConverter.parseWithRML(row, dataset);
+	       
+	        myAssistant.notifyProgress(++numRec);
+		  
+		    //Periodically, dump results into output file
+			if (numRec % 1000 == 0) 
+			{
+				numTriples += myConverter.writeTriples(dataset, writer, rdfFormat, currentConfig.encoding);
+				dataset = new SimpleRMLDataset();		   //IMPORTANT! Create a new dataset to hold upcoming triples!	
+//				dataset = new StdRMLDataset();		   //IMPORTANT! Create a new dataset to hold upcoming triples!	
+			}
+		}	
+		
+		//Dump any pending results into output file
+		numTriples += myConverter.writeTriples(dataset, writer, rdfFormat, currentConfig.encoding);
+		writer.flush();
+		writer.close();
+    }
+	catch(Exception e) { 
+		ExceptionHandler.invoke(e, "Please check RML mappings.");
+	}
+
+    //Measure execution time
+    dt = System.currentTimeMillis() - t_start;
+    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, outputFile);
   }
 
 }

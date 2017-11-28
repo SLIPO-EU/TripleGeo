@@ -1,7 +1,7 @@
 /*
- * @(#) Configuration.java 	 version 1.2   24/3/2017
+ * @(#) Configuration.java 	 version 1.3   28/11/2017
  *
- * Copyright (C) 2013 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,11 @@
  */
 package eu.slipo.athenarc.triplegeo.utils;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import java.util.logging.Level;
 //import java.util.logging.Logger;
@@ -29,16 +32,19 @@ import java.util.logging.Level;
  *
  * @author jonathangsc
  * initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
- * Modified by: Kostas Patroumpas, 24/3/2017
+ * Last modified by: Kostas Patroumpas, 28/11/2017
  */
 public final class Configuration {
 
+  Assistant myAssistant;
   public String mode;
   public String inputFormat;
   public String path;
   public String inputFiles;
   public String tmpDir;
   public String outputDir;
+  public String mappingSpec;
+  public String classificationSpec;
   public String serialization;
   public String targetOntology;
   public String prefixFeatureNS = "georesource";
@@ -60,6 +66,8 @@ public final class Configuration {
   public String attrX;
   public String attrY;
   public char delimiter;
+  public char quote;
+  public String encoding;
   public String sourceCRS;
   public String targetCRS;
   public String dbType;
@@ -74,6 +82,7 @@ public final class Configuration {
   //Constructor
   public Configuration(String path) 
   {
+	myAssistant = new Assistant();
     this.path = path;
     buildConfiguration();
     
@@ -99,129 +108,159 @@ public final class Configuration {
    */
   private void initializeParameters(Properties properties) {
 	 
-	  //Conversion mode: (disk-based) GRAPH or (in-memory) STREAM
-	 if (!Assistant.isNullOrEmpty(properties.getProperty("mode"))) {
+	  //Conversion mode: (disk-based) GRAPH, (in-memory) STREAM, (in-memory) XSLT, or RML
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("mode"))) {
 		 mode = properties.getProperty("mode").trim();
 	 }
 	 
-	 //Format of input data: SHAPEFILE, DBMS, CSV, GPX
-	 if (!Assistant.isNullOrEmpty(properties.getProperty("inputFormat"))) {
+	 //Format of input data: SHAPEFILE, DBMS, CSV, GPX, GEOJSON, XML
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("inputFormat"))) {
 		 inputFormat = properties.getProperty("inputFormat").trim();
 	 }
 	 
 	 //File specification properties
-	 if (!Assistant.isNullOrEmpty(properties.getProperty("inputFiles"))) {
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("inputFiles"))) {
 		 inputFiles = properties.getProperty("inputFiles").trim();
 	 }
-	 if (!Assistant.isNullOrEmpty(properties.getProperty("outputDir"))) {
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("outputDir"))) {
 		 outputDir = properties.getProperty("outputDir").trim();
+		 //Append a trailing slash to this directory in order to correctly create the path to output files
+		 if ((outputDir.charAt(outputDir.length()-1)!=File.separatorChar) && (outputDir.charAt(outputDir.length()-1)!= '/'))
+ 			outputDir += "/";   //Always safe to use '/' instead of File.separator in any OS
 	 }
-	 if (!Assistant.isNullOrEmpty(properties.getProperty("tmpDir"))) {
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("tmpDir"))) {
 		 tmpDir = properties.getProperty("tmpDir").trim();
 	 }
+	 
+	 //Specification of mappings from input schema to RDF triples
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("mappingSpec"))) {
+		 mappingSpec = properties.getProperty("mappingSpec").trim();
+	 }
 
+	 //Specification for classification hierarchy into categories for entities
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("classificationSpec"))) {
+		 classificationSpec = properties.getProperty("classificationSpec").trim();
+	 }
+	 
 	 //Output RDF serialization property
-	 if (!Assistant.isNullOrEmpty(properties.getProperty("serialization"))) {
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("serialization"))) {
 		 serialization = properties.getProperty("serialization").trim();
 	 }
 	 
 	 //Spatial ontology of RDF geometries: GeoSPARQL, Virtuoso, or WGS84 Geoposition RDF vocabulary
-	 if (!Assistant.isNullOrEmpty(properties.getProperty("targetOntology"))) {
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("targetOntology"))) {
 		 targetOntology = properties.getProperty("targetOntology").trim();
 	 }
 	 
 	//Namespace specification properties
-    if (!Assistant.isNullOrEmpty(properties.getProperty("prefixFeatureNS"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("prefixFeatureNS"))) {
       prefixFeatureNS = properties.getProperty("prefixFeatureNS").trim();
     }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("nsFeatureURI"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("nsFeatureURI"))) {
       nsFeatureURI = properties.getProperty("nsFeatureURI").trim();
     }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("prefixGeometryNS"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("prefixGeometryNS"))) {
       prefixGeometryNS = properties.getProperty("prefixGeometryNS").trim();
     }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("nsGeometryURI"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("nsGeometryURI"))) {
       nsGeometryURI = properties.getProperty("nsGeometryURI").trim();
     }
     
     //Geometry type properties
-    if (!Assistant.isNullOrEmpty(properties.getProperty("pointType"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("pointType"))) {
       pointType = properties.getProperty("pointType").trim();
     }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("linestringType"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("linestringType"))) {
       lineStringType = properties.getProperty("linestringType").trim();
     }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("polygonType"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("polygonType"))) {
       polygonType = properties.getProperty("polygonType").trim();
     }
 
     //Feature and attribute properties
-    if (!Assistant.isNullOrEmpty(properties.getProperty("featureName"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("featureName"))) {
     	featureName = properties.getProperty("featureName").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("tableName"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("tableName"))) {
     	tableName = properties.getProperty("tableName").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("filterSQLCondition"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("filterSQLCondition"))) {
     	filterSQLCondition = properties.getProperty("filterSQLCondition").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("attrKey"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("attrKey"))) {
     	attrKey = properties.getProperty("attrKey").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("attrGeometry"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("attrGeometry"))) {
     	attrGeometry = properties.getProperty("attrGeometry").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("attrCategory"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("attrCategory"))) {
     	attrCategory = properties.getProperty("attrCategory").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("attrName"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("attrName"))) {
     	attrName = properties.getProperty("attrName").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("valIgnore"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("valIgnore"))) {
     	valIgnore = properties.getProperty("valIgnore").trim();
       }
    
     //CSV specification properties
-	if (!Assistant.isNullOrEmpty(properties.getProperty("delimiter"))) {
-        delimiter = properties.getProperty("delimiter").trim().charAt(0);
+	if (!myAssistant.isNullOrEmpty(properties.getProperty("delimiter"))) {
+        delimiter = properties.getProperty("delimiter").charAt(0);
       }
-	if (!Assistant.isNullOrEmpty(properties.getProperty("attrX"))) {
+	if (!myAssistant.isNullOrEmpty(properties.getProperty("quote"))) {
+        quote = properties.getProperty("quote").trim().charAt(0);
+      }	
+	if (!myAssistant.isNullOrEmpty(properties.getProperty("attrX"))) {
         attrX = properties.getProperty("attrX").trim();
       }
-	if (!Assistant.isNullOrEmpty(properties.getProperty("attrY"))) {
+	if (!myAssistant.isNullOrEmpty(properties.getProperty("attrY"))) {
         attrY = properties.getProperty("attrY").trim();
       }
 	
+	//Encoding of data values
+	encoding = StandardCharsets.UTF_8.name();                   //Default encoding
+	if (!myAssistant.isNullOrEmpty(properties.getProperty("encoding"))) {
+		if (Charset.isSupported(properties.getProperty("encoding").trim()))
+			encoding = Charset.forName(properties.getProperty("encoding").trim()).name();
+		else
+			System.err.println("Specified encoding " + properties.getProperty("encoding").trim() + " is not recognized.");
+      }	
+	else
+		System.out.print("No encoding specified. Utilizing default ");
+	
+	System.out.println("Encoding: " + encoding);
+	
+	
 	//Spatial reference system transformation properties
-    if (!Assistant.isNullOrEmpty(properties.getProperty("sourceCRS"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("sourceCRS"))) {
     	sourceCRS = properties.getProperty("sourceCRS").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("targetCRS"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("targetCRS"))) {
     	targetCRS = properties.getProperty("targetCRS").trim();
       }
     
     //Database connection properties
-    if (!Assistant.isNullOrEmpty(properties.getProperty("dbType"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("dbType"))) {
     	dbType = properties.getProperty("dbType").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("dbName"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("dbName"))) {
     	dbName = properties.getProperty("dbName").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("dbUserName"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("dbUserName"))) {
     	dbUserName = properties.getProperty("dbUserName").trim();
       }    
-    if (!Assistant.isNullOrEmpty(properties.getProperty("dbPassword"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("dbPassword"))) {
     	dbPassword = properties.getProperty("dbPassword").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("dbHost"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("dbHost"))) {
     	dbHost = properties.getProperty("dbHost").trim();
       }
-    if (!Assistant.isNullOrEmpty(properties.getProperty("dbPort"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("dbPort"))) {
     	dbPort = Integer.parseInt(properties.getProperty("dbPort"));
       }
    
     //Language specification property
-    if (!Assistant.isNullOrEmpty(properties.getProperty("defaultLang"))) {
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("defaultLang"))) {
         defaultLang = properties.getProperty("defaultLang").trim();
       }
     

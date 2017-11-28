@@ -9,8 +9,8 @@
 <!-- Project: GeoKnow, http://geoknow.eu                                     -->
 <!-- Institute for the Management of Information Systems, Athena R.C.        -->
 <!-- Author: Kostas Patroumpas, mailto:kpatro@dblab.ece.ntua.gr              -->
-<!-- Version: 0.8                                                            -->
-<!-- Last update: 7/4/2014                                                  -->
+<!-- Version: 0.9                                                            -->
+<!-- Last update: 18/10/2017                                                  -->
 <!-- ======================================================================= -->
 <xsl:stylesheet version="2.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 	
@@ -109,9 +109,9 @@
 	</xsl:template>
 	
 	<!-- CAUTION: Call to template for "gml:srsName" must be placed in one of the two possible places: either (a) or (b) -->
-	<xsl:template match="gml:MultiPolygon">
+	<xsl:template match="gml:MultiPolygon|gml:Surface">
 	    <xsl:call-template name="gml:srsName"/>                         <!-- (a) SRS is specified in the MultiPolygon element -->
-		<xsl:for-each select="gml:polygonMember//gml:Polygon">
+		<xsl:for-each select="gml:polygonMember//gml:Polygon|gml:patches//gml:PolygonPatch">
 			<xsl:choose>
 				<xsl:when test="not(position()=1)">
 					<xsl:text>,</xsl:text>

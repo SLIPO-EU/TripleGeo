@@ -1,0 +1,104 @@
+@prefix rr: <http://www.w3.org/ns/r2rml#>.
+@prefix rml: <http://semweb.mmlab.be/ns/rml#>.
+@prefix ql: <http://semweb.mmlab.be/ns/ql#>.
+@prefix slipo: <http://slipo.eu/def#>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix rdfs: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix geo: <http://www.opengis.net/ont/geosparql#>.
+@prefix sf: <http://www.opengis.net/ont/sf#>.
+@prefix wgs84_pos: <http://www.w3.org/2003/01/geo/wgs84_pos#>.
+
+<#POIMapping>
+  rml:logicalSource [
+    rml:source "" ;
+    rml:referenceFormulation ql:CSV 
+  ];
+  rr:subjectMap [
+    rr:template "http://slipo.eu/id/poi/{OSM_ID}";
+    rr:class slipo:POI;
+	rr:class geo:Feature
+  ];
+
+    rr:predicateObjectMap [
+    rr:predicate slipo:name;
+    rr:objectMap [
+      rr:parentTriplesMap <#POIName>
+	  ]
+    ];
+
+  rr:predicateObjectMap [
+    rr:predicate slipo:category;
+    rr:objectMap [
+      rr:parentTriplesMap <#POITerm>
+	  ]
+    ];
+	
+	rr:predicateObjectMap [
+    rr:predicate geo:hasGeometry;
+    rr:objectMap [
+      rr:parentTriplesMap <#POIGeometry>
+	  ]
+	].
+
+	
+<#POIName>
+  rml:logicalSource [
+    rml:source "" ;
+    rml:referenceFormulation ql:CSV 
+  ];
+  rr:subjectMap [
+    rr:template "http://slipo.eu/id/poi/{OSM_ID}/name";
+    rr:class slipo:Name
+  ];
+  
+  rr:predicateObjectMap [
+    rr:predicate slipo:nameLang;
+    rr:objectMap [
+      rr:constant "en"
+      ]
+    ];
+	
+  rr:predicateObjectMap [
+    rr:predicate slipo:nameValue;
+    rr:objectMap [
+      rml:reference "NAME";
+	  rr:language "en";
+	  rr:termType rr:Literal
+      ]
+    ]. 
+	
+<#POITerm>
+  rml:logicalSource [
+    rml:source "" ;
+    rml:referenceFormulation ql:CSV 
+  ];
+  rr:subjectMap [
+    rr:template "http://slipo.eu/id/term/{OSM_ID}";
+    rr:class slipo:Term
+  ];
+ 
+  rr:predicateObjectMap [
+    rr:predicate slipo:termValue;
+    rr:objectMap [
+      rml:reference "CATEGORY"
+      ]
+    ]. 
+	
+	
+<#POIGeometry>
+  rml:logicalSource [
+    rml:source "" ;
+    rml:referenceFormulation ql:CSV 
+  ];
+  rr:subjectMap [
+    rr:template "http://slipo.eu/id/poi/{OSM_ID}/geometry";
+    rr:class sf:Geometry 
+  ];
+ 
+  rr:predicateObjectMap [
+    rr:predicate geo:asWKT;
+    rr:objectMap [
+      rml:reference "WKT";
+	  rr:datatype geo:wktLiteral
+      ]
+    ]. 

@@ -1,7 +1,7 @@
 /*
- * @(#) Connector.java	version 1.2   16/3/2017
+ * @(#) Connector.java	version 1.3   16/3/2017
  *
- * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

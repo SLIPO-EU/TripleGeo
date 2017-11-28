@@ -1,7 +1,7 @@
 /*
- * @(#) StreamConverter.java 	 version 1.2   2/8/2017
+ * @(#) StreamConverter.java 	 version 1.3   8/11/2017
  *
- * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
  */
 package eu.slipo.athenarc.triplegeo.utils;
 
+import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.jena.datatypes.RDFDatatype;
@@ -31,12 +34,17 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
+import org.openrdf.rio.RDFFormat;
+
+import be.ugent.mmlab.rml.model.dataset.RMLDataset;
 
 
 /**
  * Provides a set of a streaming RDF triples in memory that can be readily serialized into a file.
  * Created by: Kostas Patroumpas, 9/3/2013
- * Modified by: Kostas Patroumpas, 2/8/2017
+ * Modified by: Kostas Patroumpas, 27/9/2017
+ * Modified: 8/11/2017, added support for system exit codes on abnormal termination
+ * Last modified: 22/11/2017
  */
 
 public class StreamConverter implements Converter {
@@ -47,6 +55,7 @@ public class StreamConverter implements Converter {
 
 		  /*
 		   * Constructs a Stream Converter Object.
+		   * @param config - User-specified configuration for the transformation process.
 		   */
 		  public StreamConverter(Configuration config) {
 		    super();
@@ -65,7 +74,23 @@ public class StreamConverter implements Converter {
 			  return null;
 		  }
 
+		  //Used only when applying RML mapping(s)
+			public int writeTriples(RMLDataset dataset, BufferedWriter writer, RDFFormat rdfFormat, String encoding) throws IOException {
+				return 0;
+			}
 		  
+		  //Used only when applying RML mapping(s)
+//		  public void initDataset() {}
+			
+		  //Used only when applying RML mapping(s)
+		  public void parseWithRML(HashMap<String, String> row, RMLDataset dataset) {}
+		  
+		  //Used only when applying RML mapping(s)
+		  public String getURItemplate4Classification() 
+		  {
+			  return null;
+		   }
+			
 		    /**
 		     * 
 		     * Handling non-spatial attributes (CURRENTLY supporting 'name' and 'type' attributes only)
@@ -114,7 +139,9 @@ public class StreamConverter implements Converter {
 		  	         
 		  	        }
 		  	    }
-		  	    catch(Exception e) { e.printStackTrace(); }
+		  	    catch(Exception e) { 
+		  	    	ExceptionHandler.invoke(e, " An error occurred when attempting transformation of a thematic attribute value.");
+		  	    }
 		  	    
 		  }
 
@@ -151,7 +178,7 @@ public class StreamConverter implements Converter {
 		        		currentConfig.nsGeometryURI + Constants.FEATURE));
 		        
 		      } catch (Exception e) {
-		    	  e.printStackTrace();
+		    	  ExceptionHandler.invoke(e, " An error occurred during transformation of a geometry.");
 		      }
 
 		    }

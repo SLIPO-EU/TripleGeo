@@ -1,7 +1,7 @@
 /*
- * @(#) UtilsConstants.java 	 version 1.2   9/4/2017
+ * @(#) UtilsConstants.java 	 version 1.3   28/11/2017
  *
- * Copyright (C) 2013 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ package eu.slipo.athenarc.triplegeo.utils;
  * @author jonathangsc
  * initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
  * @version 2nd February 2012.
- * Modified by: Kostas Patroumpas, 9/4/2017
+ * Modified by: Kostas Patroumpas, 28/11/2017
  */
 public class Constants {
 
@@ -46,14 +46,15 @@ public class Constants {
   public static final int POSTGIS = 3;
   public static final int DB2 = 4;
   public static final int SQLSERVER = 5;
+  public static final int SPATIALITE = 6;
 
   // DB Drivers
   public static final String[] DRIVERS =
     {"sun.jdbc.odbc.JdbcOdbcDriver", "com.mysql.jdbc.Driver", "oracle.jdbc.driver.OracleDriver", 
-     "org.postgresql.Driver", "com.ibm.db2.jcc.DB2Driver", "com.microsoft.sqlserver.jdbc.SQLServerDriver"};
+     "org.postgresql.Driver", "com.ibm.db2.jcc.DB2Driver", "com.microsoft.sqlserver.jdbc.SQLServerDriver", "org.sqlite.JDBC"};
 
-  //public static final String[] DBMS = {"MSACCESS", "MYSQL", "ORACLE", "POSTGIS", "DB2", "MSSQLSERVER"};
-  public static final String[] BASE_URL = {"jdbc:odbc:", "jdbc:mysql:", "jdbc:oracle:thin:", "jdbc:postgresql:", "jdbc:db2:", "jdbc:sqlserver:"};
+  //public static final String[] DBMS = {"MSACCESS", "MYSQL", "ORACLE", "POSTGIS", "DB2", "MSSQLSERVER", "SPATIALITE"};
+  public static final String[] BASE_URL = {"jdbc:odbc:", "jdbc:mysql:", "jdbc:oracle:thin:", "jdbc:postgresql:", "jdbc:db2:", "jdbc:sqlserver:", "jdbc:sqlite:"};
 
 	
   //Alias for most common namespaces
@@ -83,7 +84,9 @@ public class Constants {
   public static final String NAME = "name";
   public static final String TYPE = "type";
   
-  public static final String COPYRIGHT = "*********************************************************************\n*                      TripleGeo version 1.2                        *\n* Developed by the Institute for Management of Information Systems. *\n* Copyright (C) 2013-2017 Athena Research Center, Greece.           *\n* This program comes with ABSOLUTELY NO WARRANTY.                   *\n* This is FREE software, distributed under GPL license.             *\n* You are welcome to redistribute it under certain conditions       *\n* as mentioned in the accompanying LICENSE file.                    *\n*********************************************************************\n";
+  public static final String COPYRIGHT = "*********************************************************************\n*                      TripleGeo version 1.3                        *\n* Developed by the Information Systems Management Institute.        *\n* Copyright (C) 2013-2017 Athena Research Center, Greece.           *\n* This program comes with ABSOLUTELY NO WARRANTY.                   *\n* This is FREE software, distributed under GPL license.             *\n* You are welcome to redistribute it under certain conditions       *\n* as mentioned in the accompanying LICENSE file.                    *\n*********************************************************************\n";
+  public static final String RML_COPYRIGHT = "NOTICE: TripleGeo makes use of RML processing modules (http://rml.io/) under MIT license; Copyright (c) 2013-2017, Ghent University-iMinds-Multimedia Lab.";
+  public static final String OSMPOISPBF_COPYRIGHT = "NOTICE: TripleGeo employs OSM filters specified by the OsmPoisPbf tool (https://github.com/MorbZ/OsmPoisPbf) under GPL license; Copyright (c) 2012-2015, Merten Peetz.";
   public static final String INCORRECT_CONFIG = "Incorrect number of arguments. A properties file with proper configuration settings is required.";
   public static final String INCORRECT_SETTING = "Incorrect or no value set for at least one parameter. Please specify a correct value in the configuration settings.";
   public static final String INCORRECT_DBMS = "Incorrect or no value set for the DBMS where input data is stored. Please specify a correct value in the configuration settings.";

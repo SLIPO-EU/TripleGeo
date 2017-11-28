@@ -21,35 +21,28 @@ How to use TripleGeo:
 <li> <i>Special note on JDBC drivers for database connections:</i> In case you wish to extract data from a geospatially-enabled DBMS (e.g., PostGIS), either you have to include the respective <code>.jar</code> (e.g., <code>postgresql-9.4-1206-jdbc4.jar</code>) in the classpath at runtime or to specify the respective dependency in the <code>.pom</code> and then rebuild the application. </li>
 <li> <i>Special note on manual installation of a JDBC driver for Oracle DBMS:</i> Due to Oracle license restrictions, there are no public repositories that provide <code>ojdbc7.jar</code> (or any other Oracle JDBC driver) for enabling JDBC connections to an Oracle database. You need to download it and install in your local repository. Get this jar from <a href="https://blogs.oracle.com/dev2dev/get-oracle-jdbc-drivers-and-ucp-from-oracle-maven-repository-without-ides">Oracle</a> and install it in your local maven repository using:<br/>
 <code>
-mvn install:install-file -Dfile=/<YOUR_LOCAL_DIR>/ojdbc7.jar -DgroupId=com.oracle -DartifactId=ojdbc7 -Dversion=12.1.0.1 -Dpackaging=jar</code></li>
+mvn install:install-file -Dfile=/<*YOUR_LOCAL_DIR*>/ojdbc7.jar -DgroupId=com.oracle -DartifactId=ojdbc7 -Dversion=12.1.0.1 -Dpackaging=jar</code></li>
+<li> Starting from version 1.3, TripleGeo includes support for custom transformation of thematic attributes according to <a href="http://rml.io/">RDF Mapping language (RML)</a>. In order to enable RML conversion mode, you need to install <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/lib/RML-Mapper.jar">RML-Mapper.jar</a> specially prepared for TripleGeo execution in your local maven repository using:<br/>
+<code>
+mvn install:install-file -Dfile=/<*YOUR_LOCAL_DIR*>/RML-Mapper.jar DgroupId=be.ugent.mmlab.rml -DartifactId=rml-mapper -Dversion=0.3 -Dpackaging=jar</code></li>
+
 <li>
-Building with maven:<br/>
+Building the application with maven:<br/>
 <code>mvn clean package</code><br/>
-results into a <code>triplegeo-1.2-SNAPSHOT.jar</code> under directory <code>target</code> according to what has been specified in the <code>pom.xml</code> file.
+results into a <code>triplegeo-1.3-SNAPSHOT.jar</code> under directory <code>target</code> according to what has been specified in the <code>pom.xml</code> file.
 </li>
-<li>The current distribution comes with dummy configuration templates <code>file_options.conf</code> for geographical files (ESRI shapefiles, CSV, GPX, etc.) and <code>dbms_options.conf</code> for database contents (from PostGIS, Oracle Spatial, etc.). These files contain indicative values for the most important properties when accessing data from geographical files or a spatial DBMS. Self-contained brief instructions can guide you into the extraction process.</li>
+<li>The current distribution comes with dummy configuration templates <code>file_options.conf</code> for geographical files (ESRI shapefiles, CSV, GPX, KML, etc.) and <code>dbms_options.conf</code> for database contents (from PostGIS, Oracle Spatial, etc.). These files contain indicative values for the most important properties when accessing data from geographical files or a spatial DBMS. Self-contained brief instructions can guide you into the extraction process.</li>
 <li>Run the jar file from the command line:</li>
 <ul>
-<li>In case that triples will be extracted from a geographical file (e.g., ESRI shapefiles) as specified in the user-defined configuration file in <code>./test/conf/shp_options.conf</code>, and assuming that binaries are bundled together in <code>/target/triplegeo-1.2-SNAPSHOT.jar</code>, give a command like this:</br>
-<code>java -cp ./target/triplegeo-1.2-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Executor ./test/conf/shp_options.conf</code></li>
+<li>In case that triples will be extracted from a geographical file (e.g., ESRI shapefiles) as specified in the user-defined configuration file in <code>./test/conf/shp_options.conf</code>, and assuming that binaries are bundled together in <code>/target/triplegeo-1.3-SNAPSHOT.jar</code>, give a command like this:</br>
+<code>java -cp ./target/triplegeo-1.3-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Executor ./test/conf/shp_options.conf</code></li>
 <li>If triples will be extracted from a geospatially-enabled DBMS (e.g., PostGIS), the command is essentially the same, but it specifies a suitable configuration file <code>./test/conf/PostGIS_options.conf</code> with all information required to connect and extract data from the DBMS, as well as runtime linking to the JDBC driver for enabling connections to PostgreSQL (assuming that this JDBC driver is located at <code>./lib/postgresql-9.4-1206-jdbc4.jar</code>):</br>
-<code>java -cp ./lib/postgresql-9.4-1206-jdbc4.jar;./target/triplegeo-1.2-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Executor ./test/conf/PostGIS_options.conf</code></li>
+<code>java -cp ./lib/postgresql-9.4-1206-jdbc4.jar;./target/triplegeo-1.3-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Executor ./test/conf/PostGIS_options.conf</code></li>
+<li>TripleGeo supports data in GML (Geography Markup Language) and KML (Keyhole Markup Language). It can also handle INSPIRE-aligned GML data for seven Data Themes (Annex I), as well as INSPIRE-aligned geospatial metadata. Any such transformation is performed via XSLT, as specified in the respective configuration settings (e.g., <code>./test/conf/KML_options.conf</code>) as follows:</br>
+<code>java -cp ./target/triplegeo-1.3-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Executor ./test/conf/KML_options.conf</code></li>
 </ul>
 <li>Wait until the process gets finished, and verify that the resulting output file is according to your specifications.</li>
 </ul>
-
-<p>TripleGeo also supports GML datasets aligned to EU INSPIRE Directive. In this case, no configuration file need be specified, as this process is controlled via XSLT. More specifically, TripleGeo can transform into RDF triples geometries available in GML (Geography Markup Language) and KML (Keyhole Markup Language). It can also handle INSPIRE-aligned GML data for seven Data Themes (Annex I), as well as INSPIRE-aligned geospatial metadata. Assuming that binaries are bundled together in <code>/target/triplegeo-1.2-SNAPSHOT.jar</code>, you may transform such datasets as follows:</p>
-<ul>
-<li>In case that triples will be extracted from a GML file, give a command like this:</br>
-<code>java -cp ./target/triplegeo-1.2-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.tools.GmlToRdf input.gml output.rdf </code></li>
-<li>In case that triples will be extracted from a KML file, give a command like this:</br>
-<code>java -cp ./target/triplegeo-1.2-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.tools.KmlToRdf input.kml output.rdf </code></li>
-<li>In case that triples will be extracted from a XML file with <b>INSPIRE-aligned metadata</b>, give a command like this:</br>
-<code>java -cp ./target/triplegeo-1.2-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.tools.MetadataToRdf input.xml output.rdf </code></li>
-<li>In case that triples will be extracted from a GML file with <b>INSPIRE-aligned data</b>, you must first configure XSL stylesheet <code>Inspire_main.xsl</code> with specific parameters and then give a command like this:</br>
-<code>java -cp ./target/triplegeo-1.2-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.tools.InspireToRdf input.gml output.rdf </code></li>
-</ul>
-
 
 <p>Indicative configuration files for several cases are available <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/conf/">here</a> in order to assist you when preparing your own.</p>
 

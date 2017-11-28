@@ -1,7 +1,7 @@
 /*
- * @(#) ModelConverter.java 	 version 1.2   2/8/2017
+ * @(#) ModelConverter.java 	 version 1.3   24/11/2017
  *
- * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
  */
 package eu.slipo.athenarc.triplegeo.utils;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.jena.graph.Triple;
@@ -33,12 +36,17 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.tdb.TDBFactory;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
+import org.openrdf.rio.RDFFormat;
+
+import be.ugent.mmlab.rml.model.dataset.RMLDataset;
 
 
 /**
  * Creates and populates a RDF model on disk so that data can be serialized into a file.
  * Created by: Kostas Patroumpas, 16/2/2013
- * Modified by: Kostas Patroumpas, 2/8/2017
+ * Modified by: Kostas Patroumpas, 27/9/2017
+ * Modified: 8/11/2017, added support for system exit codes on abnormal termination
+ * Last modified: 24/11/2017
  */
 public class GraphConverter implements Converter {
 
@@ -47,10 +55,9 @@ public class GraphConverter implements Converter {
 	public Model model;
 
 		  /*
-		   * Constructs aStreamVonverter Object.
+		   * Constructs a GraphConverter object.
 		   *
-		   * @param string - String with the path where the model will be written on disk.
-
+		   * @param config - User-specified configuration for the transformation process.
 		   */
 		  public GraphConverter(Configuration config) {
 			  
@@ -59,7 +66,8 @@ public class GraphConverter implements Converter {
 		      currentConfig = config;       //Configuration parameters as set up by the various conversion utilities (CSV, SHP, DB, etc.)  
 
 		      //Remove any previously created files in the temporary directory
-		      String dir = Assistant.removeDirectory(currentConfig.tmpDir);
+		      Assistant myAssistant = new Assistant();
+		      String dir = myAssistant.removeDirectory(currentConfig.tmpDir);
 		      File f = new File(dir);	      
 		      f.mkdir();
 
@@ -93,6 +101,24 @@ public class GraphConverter implements Converter {
 			  
 		  }
 
+		  //Used only when applying RML mapping(s)
+			public int writeTriples(RMLDataset dataset, BufferedWriter writer, RDFFormat rdfFormat, String encoding) throws IOException {
+				return 0;
+			}
+		  
+		  //Used only when applying RML mapping(s)
+		  public void parseWithRML(HashMap<String, String> row, RMLDataset dataset) {}
+		
+		  //Used only when applying RML mapping(s)
+		  public String getURItemplate4Classification() 
+		  {
+			  return null;
+		   }
+		  
+		  //Used only when applying RML mapping(s)
+//		  public void initDataset() {}
+		  
+		  
 		    /**
 		     * 
 		     * Handling non-spatial attributes (CURRENTLY supporting 'name' and 'type' attributes only)
@@ -140,7 +166,9 @@ public class GraphConverter implements Converter {
 		  	          }
 		  	        }
 		  	    }
-		  	    catch(Exception e) { e.printStackTrace(); }
+		  	    catch(Exception e) { 
+		  	    	ExceptionHandler.invoke(e, " An error occurred when attempting transformation of a thematic attribute value.");
+		  	    }
 
 		  }
 
@@ -177,7 +205,7 @@ public class GraphConverter implements Converter {
 		        		currentConfig.nsGeometryURI + Constants.FEATURE);
 		        
 		      } catch (Exception e) {
-		    	  e.printStackTrace();
+		    	  ExceptionHandler.invoke(e, " An error occurred during transformation of a geometry.");
 		      }
 
 		    }
@@ -332,5 +360,6 @@ public class GraphConverter implements Converter {
 		      this.model.add(resource1, RDFS.label, this.model.createLiteral(label, currentConfig.defaultLang));
 		     
 		    }
+
 
 }

@@ -1,7 +1,7 @@
 /*
- * @(#) Executor.java	version 1.2   26/7/2017
+ * @(#) Executor.java	version 1.3   28/11/2017
  *
- * Copyright (C) 2013-2017 Institute for the Management of Information Systems, Athena RC, Greece.
+ * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,36 +24,43 @@ import eu.slipo.athenarc.triplegeo.tools.GpxToRdf;
 import eu.slipo.athenarc.triplegeo.tools.RdbToRdf;
 import eu.slipo.athenarc.triplegeo.tools.ShpToRdf;
 import eu.slipo.athenarc.triplegeo.tools.OsmToRdf;
+import eu.slipo.athenarc.triplegeo.utils.Assistant;
+import eu.slipo.athenarc.triplegeo.utils.Classification;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
 import eu.slipo.athenarc.triplegeo.utils.Constants;
+import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
  * Running a transformation task under the given configuration settings
  * @author Kostas Patroumpas
  * Created by: Kostas Patroumpas, 23/3/2017
- * Last modified by: Kostas Patroumpas, 26/7/2017
+ * Modified by: Kostas Patroumpas, 18/10/2017
+ * Modified: 8/11/2017, added support for system exit codes on abnormal termination
+ * Modified: 21/11/2017, added support for user-specified classification schemes for shapefiles, CSV, and DBMS data sources 
+ * Last modified by: Kostas Patroumpas, 28/11/2017
  */
 public class Task {
 
 	private String currentFormat;	
-	
-	public Task(Configuration config, String inFile, String outFile, int sourceSRID, int targetSRID) {
+	Assistant myAssistant;
 
-    	currentFormat = config.inputFormat.toUpperCase();           //Possible values: SHAPEFILE, DBMS, CSV, GPX, GEOJSON
+	public Task(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) {
+
+    	currentFormat = config.inputFormat.toUpperCase();           //Possible values: SHAPEFILE, DBMS, CSV, GPX, GEOJSON, OSM, XML
     	//System.out.println("Transforming " + inFile + " from " + currentFormat + " into " + outFile);
     	
         try {		
 			//Apply data transformation according to the given input format
 			if (currentFormat.trim().contains("SHAPEFILE")) {
-				ShpToRdf conv = new ShpToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+				ShpToRdf conv = new ShpToRdf(config, classific, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("DBMS")) {
-				RdbToRdf conv = new RdbToRdf(config, outFile, sourceSRID, targetSRID);
+				RdbToRdf conv = new RdbToRdf(config, classific, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("CSV")) {			
-				CsvToRdf conv = new CsvToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+				CsvToRdf conv = new CsvToRdf(config, classific, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("GPX")) {
@@ -61,19 +68,24 @@ public class Task {
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("GEOJSON")) {
-				GeoJsonToRdf conv = new GeoJsonToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+				GeoJsonToRdf conv = new GeoJsonToRdf(config, classific, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("OSM")) {
 				OsmToRdf conv = new OsmToRdf(config, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
-			else
-			{
-				System.err.println(Constants.INCORRECT_SETTING);
-			}			
+			else if (currentFormat.trim().contains("XML")) {   //This includes INSPIRE data (GML) and metadata (XML), as well as GML and KML files
+				String fileXSLT = config.mappingSpec;          //Predefined XSLT stylesheet to be applied in transformation
+				myAssistant =  new Assistant();
+				myAssistant.saxonTransform(inFile, fileXSLT, outFile);
+			}	
+			else {
+				throw new IllegalArgumentException(Constants.INCORRECT_SETTING);
+			}
+				
         } catch (Exception e) {
-			e.printStackTrace();
+        	ExceptionHandler.invoke(e, Constants.INCORRECT_SETTING);      //Execution terminated abnormally
 		}
 	}   
 
