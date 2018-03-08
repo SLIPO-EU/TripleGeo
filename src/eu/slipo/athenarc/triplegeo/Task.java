@@ -1,7 +1,7 @@
 /*
- * @(#) Executor.java	version 1.3   28/11/2017
+ * @(#) Executor.java	version 1.4   24/2/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,21 +31,34 @@ import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
- * Running a transformation task under the given configuration settings
+ * Running a transformation task as a separate thread under the given configuration settings.
  * @author Kostas Patroumpas
+ * @version 1.4
+ */
+
+/* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 23/3/2017
  * Modified by: Kostas Patroumpas, 18/10/2017
  * Modified: 8/11/2017, added support for system exit codes on abnormal termination
  * Modified: 21/11/2017, added support for user-specified classification schemes for shapefiles, CSV, and DBMS data sources 
- * Last modified by: Kostas Patroumpas, 28/11/2017
+ * Last modified by: Kostas Patroumpas, 24/2/2018
  */
 public class Task {
 
 	private String currentFormat;	
 	Assistant myAssistant;
 
-	public Task(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) {
-
+	/**
+	 * Constructor for a transformation task that will be executed at a separate thread.
+	 * @param config  Parameters to configure the transformation.
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
+	 * @param inFile  Path to input data source file.
+	 * @param outFile  Path to the output file that collects RDF triples.
+	 * @param sourceSRID  Spatial reference system (EPSG code) of the input shapefile.
+	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
+	 */
+	public Task(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) 
+	{
     	currentFormat = config.inputFormat.toUpperCase();           //Possible values: SHAPEFILE, DBMS, CSV, GPX, GEOJSON, OSM, XML
     	//System.out.println("Transforming " + inFile + " from " + currentFormat + " into " + outFile);
     	
@@ -85,7 +98,7 @@ public class Task {
 			}
 				
         } catch (Exception e) {
-        	ExceptionHandler.invoke(e, Constants.INCORRECT_SETTING);      //Execution terminated abnormally
+        	ExceptionHandler.abort(e, Constants.INCORRECT_SETTING);      //Execution terminated abnormally
 		}
 	}   
 

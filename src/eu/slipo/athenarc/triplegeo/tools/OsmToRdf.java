@@ -1,7 +1,7 @@
 /*
- * @(#) OsmToRdf.java	version 1.3   28/11/2017
+ * @(#) OsmToRdf.java	version 1.4   28/2/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +19,11 @@
 package eu.slipo.athenarc.triplegeo.tools;
 
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -31,9 +31,12 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import org.apache.jena.riot.RDFFormat;
-import org.apache.jena.riot.system.StreamRDF;
-import org.apache.jena.riot.system.StreamRDFWriter;
+import org.geotools.factory.Hints;
+import org.geotools.referencing.CRS;
+import org.geotools.referencing.ReferencingFactoryFinder;
+import org.opengis.referencing.crs.CRSAuthorityFactory;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.MathTransform;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -47,6 +50,8 @@ import com.vividsolutions.jts.geom.LinearRing;
 import com.vividsolutions.jts.geom.MultiPolygon;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.Polygon;
+import com.vividsolutions.jts.geom.PrecisionModel;
+import com.vividsolutions.jts.io.WKTReader;
 import com.vividsolutions.jts.operation.linemerge.LineMerger;
 
 import eu.slipo.athenarc.triplegeo.osm.OSMFilter;
@@ -66,124 +71,185 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 
 
 /**
- * Entry point to convert OpenStreetMap (OSM) XML files into RDF triples.
- * CAUTION: Current limitation in the transformation process: due to in-memory indexing of OSM features, this process can handle only a moderate amount of OSM features. 
+ * Entry point to convert OpenStreetMap (OSM) XML files into RDF triples using Saxon XSLT.
+ * LIMITATIONS: - Due to in-memory indexing of OSM features, transformation can handle only a moderate amount of OSM features depending on system and JVM resources.
+ *              - RML transformation mode not supported. 
  * @author Kostas Patroumpas
+ * @version 1.4
+ */
+
+/* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 19/4/2017
- * Modified: 3/11/2017, added support for system exit codes on abnormal termination
- * Last modified by: Kostas Patroumpas, 28/11/2017
+ * Modified: 7/9/2017; added filters for tags in order to assign categories to extracted OSM features according to a user-specified classification scheme (defined in an extra YML file).
+ * Modified: 3/11/2017; added support for system exit codes on abnormal termination
+ * Modified: 19/12/2017; reorganized collection of triples using TripleGenerator
+ * Modified: 24/1/2018; included auto-generation of UUIDs for the URIs of features
+ * Modified: 7/2/2018; added support for exporting all available non-spatial attributes as properties
+ * Modified: 12/2/2018; added support for reprojection to another CRS
+ * Modified: 13/2/2018; handling incomplete OSM relations in a second pass after the XML file is parsed in its entirety
+ * TODO: Emit RDF triples regarding the classification scheme utilized in assigning categories to OSM elements.
+ * Last modified by: Kostas Patroumpas, 28/2/2018
  */
 public class OsmToRdf extends DefaultHandler {
 
 	  Converter myConverter;
 	  Assistant myAssistant;
-	  public int sourceSRID;                //Source CRS according to EPSG 
-	  public int targetSRID;                //Target CRS according to EPSG
+	  private MathTransform reproject = null;
+	  int sourceSRID;                       //Source CRS according to EPSG 
+	  int targetSRID;                       //Target CRS according to EPSG
 	  private Configuration currentConfig;  //User-specified configuration settings
-	  private String inputFile;             //Input OSM file
+	  private String inputFile;             //Input OSM XML file
 	  private String outputFile;            //Output RDF file
 	
-	  private boolean modeStream = false;   //Indicates that a stream-based (in-memory) conversion to RDF will be employed
-	  StreamRDF stream;                     //Used in the stream-based (in-memory) conversion to RDF
-  
-	    int numRec;
-	    int numTriples;
-	    long numNodes;
-	    long numWays;
-	    long numRelations;
-	    long numNamedEntities;
+	  //Initialize a CRS factory for possible reprojections
+	  private static final CRSAuthorityFactory crsFactory = ReferencingFactoryFinder
+		       .getCRSAuthorityFactory("EPSG", new Hints(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE));
+	  
+	  long numNodes;
+	  long numWays;
+	  long numRelations;
+	  long numNamedEntities;
 
-	    private GeometryFactory geometryFactory = new GeometryFactory();
+	  private GeometryFactory geometryFactory = new GeometryFactory();
 	    
-	    //Using Native Java objects for in-memory maintenance of dictionaries
-	    private Map<String, Geometry> nodeIndex;      //Dictionary containing OSM IDs as keys and the corresponding geometries of OSMNode objects   
-	    private Map<String, Geometry> wayIndex;       //Dictionary containing OSM IDs as keys and the corresponding geometries of OSMWay objects    
-	    private Map<String, Geometry> relationIndex;  //Dictionary containing OSM IDs as keys and the corresponding geometries of OSMRelation objects
+	  //Using Native Java objects for in-memory maintenance of dictionaries
+	  private Map<String, Geometry> nodeIndex;      //Dictionary containing OSM IDs as keys and the corresponding geometries of OSMNode objects   
+	  private Map<String, Geometry> wayIndex;       //Dictionary containing OSM IDs as keys and the corresponding geometries of OSMWay objects    
+	  private Map<String, Geometry> relationIndex;  //Dictionary containing OSM IDs as keys and the corresponding geometries of OSMRelation objects
 
-	    private OSMNode nodeTmp;                             //the current OSM node object
-	    private OSMWay wayTmp;                               //the current OSM way object
-	    private OSMRelation relationTmp;                     //the current OSM relation object
+	  private List<OSMRelation> incompleteRelations;
 	    
-	    private static List<OSMFilter> filters;              //Parser for a file with filters for assigning categories to OSM features
+	  private OSMNode nodeTmp;                             //the current OSM node object
+	  private OSMWay wayTmp;                               //the current OSM way object
+	  private OSMRelation relationTmp;                     //the current OSM relation object
 	    
-	    private boolean inWay = false;                       //when parser is in a way node becomes true in order to track the parser position 
-	    private boolean inNode = false;                      //becomes true when the parser is in a simple node        
-	    private boolean inRelation = false;                  //becomes true when the parser is in a relation node
+	  private static List<OSMFilter> filters;              //Parser for a file with filters for assigning categories to OSM features
+	    
+	  private boolean inWay = false;                       //when parser is in a way node becomes true in order to track the parser position 
+	  private boolean inNode = false;                      //becomes true when the parser is in a simple node        
+	  private boolean inRelation = false;                  //becomes true when the parser is in a relation node
 	
-	    
-	  //Class constructor
+
+	  /**
+	   * Constructor for the transformation process from OpenStreetMap XML file to RDF.
+	   * @param config  Parameters to configure the transformation.
+	   * @param inFile  Path to input OSM XML file.
+	   * @param outFile  Path to the output file that collects RDF triples.
+	   * @param sourceSRID  Spatial reference system (EPSG code) of the input OSM XML file.
+	   * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
+	   */
 	  public OsmToRdf(Configuration config, String inFile, String outFile, int sourceSRID, int targetSRID) {
        
 		  currentConfig = config;
 		  inputFile = inFile;
 		  outputFile = outFile;
-	      this.sourceSRID = sourceSRID;         //Currently assuming that both OSM input and RDF output will be georeferenced in WGS84
-	      this.targetSRID = targetSRID;         //..., so no transformation is needed
+	      this.sourceSRID = sourceSRID;                      //Assume that OSM input is georeferenced in WGS84
+	      this.targetSRID = targetSRID;
 	      myAssistant = new Assistant();
 	      
+	      //Get filter definitions over combinations of OSM tags in order to determine POI categories
 	      try {
 	    	  System.out.println(Constants.OSMPOISPBF_COPYRIGHT);
-		      //Get filter definitions over combinations of OSM tags in order to determine POI categories
 		      //Read YML file from configuration settings containing assignment of OSM tags to categories
 		      OSMFilterFileParser filterFileParser = new OSMFilterFileParser(config.classificationSpec);    
 		      filters = filterFileParser.parse();   //Parse the file containing filters for assigning categories to OSM features
+		      if (filters == null)
+		    	  throw new FileNotFoundException(config.classificationSpec);
 	      }
 		  catch(Exception e) { 
-				ExceptionHandler.invoke(e, "Cannot initialize parser for OSM data. Missing or malformed YML file with classification of OSM tags into categories.");
+				ExceptionHandler.abort(e, "Cannot initialize parser for OSM data. Missing or malformed YML file with classification of OSM tags into categories.");
 		  }
-	      
-	      // Other parameters
+
+	      //Check if a coordinate transform is required for geometries
+	      if (currentConfig.targetCRS != null)
+	      {
+	  	    try {
+	  	        boolean lenient = true; // allow for some error due to different datums
+	  	        CoordinateReferenceSystem sourceCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.sourceCRS);
+	  	        CoordinateReferenceSystem targetCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.targetCRS);    
+	  	        reproject = CRS.findMathTransform(sourceCRS, targetCRS, lenient);
+	  	        
+	  	        //Needed for parsing original geometry in WTK representation
+	  	        GeometryFactory geomFactory = new GeometryFactory(new PrecisionModel(), sourceSRID);
+	  	        myAssistant.wktReader = new WKTReader(geomFactory);
+	  	        
+	  		} catch (Exception e) {
+	  			ExceptionHandler.abort(e, "Error in CRS transformation (reprojection) of geometries.");      //Execution terminated abnormally
+	  		}
+	      }
+	      else    //No transformation specified; determine the CRS of geometries...
+	      {
+	    		  this.targetSRID = 4326;          //... as the original OSM features assumed in WGS84 lon/lat coordinates
+	    		  System.out.println(Constants.WGS84_PROJECTION);
+	      }
+		    
+	      //Other parameters
 	      if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {
 	    	  currentConfig.defaultLang = "en";
 	      }
 	  }
 
-	  //Assign a category to the OSM feature based on its tags
-		private static String getCategory(Map<String, String> tags) {
-			// Iterate filters
-			String cat = null;
-			for(OSMFilter filter : filters) {
-				cat = getCategoryRecursive(filter, tags, null);
-				if(cat != null) {
-					return cat;
-				}
+		
+	  /**
+	   * Assign a category to a OSM feature (node, way, or relation) based on its tags.
+	   * @param tags  Key-value pairs for OSM tags and their respective values for a given feature.
+	   * @return  A category according to the classification scheme based on OSM tags.
+	   */
+	  private static String getCategory(Map<String, String> tags) {
+		//Iterate over filters
+		String cat = null;
+		for (OSMFilter filter : filters) {
+			cat = getCategoryRecursive(filter, tags, null);
+			if (cat != null) {
+				return cat;
 			}
-			return null;
 		}
+		return null;
+	  }
 
-		private static String getCategoryRecursive(OSMFilter filter, Map<String, String> tags, String key) {
-			// Use key of parent rule or current
-			if(filter.hasKey()) {
+
+
+	  /**
+	   * Recursively search in the classification hierarchy to match the given tag (key).
+	   * @param filter  Correspondence of OSM tags into categories.
+	   * @param tags  Key-value pairs for OSM tags and their respective values for a given feature.
+	   * @param key  Tag at any level in the classification hierarchy.
+	   * @return
+	   */
+	  private static String getCategoryRecursive(OSMFilter filter, Map<String, String> tags, String key) {
+			//Use key of parent rule or current
+			if (filter.hasKey()) {
 				key = filter.getKey();
 			}
 
-			// Check for key/value
-			if(tags.containsKey(key)) {
-				if(filter.hasValue() && !filter.getValue().equals(tags.get(key))) {
+			//Check for key/value
+			if (tags.containsKey(key))
+				if (filter.hasValue() && !filter.getValue().equals(tags.get(key)))
 					return null;
-				}
-			} else {
+			else
 				return null;
-			}
 
-			// If children have categories, those will be used
-			for(OSMFilter child : filter.childs) {
+			//If children have categories, those will be used
+			for (OSMFilter child : filter.childs)
+			{
 				String cat = getCategoryRecursive(child, tags, key);
-				if(cat != null) {
+				if (cat != null) 
 					return cat;
-				}
 			}
 			return filter.getCategory();
-	}
+	  }
 		
 
-	    //Call Saxon to parse the XML file
-	    public void parseDocument() {
+	  /**
+	   * Calls Saxon transformation to parse the input XML file.
+	   */
+	  public void parseDocument() {
 	    	
 	    	//OPTION #1: Memory-based native Java structures for indexing
 	    	nodeIndex = new HashMap<>(); 
 	        wayIndex = new HashMap<>();
 	        relationIndex = new HashMap<>();
+	        incompleteRelations = new ArrayList<>();
 	        
 	        //Invoke XSL transformation against input OSM XML file
 	        System.out.println("Calling parser for OSM XML file...");
@@ -191,45 +257,73 @@ public class OsmToRdf extends DefaultHandler {
 	        try {
 	            SAXParser parser = factory.newSAXParser();
 	            parser.parse(inputFile, this);
+	            
+	            //Second pass over incomplete OSM relations, once the entire XML file has been parsed
+	            for (Iterator<OSMRelation> iterator = incompleteRelations.iterator(); iterator.hasNext(); )
+	            {
+	            	OSMRelation r = iterator.next();
+	            	System.out.print("Re-examining OSM relation " + r.getID() + "...");
+	            	OSMRecord rec = getOSMRecord(r);
+	            	if (rec != null)                    //Incomplete relations are accepted in this second pass, consisting of their recognized parts   
+	            	{
+	            		if (r.getTagKeyValue().containsKey("name"))
+	            		{
+	            			myConverter.parse(myAssistant, rec, reproject, targetSRID);
+	            			numNamedEntities++;
+	            		}
+	            		relationIndex.put(r.getID(), rec.getGeometry());    //Keep a dictionary of all relation geometries, just in case they might be needed to handle other OSM relations
+	            		numRelations++;
+	            		iterator.remove();                                  //This OSM relation should not be examined again
+	            		System.out.println(" Done!");
+	            	} 
+	            	else
+	            		System.out.println(" Transformation failed!");
+	            }
 	        } catch (ParserConfigurationException e) {
-	        	ExceptionHandler.invoke(e, "Parser Configuration error.");
+	        	ExceptionHandler.abort(e, "Parser Configuration error.");
 	        } catch (SAXException e) {
-	        	ExceptionHandler.invoke(e, "SAXException : OSM xml not well formed." );
+	        	ExceptionHandler.abort(e, "SAXException : OSM xml not well formed." );
 	        } catch (IOException e) {
-	        	ExceptionHandler.invoke(e, "Cannot access input file.");
+	        	ExceptionHandler.abort(e, "Cannot access input file.");
 	        }
 	        
 	    }
 
-	    
+	    /**
+	     * Starts parsing of a new OSM element (node, way, or relation). Overrides method in parent Saxon class to initialize variables at the start of parsing of each OSM element.
+	     * @param s  he Namespace URI, or the empty string if the element has no Namespace URI or if Namespace processing is not being performed.
+	     * @param s1  The local name (without prefix), or the empty string if Namespace processing is not being performed.
+	     * @param elementName  The qualified name (with prefix), or the empty string if qualified names are not available.
+	     * @param attributes   The attributes attached to the element. If there are no attributes, it shall be an empty Attributes object.
+	     */
 	    @Override
 	    public void startElement(String s, String s1, String elementName, Attributes attributes) throws SAXException {
 	    
 	    	try {
-		        // if current element is an OSMNode, 
-		        if (elementName.equalsIgnoreCase("node")) {         //Create a new OSM node object and populate it with the appropriate values
+		        //Depending on the name of the current OSM element,... 
+		        if (elementName.equalsIgnoreCase("node")) {           //Create a new OSM node object and populate it with the appropriate values
 		            nodeTmp = new OSMNode();
 		            nodeTmp.setID(attributes.getValue("id"));
 	
-		            //parse geometry
+		            //Parse geometry
 		            double longitude = Double.parseDouble(attributes.getValue("lon"));
 		            double latitude = Double.parseDouble(attributes.getValue("lat"));
 		           
-		            //create geometry object with original WGS84 coordinates
+		            //Create geometry object with original WGS84 coordinates
 		            Geometry geom = geometryFactory.createPoint(new Coordinate(longitude, latitude));
 		            nodeTmp.setGeometry(geom);
 		            inNode = true;
 		            inWay = false;
 		            inRelation = false;
 		        } 
-		        else if (elementName.equalsIgnoreCase("way")) {   //create a new OSM way object and populate it with the appropriate values
+		        else if (elementName.equalsIgnoreCase("way")) {       //Create a new OSM way object and populate it with the appropriate values
 		            wayTmp = new OSMWay();
 		            wayTmp.setID(attributes.getValue("id"));
 		            inWay = true;
 		            inNode = false;
 		            inRelation = false;
 		        } 
-		        else if (elementName.equalsIgnoreCase("relation")) {   //create a new OSM relation and populate it with the appropriate values
+		        else if (elementName.equalsIgnoreCase("relation")) {   //Create a new OSM relation and populate it with the appropriate values
 		            relationTmp = new OSMRelation();
 		            relationTmp.setID(attributes.getValue("id"));
 		            inRelation = true;
@@ -241,15 +335,15 @@ public class OsmToRdf extends DefaultHandler {
 		        } 
 		        else if (elementName.equalsIgnoreCase("tag")) {
 		            if (inNode) {
-		                //if the path is in an OSM node, then set tagKey and value to the corresponding node     
+		                //If the path is in an OSM node, then set tagKey and value to the corresponding node     
 		                nodeTmp.setTagKeyValue(attributes.getValue("k"), attributes.getValue("v"));
 		            } 
 		            else if (inWay) {
-		                //else if the path is in an OSM way, then set tagKey and value to the corresponding way
+		                //Otherwise, if the path is in an OSM way, then set tagKey and value to the corresponding way
 		                wayTmp.setTagKeyValue(attributes.getValue("k"), attributes.getValue("v"));
 		            } 
 		            else if(inRelation){
-		                //set the key-value pairs of OSM relation tags
+		                //Set the key-value pairs of OSM relation tags
 		                relationTmp.setTagKeyValue(attributes.getValue("k"), attributes.getValue("v"));
 		            }           
 		        } 
@@ -258,25 +352,32 @@ public class OsmToRdf extends DefaultHandler {
 		        }  
 	    	}
 	    	catch (Exception e) {
-	        	ExceptionHandler.invoke(e, "Cannot process OSM element.");
-	        }
-	    	
+	        	ExceptionHandler.warn(e, "Cannot process OSM element.");
+	        }    	
 	    }
 
+	    /**
+	     * Concludes processing of an OSM element (node, way, or relation) once it has been parsed completely. Overrides method in the parent Saxon class to finalize variables and indices at the end of parsing of each OSM element.
+	     * @param s  The Namespace URI, or the empty string if the element has no Namespace URI or if Namespace processing is not being performed.
+	     * @param sl  The local name (without prefix), or the empty string if Namespace processing is not being performed.
+	     * @param element   The qualified name (with prefix), or the empty string if qualified names are not available.
+	     */
 	    @Override
 	    public void endElement(String s, String s1, String element) {
 	    	
 	    	try
 	    	{
-		        // if end of node element, add to appropriate list
-		        if (element.equalsIgnoreCase("node")) {
+		        //If end of node element, add to appropriate list
+		        if (element.equalsIgnoreCase("node")) {                            //OSM node
 		            if (nodeTmp.getTagKeyValue().containsKey("name"))
-		            	convertRecord(getOSMRecord(nodeTmp));
+		            {
+		            	myConverter.parse(myAssistant, getOSMRecord(nodeTmp), reproject, targetSRID);
+		            	numNamedEntities++;
+		            }
 		            nodeIndex.put(nodeTmp.getID(), nodeTmp.getGeometry());         //Keep a dictionary of all node geometries, just in case they might be needed to handle OSM relations
 		            numNodes++;
-		        }
-		        
-		        if (element.equalsIgnoreCase("way")) {            
+		        } 
+		        else if (element.equalsIgnoreCase("way")) {                        //OSM way      
 		            
 		            //construct the Way geometry from each node of the node references
 		            List<String> references = wayTmp.getNodeReferences();
@@ -315,143 +416,90 @@ public class OsmToRdf extends DefaultHandler {
 		                wayTmp.setGeometry(point);
 		            }
 		            
-		            if (wayTmp.getTagKeyValue().containsKey("name"))
-		            	convertRecord(getOSMRecord(wayTmp));
+		            if (wayTmp.getTagKeyValue().containsKey("name"))  
+		            {
+		            	myConverter.parse(myAssistant, getOSMRecord(wayTmp), reproject, targetSRID);
+		            	numNamedEntities++;
+		            }
 		            wayIndex.put(wayTmp.getID(), wayTmp.getGeometry());          //Keep a dictionary of all way geometries, just in case they might be needed to handle OSM relations
 		            numWays++;
-		        } 
-		        
-		        if(element.equalsIgnoreCase("relation")) {
+		        } 	   
+		        else if (element.equalsIgnoreCase("relation")) {                 //OSM relation
 		        	OSMRecord rec = getOSMRecord(relationTmp);
-		            if (relationTmp.getTagKeyValue().containsKey("name"))
-		            	convertRecord(rec);
-		            relationIndex.put(relationTmp.getID(), rec.getGeometry());    //Keep a dictionary of all relation geometries, just in case they might be needed to handle other OSM relations
-		            numRelations++;
+		        	if (rec!= null)                  //No records created for incomplete relations during the first pass
+		        	{
+		        		if ((rec!= null) && (relationTmp.getTagKeyValue().containsKey("name")))
+		        		{
+		        			myConverter.parse(myAssistant, rec, reproject, targetSRID);
+		        			numNamedEntities++;
+		        		}
+		        		relationIndex.put(relationTmp.getID(), rec.getGeometry());    //Keep a dictionary of all relation geometries, just in case they might be needed to handle other OSM relations
+		        		numRelations++;
+		        	}
 		        }
 	    	}
 	    	catch (Exception e) {
-	        	ExceptionHandler.invoke(e, "Cannot process OSM element.");
+	        	ExceptionHandler.warn(e, "Cannot process OSM element.");
 	        }
 	    }
 
-	    
-	  
-	/*
-	 * Apply transformation according to configuration settings.
-	 */  
+  
+	/**
+	 * Applies transformation according to the configuration settings.
+	 */
 	public void apply() {
 
-	    //System.out.println(myAssistant.getGMTime() + " Started processing features...");
-	    long t_start = System.currentTimeMillis();
-	    long dt = 0;
-	    numRec = 0;
-	    numTriples = 0;
-	    numNodes = 0;
-	    numWays = 0;
-	    numRelations = 0;
-	    numNamedEntities = 0;
-	        
-	      try {			
-				if (currentConfig.mode.contains("GRAPH"))
-				{
-				  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
-				  myConverter = new GraphConverter(currentConfig);
-				
-				  //Parse each record in order to create the necessary triples on disk (including geometric and non-spatial attributes)
-				  parseDocument();
-				 			  
-				 //Measure parsing time including cost for construction of the on-disk RDF model
-				 dt = System.currentTimeMillis() - t_start;
-				 System.out.println(myAssistant.getGMTime() + " Parsing completed for " + numRec + " records in " + dt + " ms.");
-				 System.out.println(myAssistant.getGMTime() + " Starting to write triples to file...");
-				    
-				 //Count the number of statements
-				 numTriples = myConverter.getModel().listStatements().toSet().size();
-				  
-				    //Export RDF model to a suitable format 
-				    try {
-				    	FileOutputStream out = new FileOutputStream(outputFile);
-				    	myConverter.getModel().write(out, currentConfig.serialization);  
-				    }
-				    catch(Exception e) { 
-				    	ExceptionHandler.invoke(e, "Serialized output cannot be written into a file. Please check configuration file.");
-				    }		    
-				    
-				  //Remove all temporary files as soon as processing is finished
-				    myAssistant.removeDirectory(currentConfig.tmpDir);
-				}
-				else					
-				{					
-				  //Mode STREAM: consume records and streamline them into a serialization file
-				  myConverter =  new StreamConverter(currentConfig);  
-				  modeStream = true;
-				  
-				  OutputStream outFile = null;
-				  try {
-						outFile = new FileOutputStream(outputFile);   //new ByteArrayOutputStream();
-				  } 
-				  catch (FileNotFoundException e) {
-					  ExceptionHandler.invoke(e, "Output file not specified correctly.");
-				  } 
-					
-				  //CAUTION! Hard constraint: serialization into N-TRIPLES is only supported by Jena riot (stream) interface
-				  stream = StreamRDFWriter.getWriterStream(outFile, RDFFormat.NTRIPLES);   //StreamRDFWriter.getWriterStream(os, Lang.NT);					
-				  stream.start();             //Start issuing streaming triples
-				  
-				  //Parse each OSM entity and streamline the resulting triples (including geometric and non-spatial attributes)
-				  parseDocument();
-				  						
-				  stream.finish();               //Finished issuing triples
-				    
-				}
-	      } catch (Exception e) {
-	    	  ExceptionHandler.invoke(e, "");
-	  	  }
-	      
-		  //Measure execution time
-		  dt = System.currentTimeMillis() - t_start;
-		  System.out.println(myAssistant.getGMTime() + " Parsing completed. Original OSM file contains: " + numNodes + " nodes, " + numWays + " ways, " + numRelations + " relations. In total, " + numNamedEntities + " entities had a name and only those were given as input to transformation.");
-		  myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, outputFile);
-  
-	}
-	
-
-	//Convert OSMRecord object (node, way, or relation) into RDF triples
-	private void convertRecord(OSMRecord rs) {
-		try {
-			numNamedEntities++;
+	  numNodes = 0;
+	  numWays = 0;
+	  numRelations = 0;
+	  numNamedEntities = 0;
+        
+      try {			
+			if (currentConfig.mode.contains("GRAPH"))
+			{
+			  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
+			  myConverter = new GraphConverter(currentConfig, outputFile);
 			
-			String wkt = rs.getGeometry().toText();   //Get WKT representation
-	      	
-			//Parse geometric representation
-	      	myConverter.parseGeom2RDF(currentConfig.featureName, rs.getID(), wkt, targetSRID);
-	      	
-			//Process non-spatial attributes for name and type
-			if ((!currentConfig.attrCategory.trim().equals("")) && (!currentConfig.attrName.trim().equals("")))		
-					myConverter.handleNonGeometricAttributes(currentConfig.featureName, rs.getID(), rs.getName(), rs.getCategory());
+			  //Parse each record in order to create the necessary triples on disk (including geometric and non-spatial attributes)
+			  parseDocument();
 
-			//In case of a streaming mode, immediately convert record into triples
-			if (modeStream) {
-				
-				  //Append each triple to the output stream 
-				  for (int i = 0; i <= myConverter.getTriples().size()-1; i++) {
-						stream.triple(myConverter.getTriples().get(i));
-						numTriples++;
-					}
-				  
-				  myConverter =  new StreamConverter(currentConfig);   //Clear emitted triples from the converter in order to get those of the next record
+			  //Export the RDF graph into a user-specified serialization
+			  myConverter.store(myAssistant, outputFile);
+
+			  //Remove all temporary files as soon as processing is finished
+			  myAssistant.removeDirectory(myConverter.getTDBDir());
+			}
+			else if (currentConfig.mode.contains("STREAM"))					
+			{					
+			  //Mode STREAM: consume records and streamline them into a serialization file
+			  myConverter =  new StreamConverter(currentConfig, outputFile);
+		  
+			  //Parse each OSM entity and streamline the resulting triples (including geometric and non-spatial attributes)
+			  parseDocument();
+			  
+			  //Finalize the output RDF file
+			  myConverter.store(myAssistant, outputFile);
+			}
+			else    //TODO: Implement method for handling transformation using RML mappings
+			{
+				System.out.println("Mode " + currentConfig.mode + " is currently not supported against OSM XML datasets.");
+				throw new IllegalArgumentException(Constants.INCORRECT_SETTING);
 			}
 			
-			myAssistant.notifyProgress(++numRec);
-				
-		} catch (Exception e) {
-			System.out.println("Problem at element with OSM id: " + rs.getID() + ". Excluded from transformation.");
-		}		
+      } catch (Exception e) {
+    	  ExceptionHandler.abort(e, "");
+  	  }
+
+      System.out.println(myAssistant.getGMTime() + " Original OSM file contains: " + numNodes + " nodes, " + numWays + " ways, " + numRelations + " relations. In total, " + numNamedEntities + " entities had a name and only those were given as input to transformation.");      
 	}
-  
+	 
 	
-  //Construct an OSMRecord structure from a parsed OSM node
-  private OSMRecord getOSMRecord(OSMNode n) {
+	/**
+	 * Constructs an OSMRecord object from a parsed OSM node.
+	 * @param n  A parsed OSM node.
+	 * @return  An OSMRecord object as a record with specific attributes extracted from the OSM node.
+	 */
+    private OSMRecord getOSMRecord(OSMNode n) {
   
 		OSMRecord rec = new OSMRecord();
 	  	rec.setID("N" + n.getID());
@@ -461,12 +509,16 @@ public class OsmToRdf extends DefaultHandler {
 	  	rec.setTags(n.getTagKeyValue());
 	  	rec.setCategory(getCategory(n.getTagKeyValue()));       //Search among the user-specified filters in order to assign a category to this OSM feature
 
-	  	return rec;
-  }
+	  	return rec;  	
+    }
   
   
-  //Construct an OSMRecord structure from a parsed OSM way
-  private OSMRecord getOSMRecord(OSMWay w) {
+    /**
+     * Constructs an OSMRecord object from a parsed OSM way.
+     * @param w  A parsed OSM way.
+     * @return  An OSMRecord object as a record with specific attributes extracted from the OSM way.
+     */
+    private OSMRecord getOSMRecord(OSMWay w) {
   
 		OSMRecord rec = new OSMRecord();
 	  	rec.setID("W" + w.getID());
@@ -477,37 +529,49 @@ public class OsmToRdf extends DefaultHandler {
 	  	rec.setCategory(getCategory(w.getTagKeyValue()));       //Search among the user-specified filters in order to assign a category to this OSM feature
 	  	
 	  	return rec;
-	  	
-  }
+    }
   
-  //Examine all way objects and check whether they can construct a new ring or update an existing one
-  //Returns the amount of rings (internal or external, depending on call) for the given feature
-  @SuppressWarnings({ "unchecked"})
-  private int rearrangeRings(LineString[] ways, int numWays, LinearRing[] rings, int numRings) {
-
-	  //First, concatenate any polylines with common endpoints
-	  LineMerger merger = new LineMerger();
-	    for (int i=0; i<numWays; i++)
-	    	if (ways[i] != null)
-	    		merger.add(ways[i]); 
-	    
-	  //Then, for each resulting polyline, create a ring if this is closed
-	  Collection<LineString> mergedWays = merger.getMergedLineStrings();  
-
-	  for (LineString curWay: mergedWays)  
-		  if (curWay.isClosed())
-		  {
-			  rings[numRings] = geometryFactory.createLinearRing(curWay.getCoordinates());
-		      numRings += 1;
-		  }	
-	 	
-	  return numRings;
-  }
   
-  //Construct an OSMRecord structure from a parsed OSM relation
-  //CAUTION: Sometimes, this process may yield topologically invalid geometries, because of irregularities (e.g., self-intersections) tolerated by OSM!
-  private OSMRecord getOSMRecord(OSMRelation r) {
+    /**
+     * Examines all OSM way objects and checks whether they can construct a new ring (closed polyline) or update an existing one.
+     * @param ways  Array of all the OSM ways identified in the feature.
+     * @param numWays Number of OSM ways identified.
+     * @param rings  Array of all linear rings identified in the feature.
+     * @param numRings  Number of linear rings identified.
+     * @return  The amount of rings (internal or external, depending on call) identified in the given feature.
+     */
+    @SuppressWarnings({ "unchecked"})
+    private int rearrangeRings(LineString[] ways, int numWays, LinearRing[] rings, int numRings) {
 
+		  //First, concatenate any polylines with common endpoints
+		  LineMerger merger = new LineMerger();
+		    for (int i=0; i<numWays; i++)
+		    	if (ways[i] != null)
+		    		merger.add(ways[i]); 
+		    
+		  //Then, for each resulting polyline, create a ring if this is closed
+		  Collection<LineString> mergedWays = merger.getMergedLineStrings();  
+		
+		  for (LineString curWay: mergedWays)  
+			  if (curWay.isClosed())
+			  {
+				  rings[numRings] = geometryFactory.createLinearRing(curWay.getCoordinates());
+			      numRings += 1;
+			  }	
+		 	
+		  return numRings; 
+    }
+
+  
+    /**
+     * Constructs an OSMRecord object from a parsed OSM relation. 
+     * CAUTION! Sometimes, this process may yield topologically invalid geometries, because of irregularities (e.g., self-intersections) tolerated by OSM!
+     * @param r   A parsed OSM relation.
+     * @return  An OSMRecord object as a record with specific attributes extracted from the OSM relation.
+     */
+    private OSMRecord getOSMRecord(OSMRelation r) {
+
+	    boolean incomplete = false;                             //Marks an OSM relation as incomplete in order to re-parse it at the end of the process
   		OSMRecord rec = new OSMRecord();
     	rec.setID("R" + r.getID());
     	rec.setType(r.getTagKeyValue().get("type"));
@@ -704,11 +768,21 @@ public class OsmToRdf extends DefaultHandler {
 							memberGeometries[numMembers] = relationIndex.get(k);    //Reference to OSMRelation geometry
 		    				numMembers++;
 	    			}
-//	    			else
+	    			else                                           //Missing constituent geometries
+	    			{
 //	    				System.out.println("There is no OSM item with id: " + member);
+	    				if (!incompleteRelations.contains(r))      //Add this relation when it is first encountered in the parsing
+	    				{
+	    					incompleteRelations.add(r);
+	    					incomplete = true;                      //At least one constituent geometry is missing
+	    				}
+	    			}
 	    		}
-				
-				if (numMembers == 1)            //In case that this relation consists of one member only, just replicate the original geometry
+				 
+				if (incomplete)                      //Incomplete relations will be given a second chance once the XML file is parsed in its entirety
+					return null;
+					//rec.setGeometry(null);
+				else if (numMembers == 1)            //In case that this relation consists of one member only, just replicate the original geometry
 					rec.setGeometry(memberGeometries[0]);
 				else if (numMembers > 1)        //Otherwise, create a geometry collection
 				{
@@ -725,11 +799,11 @@ public class OsmToRdf extends DefaultHandler {
 
 		if (rec.getGeometry() == null)
 			System.out.println("Geometry is null for OSM id = " + rec.getID() + ".");
-		else if ((rec.getGeometry() == null) || (!rec.getGeometry().isValid()))
+		else if (!rec.getGeometry().isValid())
 			//System.out.println(rec.getID() + ";" + rec.getGeometry().toString());
 			System.out.println("Geometry is extracted, but it is not valid for OSM id = " + rec.getID() + ".");
    	
     	return rec;
-  }
+    }
   
 }

@@ -1,7 +1,7 @@
 /*
- * @(#) MsAccessDbConnector.java 	version 1.3   3/11/2017
+ * @(#) MsAccessDbConnector.java 	version 1.4   24/2/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,12 +28,17 @@ import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
- *
- * @author jonathangsc
- * 
- * CURRENTLY NOT USED
+ * Microsoft Access implementation of DbConnector class.
+ * CAUTION: In the execution, include -Dfile.encoding=UTF-8 when applying against geodatabases with UTF-8 encoding; similarly for other encodings.
+ * @author Kostas Patroumpas
+ * @version 1.4
+ */
+
+/* DEVELOPMENT HISTORY 
  * Modified by: Kostas Patroumpas, 23/3/2017
  * Modified: 3/11/2017; added support for system exit codes on abnormal termination
+ * Modified: 14/12/2017; using uCanAccess library for connections
+ * Last modified: 24/2/2018
  */
 public class MsAccessDbConnector implements DbConnector {
 
@@ -42,15 +47,14 @@ public class MsAccessDbConnector implements DbConnector {
   private String password;
   private Connection connection;
 
-  /*
-   * Constructs a DbConnector Object.
-   *
-   * @param dbName - String with the name of the database.
-   * @param username - String with the user name to access the database.
-   * @param password - String with the password to access the database.
+  /**
+   * Constructor of DbConnector implementation class for establishing a connection to a MSAccess database.
+   * @param dbName  Full path to the MSAccess database.
+   * @param username  The user name to access the database (if applicable).
+   * @param password  The password to access the database (if applicable).
    */
-  public MsAccessDbConnector(String dbName,
-                             String username, String password) {
+  public MsAccessDbConnector(String dbName, String username, String password) 
+  {
     super();
     this.dbName = dbName;
     this.username = username;
@@ -58,15 +62,27 @@ public class MsAccessDbConnector implements DbConnector {
     this.connection = openConnection();
   }
 
+  /**
+   * Returns the Database URL.
+   *
+   * @return databaseUrl with the URL of the MSAccess database.
+   */
   @Override
-  public String getDatabaseUrl() {
-    return Constants.BASE_URL[Constants.MSACCESS] + dbName + ";UID="
-           + username + ";PWD=" + password;
+  public String getDatabaseUrl() 
+  {
+    return Constants.BASE_URL[Constants.MSACCESS] + "//" + dbName;
   }
 
 
+  /**
+   * Returns the result of the SQL query executed against the MSAccess database.
+   *
+   * @param query  A SQL command for the SELECT query.
+   * @return Resultset with all results of the query.
+   */
   @Override
-  public ResultSet executeQuery(String query) {
+  public ResultSet executeQuery(String query) 
+  {
     ResultSet resultSet = null;
     try {
       Statement stmt = connection.createStatement();
@@ -74,35 +90,39 @@ public class MsAccessDbConnector implements DbConnector {
       resultSet = stmt.executeQuery(query);
 
     } catch (SQLException e) {
-    	ExceptionHandler.invoke(e, "SQL query for data retrieval cannot be executed.");
+    	ExceptionHandler.abort(e, "SQL query for data retrieval cannot be executed.");
     }
     return resultSet;
   }
 
+  /**
+   * Closes the connection to the MSAccess database.
+   */
   @Override
-  public void closeConnection() {
+  public void closeConnection() 
+  {
     try {
       connection.close();
       connection = null;
     } catch (SQLException ex) {
-    	ExceptionHandler.invoke(ex, "Cannot close connection to the database.");
+    	ExceptionHandler.abort(ex, "Cannot close connection to the database.");
     }
   }
 
 
   /**
-   * Returns a connection to the Database.
+   * Establishes a connection to the MSAccess database.
    *
-   * @return connection to the database.
+   * @return  Connection to the database.
    */
-  private Connection openConnection() {
+  private Connection openConnection() 
+  {
     Connection connectionResult = null;
-    try {
-      Class.forName(Constants.DRIVERS[Constants.MSACCESS]);
-      connectionResult = DriverManager.getConnection(
-              getDatabaseUrl(), username, password);
+    try {      
+      connectionResult = DriverManager.getConnection(getDatabaseUrl(), username, password);
+      System.out.println("Connected to Microsoft Access database!");
     } catch (Exception ex) {
-    	ExceptionHandler.invoke(ex, "Cannot connect to the database.");
+    	ExceptionHandler.abort(ex, "Cannot connect to the database.");
     }
     return connectionResult;
   }

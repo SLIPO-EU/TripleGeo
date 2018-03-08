@@ -1,0 +1,78 @@
+##############################
+## Template for configuring TripleGeo ver.1.4 in order to transform data from RDF triples into geographical files (Reverse Transformation).
+## Specify parameters according to the examples for your specific output file(s).
+##############################
+
+##############################
+## Input and output parameters 
+##############################
+
+## Specify format for the output geographical file(s): 
+## Supported output file formats: 
+##     SHAPEFILE ; 
+##     CSV.
+#inputFormat = SHAPEFILE
+inputFormat = ${inputFormat}
+
+## OPTIONAL parameter. Number of features (records) to hold in each batch before storing output to file. 
+batchSize = 100
+
+## Local paths to directories and files used during processing (all paths are RELATIVE to executable).
+## CURRENTLY SUPPORTED: You can specify MULTIPLE input RDF files (of the same serializationa) separating them by ';'. 
+#inputFiles = ./test/rdf/point_classification.nt;./test/rdf/points.nt
+inputFiles = ${inputFiles}
+
+## File to store the output (reconstructed) records. A single output file will contain all transformed records, even if input comes from multiple files. A file with the same name found in the output directory will be overwritten.
+outputFile = ${outputFile}
+outputFile = ./test/output/points.shp
+
+## File containing a user-specified SELECT query (in SPARQL) that will retrieve results from the input RDF triples. This query should conform with the underlying ontology of the input RDF triples.
+#sparqlFile=./test/conf/points_reconstruct.sparql
+sparqlFile= ${sparqlFile}
+
+## Path to a directory where intermediate files may be temporarily written during transformation.
+#tmpDir = ./tmp
+tmpDir = ${tmpDir}
+
+
+## OPTIONAL parameter for the encoding (character set) for strings in the output data. If not specified, UTF-8 encoding is assumed.
+#encoding = ISO-8859-1
+#encoding = ISO-8859-7
+#encoding = WINDOWS-1253
+#encoding = UTF-8
+encoding = ${encoding}
+
+## MANDATORY for CSV output only (case-insensitive): specify the character delimiting attribute values; Omit for any other formats of output datasets.
+delimiter = |
+
+## MANDATORY for CSV output only (case-insensitive): specify quote character for string values; Omit for any other formats of output datasets.
+quote = "
+
+## Specify serialization of the input RDF file(s). All input files must have the same serialization.
+## Possible formats: 
+##   RDF/XML ;
+##   RDF/XML-ABBREV ;
+##   N-TRIPLES;
+##   TURTLE (or TTL);
+##   N3.
+#serialization = N-TRIPLES
+serialization = ${serialization}
+
+
+###############################
+## Spatial Reference parameters
+###############################
+## Optional parameters. These parameters should be filled in case that a transformation between EPSG spatial reference systems is required.
+## Comment both properties if geometries are assumed in WGS84 reference system (EPSG:4326).
+#sourceCRS = EPSG:2100
+#targetCRS = EPSG:4326
+sourceCRS = ${sourceEPSG}
+targetCRS = ${targetEPSG}
+
+
+##############################
+## Other parameters (ONLY applicable in either GRAPH or STREAM conversion modes)
+##############################
+# OPTIONAL parameter. Default language tag for string literals created in the output RDF. By default, the value will be English-en.
+defaultLang=en
+

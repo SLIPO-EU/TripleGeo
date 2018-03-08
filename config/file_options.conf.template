@@ -1,5 +1,5 @@
 ##############################
-## Template for TripleGeo configuration in order to convert geographical data from files.
+## Template for configuring TripleGeo ver.1.4 in order to transform data from geographical files into RDF triples.
 ## Specify parameters according to the examples for your specific input file(s).
 ##############################
 
@@ -8,7 +8,7 @@
 ##############################
 
 ## Specify format for the input geographical file(s): 
-## Possible input formats: 
+## Supported input file formats: 
 ##     SHAPEFILE ; 
 ##     CSV ;
 ##     GPX ;
@@ -27,94 +27,133 @@ inputFormat = ${inputFormat}
 mode = ${mode}
 
 ## Local paths to directories and files used during processing (all paths are RELATIVE to executable)
-## CURRENTLY SUPPORTED: You can specify MULTIPLE input files (of exactly the same format and attributes) separating them by ';' in order to activate multiple concurrent threads for their transformation.
-## By default, the output file name(s) are composed from the original file name(s) with the extension of the respective RDF serialization.
-#tmpDir = ./tmp
+## CURRENTLY SUPPORTED: You can specify MULTIPLE input files (of exactly the same format and attribute schemata) separating them by ';' in order to activate multiple concurrent threads for their transformation.
 #inputFiles = ./test/data/points.shp
-#outputDir = ./test/output
-tmpDir = ${tmpDir}
 inputFiles = ${inputFiles}
+
+## Directory where the output RDF file(s) will be stored. By default, the output file name(s) are automatically composed from the original file name(s) with the extension of the respective RDF serialization, e.g., points.nt. Files with the same name found in the output directory will be overwritten.
+#outputDir = ./test/output
 outputDir = ${outputDir}
+
+## Path to a directory where intermediate files may be temporarily written during transformation.
+#tmpDir = ./tmp
+tmpDir = ${tmpDir}
+
+
+## OPTIONAL parameter. Number of input features to transform in each batch before storing output to file. 
+batchSize = 10
 
 ## OPTIONAL parameter for the encoding (character set) for strings in the input data. If not specified, UTF-8 encoding is assumed.
 #encoding = ISO-8859-1
 #encoding = ISO-8859-7
+#encoding = WINDOWS-1253
 #encoding = UTF-8
 encoding = ${encoding}
 
-## MANDATORY for CSV input only (case-insensitive): specify delimiter character; Remove for any other types of input data.
+## MANDATORY for CSV input only (case-insensitive): specify the character delimiting attribute values; Omit for any other formats of input datasets.
 delimiter = |
 
-## MANDATORY for CSV input only (case-insensitive): specify quote character for string values; Remove for any other types of input data.
+## MANDATORY for CSV input only (case-insensitive): specify quote character for string values; Omit for any other formats of input datasets.
 quote = "
-
-## File containing RML or XSLT mappings from input schema to RDF
-## In case of RML conversion mode, this user-prepared file prescribes how input entities will be transformed into RDF triples.
-## In case of XSLT transformation, this is a file with an XSL schema mapping; in case of RML-based transformation, this is a TURTLE (TTL) file expressing customized mapping rules from data sources and attributes to RDF.
-## Otherwise (in GRAPH or STREAM connversion modes), it should be left blank.
-#mappingSpec = ./xslt/Metadata2RDF.xsl
-#mappingSpec = ./test/conf/osm_points_shp.ttl
-mappingSpec = ${mappingSpec}
-
-## File (in YML or CSV format) containing classification hierarchy of categories
-## In case of RML conversion mode, this user-prepared file prescribes a classification scheme that is employed in assigning categories, subcategories, etc. to each feature in the input dataset.
-## In case of converting OSM XML data in either GRAPH or STREAM conversion mode, this YML file can specify classification of features into categories according to their respective OSM tags.
-#classificationSpec = ./test/conf/shp_classification.yml
-#classificationSpec = ./test/conf/shp_classification.csv
-#classificationSpec = ./test/conf/osm_xml_tags_classification.yml
-classificationSpec = ${classificationSpec}
 
 ## Specify export serialization for the output file.
 ## Possible export formats: 
 ##   RDF/XML (used as default for the XSLT conversion mode);
 ##   RDF/XML-ABBREV ;
-##   N-TRIPLES (used as default for the STREAM conversion mode);
+##   N-TRIPLES (used as default for the STREAM and RML conversion modes);
 ##   TURTLE (or TTL);
 ##   N3.
 #serialization = N-TRIPLES
 serialization = ${serialization}
 
-## Specify the type of the spatial ontology where the exported data will refer to.
+## Specify the spatial ontology for geometries in the exported data.
 ## Possible values: 
-##    GeoSPARQL ;
-##    Virtuoso (for point features in Virtuoso RDF namespace);
+##    GeoSPARQL (according to the OGC standard);
+##    Virtuoso (legacy RDF ontology for points features only in Virtuoso RDF namespace);
 ##    wgs84_pos (for WGS84 Geoposition RDF vocabulary).
-#targetOntology = GeoSPARQL
-targetOntology = ${outputSpatialOntology}
+#targetGeoOntology = GeoSPARQL
+targetGeoOntology = ${outputSpatialOntology}
+
 
 
 ##############################
-## Attribute data parameters (ONLY applicable in either GRAPH or STREAM conversion modes)
+## Mapping specification 
+##############################
+
+##File (in TTL, YML, or XSL format) specifying mappings of the input attribute schema to RDF properties; i.e., prescribing how input features will be transformed into RDF triples (typically according to an ontology).
+mappingSpec = ${mappingSpec}
+ 
+##OPTION #1 for RML transformation mode: File (in TURTLE format) containing RML mappings from input schema to RDF. In RML mode, specifying mappings with this file is MANDATORY, otherwise no RDF triples will be produced.
+#mappingSpec = ./test/conf/osm_points_shp.ttl
+
+##OPTION #2 for GRAPH or STREAM transformation modes: File (in YML format) containing mappings from input schema to RDF according to a custom ontology. In GRAPH/STREAM modes, this parameter is OPTIONAL. If left blank or omitted, then an RDF property will be created for each thematic attribute in the original schema, by borrowing its attribute name. 
+#mappingSpec = ./test/conf/OSM_slipo_mappings.yml
+
+##OPTION #3 for XSLT transformation mode: File with an XSL schema mapping for attributes to be converted. MANDATORY for XSLT transformation mode, otherwise no RDF triples will be produced.
+#mappingSpec = ./xslt/Metadata2RDF.xsl
+
+
+
+##############################
+## Classification scheme 
+##############################
+
+## File (either in CSV or YML format) containing a classification hierarchy in categories assigned to input features. Classification is only applied if a suitable mapping (including a category attribute) has been specified above. Leave blank if non applicable.
+classificationSpec = ${classificationSpec}
+
+##OPTION #1: A user-prepared CSV file prescribing a classification scheme that is employed in assigning categories, subcategories, etc. to each feature in the input dataset. Attributes in this CSV file must be delimited with comma (',') and string values must be enclosed with double-quotes (e.g., "Restaurant").
+##           Every item in the classification scheme must be defined with a unique identifier and name (e.g., 29,"RESTAURANT"). Each line of the CSV file specifies a full path from a top-tier category to a bottom-level subcategory. E.g.: 5,"FOOD",29,"RESTAURANT".
+#classificationSpec = ./test/conf/OSM_POI_sample_classification.csv
+
+##OPTION #2: A user-prepared YML file with indentations used to denote breakdown of a given category into subcategories (i.e., two blank characters in the beginning of a line at each extra level in the hierarchy).
+##           The identifier of each catagory (at any level) is specified after its name and it is preceded with a '#' character, e.g., 
+#classificationSpec = ./test/conf/OSM_POI_sample_classification.yml
+
+##OPTION #3: In case of converting OSM XML data in either GRAPH or STREAM transformation modes, a YML file should specify classification of features into categories according to their respective OSM tags.
+#classificationSpec = ./test/conf/osm_xml_tags_classification.yml
+
+
+## Boolean parameter specifying whether the data features specify their category based on its identifier in the classification scheme (false) or the actual name of the category (true). 
+## By default, transformation uses identifiers of categories in the classification scheme. This parameter has no effect if no classification hierarchy is specified.
+classifyByName = true
+
+
+
+##############################
+## Attribute data parameters (ONLY applicable in either GRAPH or STREAM conversion modes).
 ## Specified parameter values are CASE-sensitive for shapefiles!!!
-## Change parameter values to reflect the contents that will be extracted from the input file
+## Change parameter values to reflect the contents that will be extracted from the input file.
 ##############################
 
-## MANDATORY field name containing unique identifier for each entity (e.g., each record in the shapefile)
+## MANDATORY field name containing unique identifier for each entity (e.g., each record in the shapefile).
 #attrKey = osm_id
 attrKey = ${resourceIdentityAttribute}
 
-## OPTIONAL field name from which name literals (i.e., strings) will be extracted. 
-## Set value UNK if non applicable.
-#attrName = name
-attrName = ${resourceNameAttribute}
+## Parameter that specifies the name of the geometry column in the input dataset. Omit this parameter if geometry representation is available with columns specifying X,Y coordinates for points; otherwise, this parameter is MANDATORY.
+#attrGeometry = geom
+attrGeometry = ${resourceGeometryAttribute}
 
-## OPTIONAL field name from which classification literals (e.g., type of points, road classes etc.) will be extracted.
-## Set value UNK if non applicable.
-#attrCategory = type
-attrCategory = ${resourceCategoryAttribute}
-
-## MANDATORY parameter that specifies particular values (e.g., UNK) in attributes that should not be exported as literals
-## By default, NULL values in attributes are suppressed and never exported
-#valIgnore = UNK
-valIgnore = ${ignoredAttributeValue}
-
-## MANDATORY for CSV input only (case-insensitive): specify attribute holding X-coordinates of point locations; Remove for any other types of input.
+## MANDATORY for CSV input only (case-insensitive): specify attribute holding X-coordinates (or longitude) of point locations. Omit this parameter for other input formats, provided that a geometry attribute has been specified.
 #attrX = lon
 attrX = ${resourceLongitudeAtribute}
 
-## MANDATORY for CSV input only (case-insensitive): specify attribute holding Y-coordinates of point locations; Remove for any other types of input.
+## MANDATORY for CSV input only (case-insensitive): specify attribute holding Y-coordinates (or latitude) of point locations. Omit this parameter for other input formats, provided that a geometry attribute has been specified.
 #attrY = lat
 attrY = ${resourceLatitudeAtribute}
+
+## OPTIONAL field name containing name literals (i.e., strings). Applicable when such values are used for registering features in the SLIPO Registry. Leave blank if non applicable.
+#attrName = name
+attrName = ${resourceNameAttribute}
+
+## OPTIONAL field name containing literals regarding classification into categories (e.g., type of points, road classes etc.) for each feature. Applicable when such values are used for registering features in the SLIPO Registry. Leave blank if non applicable.
+#attrCategory = type
+attrCategory = ${resourceCategoryAttribute}
+
+
+## OPTIONAL boolean parameter denoting whether a .CSV file will be also extracted specifically for registering features in the SLIPO Registry. Omit if non applicable.
+## Each record in the resulting .CSV file will include information extracted from the basic attributes specified in the previous parameters.
+registerFeatures = false 
+
 
 
 ##############################
@@ -122,42 +161,58 @@ attrY = ${resourceLatitudeAtribute}
 ## Change these parameters if you want to use different values for the namespaces and prefixes
 ##############################
 
-## MANDATORY parameter that specifies a user-defined name for the resources that will be created
-## Required for constructing the resource URI
-#featureName = points
-featureName = ${featureName}
+## MANDATORY parameter that specifies the data source provider of the input features
+#featureSource=OpenStreetMap
+featureSource= ${featureSource}
 
-## Optional parameter. Specify the common URI namespace for all generated resources
-#nsFeatureURI = http://slipo.eu/geodata#
-nsFeatureURI = http://slipo.eu/geodata#
 
-## Optional parameter. Define a prefix name for the utilized URI namespace (i.e., the previously declared with nsFeatureURI)
-#prefixFeatureNS = georesource
-prefixFeatureNS = ${resourceNamespacePrefix}
+##OPTIONAL parameters regarding namespaces of generated URIs.
 
-## Optional parameter. Specify the namespace for the underlying geospatial ontology
-#nsGeometryURI = http://www.opengis.net/ont/geosparql#
-nsGeometryURI = http://www.opengis.net/ont/geosparql#
+##Specify the namespace of the underlying ontology. Used in creating properties for the RDF triples. 
+#nsOntology = http://slipo.eu/def#
+nsOntology = ${nsOntology}
 
-## Optional parameter. Define a prefix name for the geospatial ontology (i.e., the previously declared with nsGeometryURI)
-#prefixGeometryNS = geo
-prefixGeometryNS = ${geoontologyNamespacePrefix}
+##Specify the namespace for the underlying geospatial ontology
+#nsGeometry = http://www.opengis.net/ont/geosparql#
+nsGeometry = ${nsGeometry}
+
+##Specify the common URI namespace for all generated resources
+#nsFeatureURI = http://slipo.eu/id/poi/
+nsFeatureURI = ${nsFeatureURI}
+
+##Specify the common URI namespace for the classification scheme 
+#nsClassificationURI = http://slipo.eu/id/classification/
+nsClassificationURI = ${nsClassificationURI}
+
+##Specify the common URI namespace for categories used in the classification scheme
+#nsClassURI = http://slipo.eu/id/term/
+nsClassURI = ${nsClassURI}
+
+##Specify the common URI namespace for the data source provider
+#nsDataSourceURI = http://slipo.eu/id/poisource/
+nsDataSourceURI = ${nsDataSourceURI}
+
+## Specify two lists (of comma separated values) with the correspondence between a prefix and its respective namespace (mainly used in attribute mappings)
+prefixes = slipo, geo, xsd, rdfs, wgs84_pos
+namespaces = http://slipo.eu/def#, http://www.opengis.net/ont/geosparql#, http://www.w3.org/2001/XMLSchema#, http://www.w3.org/1999/02/22-rdf-syntax-ns#, http://www.w3.org/2003/01/geo/wgs84_pos#
+
 
 
 ###############################
 ## Spatial Reference parameters
 ###############################
-## Optional parameters. These fields should be filled in if a transformation between EPSG reference systems is needed
-## Comment out both properties if geometries are assumed in WGS84 reference system (EPSG:4326).
+## Optional parameters. These parameters should be filled in case that a transformation between EPSG spatial reference systems is required.
+## Comment both properties if geometries are assumed in WGS84 reference system (EPSG:4326).
 #sourceCRS = EPSG:2100
 #targetCRS = EPSG:4326
 sourceCRS = ${sourceEPSG}
 targetCRS = ${targetEPSG}
 
 
+
 ##############################
 ## Other parameters (ONLY applicable in either GRAPH or STREAM conversion modes)
 ##############################
-# Optional parameters. Default lang for the labels created in the output RDF. By default, the value will be English-en
+# OPTIONAL parameter. Default language tag for string literals created in the output RDF. By default, the value will be English-en.
 defaultLang=en
 

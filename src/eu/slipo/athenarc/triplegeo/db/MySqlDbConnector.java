@@ -1,7 +1,7 @@
 /*
- * @(#) MySqlDbConnector.java 	version 1.3   3/11/2017
+ * @(#) MySqlDbConnector.java 	version 1.4   24/2/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,10 +29,16 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
  * MySQL implementation of DbConnector class.
- *
- * @author: Kostas Patroumpas, 5/6/2013
+ * NOTE: JDBC driver automatically uses the encoding specified by the host; no need to specify such parameter in the connection.
+ * @author Kostas Patroumpas
+ * @version 1.4
+ */
+
+/* DEVELOPMENT HISTORY 
+ * Created by: Kostas Patroumpas, 5/6/2013
  * Modified: 23/3/2017
  * Modified: 3/11/2017; added support for system exit codes on abnormal termination
+ * Last modified: 24/2/2018
  */
 public class MySqlDbConnector implements DbConnector {
 
@@ -43,17 +49,16 @@ public class MySqlDbConnector implements DbConnector {
   private String password;
   private Connection connection;
 
-  /*
-   * Constructs a DbConnector Object.
-   *
-   * @param host - String with the IP where the database is hosted.
-   * @param port - int with the port where the database is listening.
-   * @param dbName - String with the name of the database.
-   * @param username - String with the user name to access the database.
-   * @param password - String with the password to access the database.
+  /** 
+   * Constructor of DbConnector implementation class for establishing a connection to a MySQL database.
+   * @param host  The IP of the machine where the database is hosted.
+   * @param port  The port where the database is listening.
+   * @param dbName  The name of the database to connect to.
+   * @param username  The user name credential to access the database.
+   * @param password  The password credential to access the database.
    */
-  public MySqlDbConnector(String host, int port, String dbName,
-                          String username, String password) {
+  public MySqlDbConnector(String host, int port, String dbName, String username, String password) 
+  {
     super();
     this.host = host;
     this.port = port;
@@ -63,15 +68,27 @@ public class MySqlDbConnector implements DbConnector {
     this.connection = openConnection();
   }
 
+  /**
+   * Returns the Database URL.
+   *
+   * @return databaseUrl with the URL of the MySQL database.
+   */
   @Override
-  public String getDatabaseUrl() {
-    return Constants.BASE_URL[Constants.MYSQL] + "//" + host + ":"
-           + port + "/" + dbName;
+  public String getDatabaseUrl() 
+  {
+    return Constants.BASE_URL[Constants.MYSQL] + "//" + host + ":" + port + "/" + dbName;
   }
 
 
+  /**
+   * Returns the result of the SQL query executed against the MySQL database.
+   *
+   * @param query  A SQL command for the SELECT query.
+   * @return Resultset with all results of the query.
+   */
   @Override
-  public ResultSet executeQuery(String query) {
+  public ResultSet executeQuery(String query) 
+  {
     ResultSet resultSet = null;
     try {
       Statement stmt = connection.createStatement();
@@ -79,35 +96,39 @@ public class MySqlDbConnector implements DbConnector {
       resultSet = stmt.executeQuery(query);
 
     } catch (SQLException e) {
-    	ExceptionHandler.invoke(e, "SQL query for data retrieval cannot be executed.");
+    	ExceptionHandler.abort(e, "SQL query for data retrieval cannot be executed.");
     }
     return resultSet;
   }
 
+  /**
+   * Closes the connection to the MySQL database.
+   */
   @Override
-  public void closeConnection() {
+  public void closeConnection() 
+  {
     try {
       connection.close();
       connection = null;
     } catch (SQLException ex) {
-    	ExceptionHandler.invoke(ex, "Cannot close connection to the database.");
+    	ExceptionHandler.abort(ex, "Cannot close connection to the database.");
     }
   }
 
   /**
-   * Returns a connection to the Database.
+   * Establishes a connection to the MySQL database.
    *
-   * @return connection to the database.
+   * @return  Connection to the database.
    */
-  private Connection openConnection() {
+  private Connection openConnection() 
+  {
     Connection connectionResult = null;
     try {
-      Class.forName(Constants.DRIVERS[Constants.MYSQL]);
-      connectionResult = DriverManager.getConnection(
-              getDatabaseUrl(), username, password);
+      Class.forName(Constants.DBMS_DRIVERS[Constants.MYSQL]);
+      connectionResult = DriverManager.getConnection(getDatabaseUrl(), username, password);
       System.out.println("Connected to MySQL database!");
     } catch (Exception ex) {
-    	ExceptionHandler.invoke(ex, "Cannot connect to the database.");
+    	ExceptionHandler.abort(ex, "Cannot connect to the database.");
     }
     return connectionResult;
   }

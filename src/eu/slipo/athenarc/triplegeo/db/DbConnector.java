@@ -1,7 +1,7 @@
 /*
- * @(#) Connector.java	version 1.3   16/3/2017
+ * @(#) Connector.java	version 1.4   24/2/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +22,14 @@ import java.sql.ResultSet;
 
 /**
  * Interface that defines all methods to be implemented by a JDBC Database connector.
- *
+ * @author Kostas Patroumpas
+ * @version 1.4
+ */
+
+/* DEVELOPMENT HISTORY
  * initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
- * Modified by: Kostas Patroumpas, 12/6/2013
+ * Modified by: Kostas Patroumpas, 12/6/2013; adjusted to TripleGeo functionality
+ * Last modified: 24/2/2018
  */
 public interface DbConnector {
 
@@ -39,13 +44,14 @@ public interface DbConnector {
   /**
    * Returns the result of the SQL query executed against the database.
    *
-   * @param query - String with the query.
-   * @return resultset with the result of the query.
+   * @param query  A SQL command for the SELECT query.
+   * @return resultset with all results of the query.
    */
   public ResultSet executeQuery(String query);
 
+  
   /**
-   * Closes database connection.
+   * Closes the connection to the database.
    */
   public void closeConnection();
 

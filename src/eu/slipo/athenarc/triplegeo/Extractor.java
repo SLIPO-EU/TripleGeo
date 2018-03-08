@@ -1,7 +1,7 @@
 /*
- * @(#) Executor.java	version 1.3   28/11/2017
+ * @(#) Extractor.java	version 1.4  8/3/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,22 +38,33 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Entry point to TripleGeo for converting from various input formats (MULTI-THREADED EXECUTION)
  * @author Kostas Patroumpas
+ * @version 1.4
+ */
+
+/* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 23/3/2017
  * Modified: 3/11/2017; added support for system exit codes on abnormal termination
  * Modified: 8/11/2017; added support for preparing a classification scheme to be applied over entities
  * Modified: 21/11/2017; handling missing specifications for classification and RML mapping files
- * Last modified: 28/11/2017
+ * Modified: 12/2/2018; handling missing specifications on georeferencing (CRS: Coordinate Reference Systems) 
+ * Last modified: 8/3/2018
  */
-public class Executor {
+public class Extractor {
 
 	static Assistant myAssistant;
-	private static Configuration currentConfig;
+	private static Configuration currentConfig;         //Configuration settings for the transformation
 	static Classification classification = null;        //Classification hierarchy for assigning categories to features
 	static String[] inputFiles;
 	static List<String> outputFiles;
-	static int sourceSRID;                //Source CRS according to EPSG 
-	static int targetSRID;                //Target CRS according to EPSG
+	static int sourceSRID;                              //Source CRS according to EPSG 
+	static int targetSRID;                              //Target CRS according to EPSG
 
+	/**
+	 * Main entry point to execute the transformation process.
+	 * @param args  Arguments for the execution, including the path to a configuration file.
+	 * @throws InterruptedException
+	 * @throws ExecutionException
+	 */
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws InterruptedException, ExecutionException {
 
@@ -81,6 +92,10 @@ public class Executor {
 			if (currentConfig.mode.contains("XSLT"))
 				currentConfig.serialization = "RDF/XML";
 			
+			//Clean up temporary directory to be used in transformation when disk-based GRAPH mode is chosen
+			if (currentConfig.mode.contains("GRAPH"))
+				myAssistant.removeDirectory(currentConfig.tmpDir);
+				
 			System.out.println("Output serialization: " + currentConfig.serialization);
 			
 			System.setProperty("org.geotools.referencing.forceXY", "true");
@@ -88,10 +103,10 @@ public class Executor {
 			//Check how many input files have been specified
 			if (currentConfig.inputFiles != null)
 			{
-				inputFiles = currentConfig.inputFiles.split(";");     //MULTIPLE input files separated by ;
+				inputFiles = currentConfig.inputFiles.split(";");     //MULTIPLE input file names separated by ;
 			}
 			else   //This is the case that a SINGLE input comes from a DBMS
-			{      //Workaround: The (virtual) input file will have the same name as the original table
+			{      //Workaround: The (virtual) input file is considered to have the same name as the original table
 				inputFiles = new String [] {currentConfig.outputDir + currentConfig.tableName + ".rdf"};
 			}			
 
@@ -99,25 +114,31 @@ public class Executor {
 			outputFiles = new ArrayList<String>();
 			
 			//Check if a coordinate transform is required for geometries
-			if (currentConfig.sourceCRS != null)
-			{
-			    try {
+			 try {
+				 if (currentConfig.sourceCRS != null)
+				 {
 			        //Needed for parsing original geometry in WTK representation
 			    	sourceSRID = Integer.parseInt(currentConfig.sourceCRS.substring( currentConfig.sourceCRS.indexOf(':')+1, currentConfig.sourceCRS.length()));
+				 }
+				 else 
+					 sourceSRID = 0;                //Non-specified
+				 
+				 if (currentConfig.targetCRS != null)
+				 {
+			        //Needed for parsing original geometry in WTK representation
 			    	targetSRID = Integer.parseInt(currentConfig.targetCRS.substring( currentConfig.targetCRS.indexOf(':')+1, currentConfig.targetCRS.length()));
-			    	System.out.println("Transformation will take place from " + currentConfig.sourceCRS + " to " + currentConfig.targetCRS + " reference system.");
-			        
-				} catch (Exception e) {
-					ExceptionHandler.invoke(e, "Please check SRID specifications in the configuration.");      //Execution terminated abnormally
-				}
-			}
-			else   
-			{   //No transformation will take place; all features assumed in WGS84 lon/lat coordinates
-				  sourceSRID = 4326;           //WGS84
-				  targetSRID = 4326;           //WGS84
-				  System.out.println(Constants.NO_REPROJECTION);
-			}
-		    
+			    	System.out.println("Transformation will take place from " + currentConfig.sourceCRS + " to " + currentConfig.targetCRS + " reference system.");	
+				 }
+				 else
+				 {   //No transformation will take place
+                     //CAUTION! Not always safe to assume that features are georeferenced in WGS84 lon/lat coordinates 
+					 targetSRID = 0; 				//Non-specified	     
+					 System.out.println(Constants.NO_REPROJECTION);
+				 }
+			 } catch (Exception e) {
+					ExceptionHandler.abort(e, "Please check SRID specifications in the configuration.");      //Execution terminated abnormally
+			 }
+			 
 			//Check whether a classification hierarchy is specified in a separate file and apply transformation accordingly
 	        try { 			  
 				if ((currentConfig.classificationSpec != null) && (!currentConfig.inputFormat.contains("OSM")))    //Classification for OSM XML data is handled by the OSM converter
@@ -129,7 +150,7 @@ public class Executor {
 	        }  
 	     	//Handle any errors that may have occurred during reading of classification hierarchy  
 	        catch (Exception e) {  
-	        	ExceptionHandler.invoke(e, "Failed to read classification hierarchy.");  
+	        	ExceptionHandler.abort(e, "Failed to read classification hierarchy.");  
 	     	} 
 	        finally {
 	        	if (classification != null)
@@ -140,16 +161,17 @@ public class Executor {
 	        
 		    //Possible executors with different behaviour
 		    ExecutorService exec = Executors.newCachedThreadPool();        //Create new threads dynamically as needed at runtime
-		    //ExecutorService exec = Executors.newFixedThreadPool(3);      //Predetermined number of threads to be used at runtime
-		    //ExecutorService exec = Executors.newSingleThreadExecutor();  //Single-thread execution, i.e., one task after the other
+		    //ExecutorService exec = Executors.newFixedThreadPool(3);      //NOT USED: Predetermined number of threads to be used at runtime
+		    //ExecutorService exec = Executors.newSingleThreadExecutor();  //NOT USED: Single-thread execution, i.e., one task after the other
 	    
 		    //Create a list of all tasks to be executed with their respective input and output files, but with the same transformation settings
 		    //The number of tasks is equal to the number of input files specified in the configuration file
 		    List<Callable<Task>> tasks = new ArrayList<Callable<Task>>();
 		    for (final String inFile: inputFiles) {
+		    	//CAUTION! An output file will be named as its corresponding input file, but with a different extension (auto-specified by the RDF serialization format)
 		    	outputFiles.add(currentConfig.outputDir + FilenameUtils.getBaseName(inFile) + myAssistant.getOutputExtension(currentConfig.serialization));
 	        	Callable<Task> c = new Callable<Task>() {
-	        		final String outFile = outputFiles.get(outputFiles.size()-1); // currentConfig.outputDir + FilenameUtils.getBaseName(inFile) + Assistant.getOutputExtension(currentConfig.serialization);
+	        		final String outFile = outputFiles.get(outputFiles.size()-1); 
 	        		@Override
 		        	public Task call() throws Exception {
 		            	return new Task(currentConfig, classification, inFile, outFile, sourceSRID, targetSRID);
@@ -161,11 +183,15 @@ public class Executor {
 		    long start = System.currentTimeMillis();
 		    //Invoke all the tasks concurrently
 		    try {
-		    	System.out.println(myAssistant.getGMTime() + " Started processing features...");
+		    	System.out.print(myAssistant.getGMTime() + " Started processing features ");
+		    	if (tasks.size() > 1)
+		    		System.out.println("using " + tasks.size() + " concurrent threads...");
+		    	else
+		    		System.out.println("in a single thread...");
 		        List<Future<Task>> results = exec.invokeAll(tasks);		        
 		    } 
 		    catch(Exception e) {
-		    	ExceptionHandler.invoke(e, "A transformation task failed.");      //Execution terminated abnormally
+		    	ExceptionHandler.abort(e, "A transformation task failed.");      //Execution terminated abnormally
 		    }
 		    finally {
 		        exec.shutdown();

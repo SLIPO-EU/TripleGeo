@@ -1,7 +1,7 @@
 /*
- * @(#) Configuration.java 	 version 1.3   3/11/2017
+ * @(#) Configuration.java 	 version 1.4   24/2/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,17 +19,36 @@
 package eu.slipo.athenarc.triplegeo.utils;
 
 /**
- * Class to handle exceptions raised by TripleGeo utilities. Added support for issuing exit codes to the operation system.
+ * Handles exceptions raised by TripleGeo utilities. Issuing exit codes to the operation system.
+ * @author Kostas Patroumpas
+ * @version 1.4
+ */
+
+/* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 3/11/2017
- * Last modified: 24/11/2017 
+ * Last modified: 24/2/2018 
  */
 
 public class ExceptionHandler {
 
-    public static void invoke(Exception e, String msg) {
+	/**
+	 * Prints warnings regarding issues raised during transformation.
+	 * @param e  Exception raised in any stage of the transformation process.
+	 * @param msg  Message to be issued along with the warning.
+	 */
+    public static void warn(Exception e, String msg) {
             e.printStackTrace();
-            System.err.println("Transformation process terminated abnormally. " + msg);
-            System.exit(1);                              //Issue signal to the operation system that execution terminated abnormally
+            System.out.println(msg);
     }
-    
+  
+    /**
+     * Terminates execution of the transformation process due to an error.
+     * @param e  Exception raised in any stage of the transformation process.
+     * @param msg  Message to be issued along with the error.
+     */
+    public static void abort(Exception e, String msg) {
+        e.printStackTrace();
+        System.err.println("Transformation process terminated abnormally. " + msg);
+        System.exit(1);                              //Issue signal to the operation system that execution terminated abnormally
+    }
 }

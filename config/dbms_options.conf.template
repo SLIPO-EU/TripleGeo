@@ -1,5 +1,5 @@
 ##############################
-## Template for TripleGeo configuration in order to convert spatial features stored in a DBMS.
+## Template for configuring TripleGeo ver.1.4 in order to convert spatial features stored in a DBMS into RDF triples.
 ## Specify parameters according to the examples for your specific dataset.
 ## Examples given below assume an existing PostgreSQL+PostGIS database.
 ##############################
@@ -9,7 +9,7 @@
 ##############################
 
 ## Specify format for the input geospatial database system:
-## Possible input formats: DBMS.
+## Supported input format: DBMS.
 inputFormat = DBMS
 inputFormat = ${inputFormat}
 
@@ -21,47 +21,80 @@ inputFormat = ${inputFormat}
 mode = ${mode}
 
 ## Local paths to directories and files used during processing (all paths are RELATIVE to executable)
-## By default, the output file name is composed from the original table name in the DBMS with the extension of the respective RDF serialization.
-#tmpDir = ./tmp
+## Directory where the output RDF file(s) will be stored. By default, the output file name is composed from the original table name in the DBMS with the extension of the respective RDF serialization. Files with the same name found in the output directory will be overwritten.
 #outputDir = ./test/output
-tmpDir = ${tmpDir}
 outputDir = ${outputDir}
+
+## Path to a directory where intermediate files may be temporarily written during transformation.
+#tmpDir = ./tmp
+tmpDir = ${tmpDir}
+
+
+## OPTIONAL parameter. Number of input features to transform in each batch before storing output to file. 
+batchSize = 10
 
 ## OPTIONAL parameter for the encoding (character set) for strings in the input data. If not specified, UTF-8 encoding is assumed.
 #encoding = ISO-8859-1
 #encoding = ISO-8859-7
+#encoding = WINDOWS-1253
 #encoding = UTF-8
 encoding = ${encoding}
-
-## File containing RML mappings from input schema to RDF
-## This user-prepared file prescribes how input entities will be transformed into RDF triples.
-## In case of RML conversion mode, this is a TURTLE (TTL) file expressing customized mapping rules from data sources and attributes to RDF. Otherwise (GRAPH or STREAM connversion modes), it should be left blank.
-#mappingSpec=./test/conf/osm_points_shp.ttl
-mappingSpec=${mappingSpec}
-
-## File (in YML or CSV format) containing classification hierarchy of categories
-## In case of RML conversion mode, this user-prepared file prescribes a classification scheme that is employed in assigning categories, subcategories, etc. to each feature in the input dataset. Otherwise (GRAPH or STREAM connversion modes), it should be left blank.
-#classificationSpec = ./test/conf/shp_classification.yml
-#classificationSpec = ./test/conf/shp_classification.csv
-classificationSpec = ${classificationSpec}
 
 ## Specify export serialization for the output file.
 ## Possible export formats: 
 ##   RDF/XML ;
 ##   RDF/XML-ABBREV ;
-##   N-TRIPLES (used as default for the STREAM conversion mode);
+##   N-TRIPLES (used as default for the STREAM and RML conversion modes);
 ##   TURTLE (or TTL);
 ##   N3.
 #serialization = N-TRIPLES
 serialization = ${serialization}
 
-## Specify the type of the spatial ontology where the exported data will refer to.
+## Specify the spatial ontology for geometries in the exported data.
 ## Possible values: 
-##    GeoSPARQL ;
-##    Virtuoso (for point features in Virtuoso RDF namespace);
+##    GeoSPARQL (according to the OGC standard);
+##    Virtuoso (legacy RDF ontology for points features only in Virtuoso RDF namespace);
 ##    wgs84_pos (for WGS84 Geoposition RDF vocabulary).
-#targetOntology = GeoSPARQL
-targetOntology = ${outputSpatialOntology}
+#targetGeoOntology = GeoSPARQL
+targetGeoOntology = ${outputSpatialOntology}
+
+
+
+##############################
+## Mapping specification 
+##############################
+
+##File (in TTL or YML format) specifying mappings of the input attribute schema to RDF properties; i.e., prescribing how input features will be transformed into RDF triples (typically according to an ontology).
+mappingSpec = ${mappingSpec}
+ 
+##OPTION #1 for RML transformation mode: File (in TURTLE format) containing RML mappings from input schema to RDF. In RML mode, specifying mappings with this file is MANDATORY, otherwise no RDF triples will be produced.
+#mappingSpec = ./test/conf/osm_points_shp.ttl
+
+##OPTION #2 for GRAPH or STREAM transformation modes: File (in YML format) containing mappings from input schema to RDF according to a custom ontology. In GRAPH/STREAM modes, this parameter is OPTIONAL. If left blank or omitted, then an RDF property will be created for each attribute in the original schema, by borrowing its attribute name. 
+#mappingSpec = ./test/conf/OSM_slipo_mappings.yml
+
+
+
+##############################
+## Classification scheme 
+##############################
+
+## File (either in CSV or YML format) containing a classification hierarchy in categories assigned to input features. Classification is only applied if a suitable mapping (including a category attribute) has been specified above. Leave blank if non applicable.
+classificationSpec = ${classificationSpec}
+
+##OPTION #1: A user-prepared CSV file prescribing a classification scheme that is employed in assigning categories, subcategories, etc. to each feature in the input dataset. Attributes in this CSV file must be delimited with comma (',') and string values must be enclosed with double-quotes (e.g., "Restaurant").
+##           Every item in the classification scheme must be defined with a unique identifier and name (e.g., 29,"RESTAURANT"). Each line of the CSV file specifies a full path from a top-tier category to a bottom-level subcategory. E.g.: 5,"FOOD",29,"RESTAURANT".
+#classificationSpec = ./test/conf/OSM_POI_sample_classification.csv
+
+##OPTION #2: A user-prepared YML file with indentations used to denote breakdown of a given category into subcategories (i.e., two blank characters in the beginning of a line at each extra level in the hierarchy).
+##           The identifier of each catagory (at any level) is specified after its name and it is preceded with a '#' character, e.g., 
+#classificationSpec = ./test/conf/OSM_POI_sample_classification.yml
+
+
+## Boolean parameter specifying whether the data features specify their category based on its identifier in the classification scheme (false) or the actual name of the category (true). 
+## By default, transformation uses identifiers of categories in the classification scheme. This parameter has no effect if no classification hierarchy is specified.
+classifyByName = true
+
 
 
 ##############################
@@ -71,6 +104,7 @@ targetOntology = ${outputSpatialOntology}
 
 ## Specify the DBMS backend where spatial data is stored.
 ## Possible values for the supported DBMS: 
+##    MSAccess ;
 ##    MySQL ;
 ##    Oracle ;
 ##    PostGIS ; 
@@ -80,65 +114,75 @@ targetOntology = ${outputSpatialOntology}
 #dbType = PostGIS
 dbType = ${databaseBackendType}
 
-## Name of the database to connect
+## Name of the database to connect. For MSAccess databases, specify absolute or relative path to the .mdb database file.
 #dbName=geodb
 dbName = ${databaseName}
 
-## Username for database connection
+## Username for JDBC connection. For MSAccess databases, credentials are optional; must be specified only if required to access the .mdb database file.
 #dbUserName = postgres
 dbUserName = ${databaseUserName}
 
-## Password for database connection
+## Password for JDBC connection. For MSAccess databases, credentials are optional; must be specified only if required to access the .mdb database file.
 #dbPassword = postgres
 dbPassword = ${databasePassword}
 
-## Specify the IP host name or address on which DBMS server listens for TCP/IP connections from client applications.
+## Specify the IP host name or address on which DBMS server listens for TCP/IP connections from client applications. Omit for MSAccess database connections.
 ## Set value localhost if working with a local database server.
 #dbHost = localhost
 dbHost = ${databaseHost}
 
-## Specify the TCP/IP port on which the DBMS server listens for connections from client applications.
+## Specify the TCP/IP port on which the DBMS server listens for connections from client applications. Omit for MSAccess database connections.
 #dbPort = 5432
 dbPort = ${databasePort}
 
 
+
 ##############################
-# Data parameters (case-insensitive for DBMS connections)
+# Data parameters. CAUTION! These paramayters may be case-sensitive, depending on the DBMS (e.g., case-sensitive for Oracle, but case-insensitive for PostgreSQL).
 # Change parameters to reflect the contents that will be extracted from the database.
 # In case of RML conversion mode, specification for OPTIONAL descriptive (non-spatial) attributes is redundant (since customized mapping rules must have been specified in a TURTLE file).
 ##############################
 
-## MANDATORY parameter that indicates the database table or view which contains spatial features
+## MANDATORY parameter that indicates the database table or view which contains spatial features.
 #tableName = public.points
 tableName = ${resourceTableName}
 
-## OPTIONAL parameter that specifies a filter for selecting qualifying records
+## OPTIONAL parameter that specifies a filter for selecting qualifying records.
 ## It has equivalent syntax to a WHERE clause in SQL, 
 ## e.g. filterSQLCondition=town_type = 'TOWN' OR town_type = 'VILLAGE' OR town_type = 'CITY'  
 ## Leave blank if all records should be extracted.
 #filterSQLCondition = 
 filterSQLCondition = ${filteringCondition}
 
-## MANDATORY column name containing unique identifier for each entity (i.e., each record)
+## MANDATORY column name containing unique identifier for each feature (i.e., each record).
 #attrKey = osm_id
 attrKey = ${resourceIdentityAttribute}
 
-## OPTIONAL column name from which name literals (i.e., strings) will be extracted. Leave blank if non applicable.
-#attrName = name
-attrName = ${resourceNameAttribute}
-
-## OPTIONAL column name from which classification literals (e.g., type of points, road classes etc.) will be extracted. Leave blank if non applicable.
-#attrCategory = type
-attrCategory = ${resourceCategoryAttribute}
-
-## MANDATORY parameter that specifies the name of the geometry column
+## Parameter that specifies the name of the geometry column in the input table. Omit this parameter if geometry representation is available with columns specifying X,Y coordinates for points; otherwise, this parameter is MANDATORY.
 #attrGeometry = geom
 attrGeometry = ${resourceGeometryAttribute}
 
-## MANDATORY parameter that specifies particular values (e.g., UNK) in attributes that should not be exported as literals
-## By default, NULL values in attributes are suppressed and never exported
-#valIgnore = UNK
-valIgnore = ${ignoredAttributeValue}
+## Specifies the attribute holding X-coordinates (or longitude) of point locations. MANDATORY if a geometry attribute has not been specified; otherwise, this parameter may be omitted.
+#attrX = lon
+attrX = ${resourceLongitudeAtribute}
+
+## Specifies the attribute holding Y-coordinates (or latitude) of point locations. MANDATORY if a geometry attribute has not been specified; otherwise, this parameter may be omitted.
+#attrY = lat
+attrY = ${resourceLatitudeAtribute}
+
+## OPTIONAL column name containing name literals (i.e., strings). Applicable when such values are used for registering features in the SLIPO Registry. Leave blank if non applicable.
+#attrName = name
+attrName = ${resourceNameAttribute}
+
+## OPTIONAL column name containing literals regarding classification into categories (e.g., type of points, road classes etc.) for each feature. Applicable when such values are used for registering features in the SLIPO Registry. Leave blank if non applicable.
+#attrCategory = type
+attrCategory = ${resourceCategoryAttribute}
+
+
+## OPTIONAL boolean parameter denoting whether a .CSV file will be also extracted specifically for registering features in the SLIPO Registry. Omit if non applicable.
+## Each record in the resulting .CSV file will include information extracted from the basic attributes specified in the previous parameters.
+registerFeatures = false 
+
 
 
 ##############################
@@ -168,19 +212,64 @@ nsGeometryURI = http://www.opengis.net/ont/geosparql#
 prefixGeometryNS = ${geoontologyNamespacePrefix}
 
 
+
+##############################
+## Namespaces parameters (ONLY applicable in either GRAPH or STREAM conversion modes)
+## Change these parameters if you want to use different values for the namespaces and prefixes
+##############################
+
+## MANDATORY parameter that specifies the data source provider of the input features
+#featureSource=OpenStreetMap
+featureSource= ${featureSource}
+
+
+##OPTIONAL parameters regarding namespaces of generated URIs.
+
+##Specify the namespace of the underlying ontology. Used in creating properties for the RDF triples. 
+#nsOntology = http://slipo.eu/def#
+nsOntology = ${nsOntology}
+
+##Specify the namespace for the underlying geospatial ontology
+#nsGeometry = http://www.opengis.net/ont/geosparql#
+nsGeometry = ${nsGeometry}
+
+##Specify the common URI namespace for all generated resources
+#nsFeatureURI = http://slipo.eu/id/poi/
+nsFeatureURI = ${nsFeatureURI}
+
+##Specify the common URI namespace for the classification scheme 
+#nsClassificationURI = http://slipo.eu/id/classification/
+nsClassificationURI = ${nsClassificationURI}
+
+##Specify the common URI namespace for categories used in the classification scheme
+#nsClassURI = http://slipo.eu/id/term/
+nsClassURI = ${nsClassURI}
+
+##Specify the common URI namespace for the data source provider
+#nsDataSourceURI = http://slipo.eu/id/poisource/
+nsDataSourceURI = ${nsDataSourceURI}
+
+## Specify two lists (of comma separated values) with the correspondence between a prefix and its respective namespace (mainly used in attribute mappings)
+prefixes = slipo, geo, xsd, rdfs, wgs84_pos
+namespaces = http://slipo.eu/def#, http://www.opengis.net/ont/geosparql#, http://www.w3.org/2001/XMLSchema#, http://www.w3.org/1999/02/22-rdf-syntax-ns#, http://www.w3.org/2003/01/geo/wgs84_pos#
+
+
+
 ###############################
 ## Spatial Reference parameters
 ###############################
-## Optional parameters. These fields should be filled in if a transformation between EPSG reference systems is needed
-## Comment out both properties if geometries are assumed in WGS84 reference system (EPSG:4326).
+## Optional parameters. These parameters should be filled in case that a transformation between EPSG spatial reference systems is required. 
+## Transformation between spatial reference systems must be natively supported by the DBMS in order for this option to take effect.
+## Comment both properties if geometries are assumed in WGS84 reference system (EPSG:4326).
 #sourceCRS = EPSG:2100
 #targetCRS = EPSG:4326
 sourceCRS = ${sourceEPSG}
 targetCRS = ${targetEPSG}
 
 
+
 ##############################
 ## Other parameters (ONLY applicable in either GRAPH or STREAM conversion modes)
 ##############################
-# Optional parameters. Default lang for the labels created in the output RDF. By default, the value will be English-en
+# OPTIONAL parameter. Default language tag for string literals created in the output RDF. By default, the value will be English-en.
 defaultLang=en

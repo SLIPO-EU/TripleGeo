@@ -1,3 +1,7 @@
 /target/
 /tmp/
 /test/output/
+/test/conf/rest/
+/release/
+/benchmark/
+
