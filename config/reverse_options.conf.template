@@ -11,14 +11,14 @@
 ## Supported output file formats: 
 ##     SHAPEFILE ; 
 ##     CSV.
-#inputFormat = SHAPEFILE
-inputFormat = ${inputFormat}
+#outputFormat = SHAPEFILE
+outputFormat = ${outputFormat}
 
 ## OPTIONAL parameter. Number of features (records) to hold in each batch before storing output to file. 
 batchSize = 100
 
 ## Local paths to directories and files used during processing (all paths are RELATIVE to executable).
-## CURRENTLY SUPPORTED: You can specify MULTIPLE input RDF files (of the same serializationa) separating them by ';'. 
+## CURRENTLY SUPPORTED: You can specify MULTIPLE input RDF files (of the same serialization) separating them by ';'. 
 #inputFiles = ./test/rdf/point_classification.nt;./test/rdf/points.nt
 inputFiles = ${inputFiles}
 

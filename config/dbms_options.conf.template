@@ -184,35 +184,6 @@ attrCategory = ${resourceCategoryAttribute}
 registerFeatures = false 
 
 
-
-##############################
-## Namespaces parameters (ONLY applicable in either GRAPH or STREAM conversion modes)
-## Change these parameters if you want to use different values for the namespaces and prefixes
-##############################
-
-## MANDATORY parameter that specifies a user-defined name for the resources that will be created
-## Required for constructing the resource URI
-#featureName = points
-featureName = ${featureName}
-
-## Optional parameter. Specify the common URI namespace for all generated resources
-#nsFeatureURI = http://slipo.eu/geodata#
-nsFeatureURI = http://slipo.eu/geodata#
-
-## Optional parameter. Define a prefix name for the utilized URI namespace (i.e., the previously declared with nsFeatureURI)
-#prefixFeatureNS = georesource
-prefixFeatureNS = ${resourceNamespacePrefix}
-
-## Optional parameter. Specify the namespace for the underlying geospatial ontology
-#nsGeometryURI = http://www.opengis.net/ont/geosparql#
-nsGeometryURI = http://www.opengis.net/ont/geosparql#
-
-## Optional parameter. Define a prefix name for the geospatial ontology (i.e., the previously declared with nsGeometryURI)
-#prefixGeometryNS = geo
-prefixGeometryNS = ${geoontologyNamespacePrefix}
-
-
-
 ##############################
 ## Namespaces parameters (ONLY applicable in either GRAPH or STREAM conversion modes)
 ## Change these parameters if you want to use different values for the namespaces and prefixes

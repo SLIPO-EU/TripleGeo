@@ -26,17 +26,15 @@
 mvn install:install-file -Dfile=/<*YOUR_LOCAL_DIR*>/ojdbc7.jar -DgroupId=com.oracle -DartifactId=ojdbc7 -Dversion=12.1.0.1 -Dpackaging=jar</code></li>
 <li> Starting from version 1.3, TripleGeo includes support for custom transformation of thematic attributes according to <a href="http://rml.io/">RDF Mapping language (RML)</a>. In order to enable RML conversion mode, you need to install <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/lib/RML-Mapper.jar">RML-Mapper.jar</a> specially prepared for TripleGeo execution in your local maven repository using:<br/>
 <code>
-mvn install:install-file -Dfile=/<*YOUR_LOCAL_DIR*>/RML-Mapper.jar DgroupId=be.ugent.mmlab.rml -DartifactId=rml-mapper -Dversion=0.3 -Dpackaging=jar</code></li>
+mvn install:install-file -Dfile=/<*YOUR_LOCAL_DIR*>/RML-Mapper.jar -DgroupId=be.ugent.mmlab.rml -DartifactId=rml-mapper -Dversion=0.3 -Dpackaging=jar</code></li>
 
 <li>
 Building the application with maven:<br/>
 <code>mvn clean package</code><br/>
 results into a <code>triplegeo-1.4-SNAPSHOT.jar</code> under directory <code>target</code> according to what has been specified in the <code>pom.xml</code> file.
 </li>
-<li>The current distribution (ver. 1.4) comes with dummy configuration templates <code>file_options.conf</code> for geographical files (ESRI shapefiles, CSV, GPX, KML, etc.) and <code>dbms_options.conf</code> for database contents (from PostGIS, Oracle Spatial, etc.). These files contain indicative values for the most important properties when accessing data from geographical files or a spatial DBMS. Self-contained brief instructions can guide you into the extraction process.</li>
 </ul>
 
-<p>Indicative configuration files for several cases are available <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/conf/">here</a> in order to assist you when preparing your own.</p>
 
 <h3>
 <a name="execution" class="anchor" href="#Execution"><span class="octicon octicon-link"></span></a>Execution</h3>
@@ -47,11 +45,17 @@ TripleGeo supports <i>two-way</i> transformation of geospatial features:
 <li><i>Reverse Transformation</i> of RDF data into de facto geospatial formats (currently, .CSV and ESRI shapefiles). TripleGeo retrieves data from a graph constructed on-the-fly from the RDF data and creates records with a geometry attribute and thematic attributes reflecting the underlying ontology of the input RDF data.</li>
 </ul>
 
-<p>Indicative explanation and usage tips for both transformation modules are given next. <b> NOTE: </b> All commands and configurations refer to the current version (TripleGeo ver. 1.4).</p>
+<p>Explanation and usage tips for both transformation modules are given next. The current distribution (ver. 1.4) comes with dummy configuration templates <code>file_options.conf</code> for geographical files (ESRI shapefiles, CSV, GPX, KML, etc.) and <code>dbms_options.conf</code> for database contents (from PostGIS, Oracle Spatial, etc.). These files contain indicative values for the most important properties when accessing data from geographical files or a spatial DBMS. This release also includes a template <code>reverse_options.conf</code> for reconverting RDF data back into geospatial file formats. Self-contained brief instructions can guide you into the extraction and reverse transformation processes.</p>
+
+<p>Indicative configuration files and mappings for several cases are available <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/conf/">here</a> in order to assist you when preparing your own.</p>
+
+<p>In addition, custom classification schemes for OpenStreetMap data are available <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/classification/">here</a> and can be readily used with the provided mappings against the <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/data/">sample datasets</a>. </p>
+
+<p><b> NOTE: </b> All execution commands and configurations refer to the current version (TripleGeo ver. 1.4).</p>
 
 
 <h4>
-<a name="transformation" class="anchor" href="#Transformation"><span class="octicon octicon-link"></span></a>Transformation of geospatial datasets to RDF</h4>
+<a name="transformation" class="anchor" href="#Transformation"><span class="octicon octicon-link"></span></a>A. Transformation of geospatial datasets to RDF</h4>
 
 How to use TripleGeo in order to transform geospatial data into RDF triples:
 
@@ -67,7 +71,7 @@ How to use TripleGeo in order to transform geospatial data into RDF triples:
 <p>Wait until the process gets finished, and verify that the resulting output files are according to your specifications.</p>
 
 <h4>
-<a name="reverse_transformation" class="anchor" href="#ReverseTransformation"><span class="octicon octicon-link"></span></a>Reverse Transformation from RDF to geospatial datasets</h4>
+<a name="reverse_transformation" class="anchor" href="#ReverseTransformation"><span class="octicon octicon-link"></span></a>B. Reverse Transformation from RDF to geospatial datasets</h4>
 
 How to use TripleGeo in order to transform RDF triples into a geospatial data file:
 
