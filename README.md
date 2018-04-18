@@ -98,6 +98,7 @@ How to use TripleGeo in order to transform RDF triples into a geospatial data fi
 </ul>
 </ul>
 
+
 <p>Sample geographic <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/data/">datasets</a> for testing are available in various file formats.</p>
 
 <h3>
@@ -113,6 +114,20 @@ How to use TripleGeo in order to transform RDF triples into a geospatial data fi
 
 <p>Resulting triples are written into local files, so that they can be readily imported into a triple store that supports the respective ontology.</p>
 
+<h2>
+<a name="usecases" class="anchor" href="#usecases"><span class="octicon octicon-link"></span></a>Use Cases</h2>
+
+<p>TripleGeo has been used to transform a large variety of geospatial datasets into RDF. Amongst them:</p>
+
+<ul>
+<li>Exposing INSPIRE-alinged geospatial data and metadata for Greece as Linked Data through a <a href="http://geodata.gov.gr/sparql/">SPARQL endpoint</a>. This has been the first attempt to build an abstraction layer on top of the <a href="http://inspire.ec.europa.eu/">INSPIRE</a> infrastructure based on <a href="http://www.opengeospatial.org/standards/geosparql">GeoSPARQL</a> concepts, thus making INSPIRE contents accessible and discoverable as linked data.</li>
+<li>Exposing Points of Interest (POI) as Linked Geospatial Data through this <a href="http://geoknow-server.imis.athena-innovation.gr:11480/pois.html">SPARQL endpoint</a>. In this case, POI data extracted from <a href="https://www.openstreetmap.org/">OpenStreetMap</a> across Europe has been transformed into RDF according a comprehensive and vendor-agnostic <a href="https://github.com/SLIPO-EU/poi-data-model">OWL ontology for POI data</a>, which enables modeling and representation of multifaceted and enriched POI profiles.</li>
+</ul>
+
+<h2>
+<a name="documentation" class="anchor" href="#documentation"><span class="octicon octicon-link"></span></a>Documentation</h2>
+
+<p>All Java classes and data structures developed for TripleGeo are fully documented in this <a href="https://slipo-eu.github.io/TripleGeo/index.html">Javadoc</a>.</p>
 
 <h2>
 <a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
