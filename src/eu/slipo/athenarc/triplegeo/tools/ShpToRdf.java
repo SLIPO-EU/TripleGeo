@@ -1,5 +1,5 @@
 /*
- * @(#) ShpToRdf.java	version 1.4   27/2/2018
+ * @(#) ShpToRdf.java	version 1.5   12/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -19,6 +19,7 @@
 package eu.slipo.athenarc.triplegeo.tools;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Entry point to convert ESRI shapefiles into RDF triples.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -57,7 +58,8 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 21/11/2017, added support for recognizing a user-specified classification scheme (RML mode only)
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
  * Modified: 13/12/2017, utilizing a streaming iterator in order to avoid loading the entire feature collection into memory
- * Last modified by: Kostas Patroumpas, 27/2/2018
+ * Modified: 12/7/2018, checking availability of basic shapefile components before starting any processing
+ * Last modified by: Kostas Patroumpas, 12/7/2018
  */
 public class ShpToRdf {
 	
@@ -176,6 +178,14 @@ public class ShpToRdf {
 		    if (map.size() > 0) 
 		    {
 		    	dataStore = DataStoreFinder.getDataStore(map);
+		    	
+		    	//Check whether the input shapefile is valid
+		    	if (!validateShapefile(file, dataStore.getTypeNames()[0])) {
+		    		System.out.println("ERROR! Shapefile " + shapePath + " is malformed and cannot be processed! Check if all its constituent files are available in the same folder.");
+		    		throw new IOException();
+		    	}
+		    	
+		    	//Create a feature source over this shapefile
 		    	FeatureSource<?, ?> featureSource = dataStore.getFeatureSource(dataStore.getTypeNames()[0]);
 		    	
 		    	//In case no CRS transformation has been specified, keep resulting geometries in their original georeferencing
@@ -199,4 +209,24 @@ public class ShpToRdf {
 	    return null;
    }
 
+   /**
+    * Checks whether a valid shapefile is given as input, i.e., at least the three .shp, .shx, .dbf files are available in the same folder 
+    * @param shpPath  Path to the shapefile on disk.
+    * @param shpName  Name of the shapefile (without extensions)
+    * @return  True if the shapefile seems valid and can be processed; otherwise, False.
+    */
+   private boolean validateShapefile(File shpPath, String shpName)
+   {
+	   String dataDir = shpPath.getParent();
+	   String[] fileExtensions = {".shp",".shx",".dbf"};      //Those three files are indispensable for any valid shapefile
+
+	   for (String ext: fileExtensions) {
+		   File f = new File(dataDir + "/" + shpName + ext);
+		   if (!f.exists())
+		       return false;
+	   }
+
+       return true;
+   }
+   
 }

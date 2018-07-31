@@ -1,5 +1,5 @@
 ##############################
-## Template for configuring TripleGeo ver.1.4 in order to convert spatial features stored in a DBMS into RDF triples.
+## Template for configuring TripleGeo ver.1.5 in order to convert spatial features stored in a DBMS into RDF triples.
 ## Specify parameters according to the examples for your specific dataset.
 ## Examples given below assume an existing PostgreSQL+PostGIS database.
 ##############################

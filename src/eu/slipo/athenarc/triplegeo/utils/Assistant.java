@@ -1,5 +1,5 @@
 /*
- * @(#) Configuration.java 	 version 1.4  8/3/2018
+ * @(#) Assistant.java 	 version 1.5  27/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -32,11 +32,16 @@ import java.nio.charset.Charset;
 import java.sql.Blob;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
@@ -47,28 +52,40 @@ import javax.xml.transform.stream.StreamSource;
 import org.apache.commons.io.FilenameUtils;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
+import org.opengis.geometry.MismatchedDimensionException;
+import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
+import org.opengis.referencing.operation.TransformException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.LineString;
+import com.vividsolutions.jts.geom.LinearRing;
+import com.vividsolutions.jts.geom.MultiPolygon;
+import com.vividsolutions.jts.geom.Point;
+import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.io.WKTReader;
 import com.vividsolutions.jts.io.WKTWriter;
+import com.vividsolutions.jts.operation.polygonize.Polygonizer;
 
 
 /**
  * Assistance class with various helper methods used in transformation or reverse transformation.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 9/3/2013
  * Modified: 15/12/2017, included support for extra geometric transformations 
  * Modified: 9/2/2018, included additional execution statistics
- * TODO: Calculation of area and length for geometries must be done in Cartesian coordinates in order to return values in SI units (meters, square meters)
- * Last modified by: Kostas Patroumpas, 8/3/2018
+ * Modified: 23/4/2018, added support for executing build-in functions at runtime using the Java Reflection API.
+ * Modified: 30/4/2018; calculation of area and length for geometries done in Cartesian coordinates in order to return values in SI units (meters, square meters)
+ * Modified: 27/7/2018; auto-generation of intermediate identifiers if missing in the original data
+ * Last modified by: Kostas Patroumpas, 27/7/2018
  */
 
 public class Assistant {
@@ -77,8 +94,25 @@ public class Assistant {
 	public WKTReader wktReader = null;             //Parses a geometry in Well-Known Text format to a Geometry representation.
 	
 	private static Envelope mbr = null;            //Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
-	
+	private static Configuration currentConfig;
 
+	 private AtomicLong numberGenerator = new AtomicLong(1L);    //Used to generate serial numbers, i.e., consecutive positive integers starting from 1
+	 
+	/**
+	 * Constructor of the class without explicit declaration of configuration settings.
+	 */
+	public Assistant() {
+		
+	}
+	
+	/**
+	 * Constructor of the class with explicit declaration of configuration settings.
+	 */
+	public Assistant(Configuration config) {
+		
+		currentConfig = config;
+	}
+	
 	/**
 	 * Determines the serialization mode in the output RDF triples. Applicable in the RML transformation mode.
 	 * @param serialization  A string with the user-specified serialization.
@@ -436,6 +470,59 @@ public class Assistant {
         return g;     //Return transformed geometry
 	}
 
+	/**
+	 * Reprojects a given geometry into the WGS84 (lon/lat) coordinate reference system
+	 * @param wkt  Well-Known Text of the input geometry
+	 * @param srid  EPSG code of the coordinate reference system (CRS) of the geometry
+	 * @return  Geometry reprojected into WG84 system
+	 */
+	public Geometry geomTransformWGS84(String wkt, int srid) {
+		
+	    WKTReader wktReader = new WKTReader();
+	    Geometry g = null;
+        try {
+        	g = wktReader.read(wkt);
+        	if (srid != 4326)                   //In case that geometry is NOT georeferenced in WGS84, ...
+        	{                                   //... it should be transformed in order to calculate its lon/lat coordinates
+        		CoordinateReferenceSystem origCRS = CRS.decode("EPSG:" + srid);    //The CRS system of the original geometry
+        		CoordinateReferenceSystem finalCRS = CRS.decode("EPSG:4326");      //CRS for WGS84
+        		//Define a MathTransform object and apply it
+        		MathTransform transform = CRS.findMathTransform(origCRS, finalCRS);
+        		g = JTS.transform(g, transform); 	        		
+        	}
+        }
+        catch (Exception e) {
+				e.printStackTrace();
+			}
+        
+        return g;
+	}
+	
+	/**
+	 * Projects the given geometry to a flat Cartesian plane
+	 * @param g  Input geometry
+	 * @param srid  EPSG code of the coordinate reference system (CRS) of the geometry
+	 * @return  Projected geometry to a flat Cartesian plane
+	 */
+	public Geometry geomFlatTransform(Geometry g, int srid) {
+		
+		Point centroid = g.getCentroid();
+	    try {	    	
+	      //Convert geometry to a flat Cartesian plane using GeoTools auto projection (assuming the shape is small enough to minimize error)
+	      String code = "AUTO:42001," + centroid.getX() + "," + centroid.getY();
+	      CoordinateReferenceSystem auto = CRS.decode(code);
+//	      System.out.println("Coordinate system units: " + auto.getCoordinateSystem().getAxis(0).getUnit().toString());
+	  	
+	      CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:" + srid);  
+	      MathTransform transform = CRS.findMathTransform(targetCRS, auto);
+	      Geometry gProjected = JTS.transform(g, transform);      
+      
+	      return gProjected;		                    //Projected geometry
+	    } 
+	    catch (MismatchedDimensionException | TransformException | FactoryException e) { e.printStackTrace(); }
+	    
+	    return null;
+	}
 	
 	/**
 	 * Instantiates a new PGDBDecoder for geometries from a Personal ESRI geodatabase (MS Access format).
@@ -483,7 +570,96 @@ public class Assistant {
 
 		return wkt;   //Return (transformed) geometry in WKT representation
 	}
-		
+
+	/**
+	 * Get / create a valid version of the geometry given. If the geometry is a polygon or multi polygon, self intersections /
+	 * inconsistencies are fixed. Otherwise the geometry is returned.
+	 * 
+	 * @param geom
+	 * @return a geometry 
+	 */
+	@SuppressWarnings("unchecked")
+	public Geometry geomValidate(Geometry geom){
+	    if(geom instanceof Polygon){
+	        if(geom.isValid()){
+	            geom.normalize(); // validate does not pick up rings in the wrong order - this will fix that
+	            return geom; // If the polygon is valid just return it
+	        }
+	        Polygonizer polygonizer = new Polygonizer();
+	        addPolygon((Polygon)geom, polygonizer);
+	        return toPolygonGeometry(polygonizer.getPolygons(), geom.getFactory());
+	    }else if(geom instanceof MultiPolygon){
+	        if(geom.isValid()){
+	            geom.normalize(); // validate does not pick up rings in the wrong order - this will fix that
+	            return geom; // If the multipolygon is valid just return it
+	        }
+	        Polygonizer polygonizer = new Polygonizer();
+	        for(int n = geom.getNumGeometries(); n-- > 0;){
+	            addPolygon((Polygon)geom.getGeometryN(n), polygonizer);
+	        }
+	        return toPolygonGeometry(polygonizer.getPolygons(), geom.getFactory());
+	    }else{
+	        return geom; // In my case, I only care about polygon / multipolygon geometries
+	    }
+	}
+
+	/**
+	 * Add all line strings from the polygon given to the polygonizer given
+	 * 
+	 * @param polygon polygon from which to extract line strings
+	 * @param polygonizer polygonizer
+	 */
+	public void addPolygon(Polygon polygon, Polygonizer polygonizer){
+	    addLineString(polygon.getExteriorRing(), polygonizer);
+	    for(int n = polygon.getNumInteriorRing(); n-- > 0;){
+	        addLineString(polygon.getInteriorRingN(n), polygonizer);
+	    }
+	}
+
+	/**
+	 * Add the linestring given to the polygonizer
+	 * 
+	 * @param linestring line string
+	 * @param polygonizer polygonizer
+	 */
+	public void addLineString(LineString lineString, Polygonizer polygonizer){
+
+	    if(lineString instanceof LinearRing){ // LinearRings are treated differently to line strings : we need a LineString NOT a LinearRing
+	        lineString = lineString.getFactory().createLineString(lineString.getCoordinateSequence());
+	    }
+
+	    // unioning the linestring with the point makes any self intersections explicit.
+	    Point point = lineString.getFactory().createPoint(lineString.getCoordinateN(0));
+	    Geometry toAdd = lineString.union(point); 
+
+	    //Add result to polygonizer
+	    polygonizer.add(toAdd);
+	}
+
+	/**
+	 * Get a geometry from a collection of polygons.
+	 * 
+	 * @param polygons collection
+	 * @param factory factory to generate MultiPolygon if required
+	 * @return null if there were no polygons, the polygon if there was only one, or a MultiPolygon containing all polygons otherwise
+	 */
+	public Geometry toPolygonGeometry(Collection<Polygon> polygons, GeometryFactory factory){
+	    switch(polygons.size()){
+	        case 0:
+	            return null; // No valid polygons!
+	        case 1:
+	            return polygons.iterator().next(); // single polygon - no need to wrap
+	        default:
+	            //polygons may still overlap! Need to sym difference them
+	            Iterator<Polygon> iter = polygons.iterator();
+	            Geometry ret = iter.next();
+	            while(iter.hasNext()){
+	                ret = ret.symDifference(iter.next());
+	            }
+	            return ret;
+	    }
+	}
+	
 	/** 
 	 * Provides the Well-Known Text representation of a geometry for its inclusion as literal in RDF triples.
 	 * @param g  Input geometry
@@ -527,7 +703,7 @@ public class Assistant {
     
         return g;     //Return geometry
 	}	
-		
+	
 	/** 
 	 * Returns the area of a polygon geometry from its the Well-Known Text representation.
 	 * @param polygonWKT  WKT of the polygon
@@ -538,6 +714,22 @@ public class Assistant {
 		Geometry g = WKT2Geometry(polygonWKT);
 		return g.getArea();		                //Calculate the area of the given (multi)polygon 	
 	}
+	
+	/** 
+	 * Built-in function that returns the area of a polygon geometry from its the Well-Known Text representation.
+	 * @param polygonWKT  WKT of the polygon
+	 * @param targetSRID  EPSG code of the coordinate reference system (CRS) of the geometry
+	 * @return  calculated area in square meters (NOT in the units of the CRS of the geometry)
+	 */
+	public double getArea(String polygonWKT, int targetSRID) {
+			
+		Geometry g = WKT2Geometry(polygonWKT);
+		Geometry gProjected = geomFlatTransform(g, targetSRID);     //Geometry projected to a flat Cartesian plane
+		if (gProjected != null)
+			return gProjected.getArea();		                    //Calculate the area of the projected (multi)polygon in SQUARE METERS
+	    
+	    return 0.0;            //This is not a polygon geometry, so it has no area 	
+	}
 
 	/** 
 	 * Returns the length of a linestring or the perimeter of a polygon geometry from its the Well-Known Text representation.
@@ -547,44 +739,67 @@ public class Assistant {
 	public static double getLength(String wkt) {
 		
 		Geometry g = WKT2Geometry(wkt);
-		return g.getLength();		                //Calculate the length of the given (multi)linestring or the perimeter of the given (multi)polygon
+		return g.getLength();		                //Calculate the length of the given (multi)linestring or the perimeter of the given (multi)polygon	
 	}
 	
 	/** 
-	 * Returns a pair of lon/lat coordinates (in WGS84) of a geometry as calculated from its the Well-Known Text representation.
+	 * Built-in function that returns the length of a linestring or the perimeter of a polygon geometry from its the Well-Known Text representation.
+	 * @param wkt WKT of the linestring or polygon
+	 * @param targetSRID  EPSG code of the coordinate reference system (CRS) of the geometry
+	 * @return  calculated length/perimeter in square meters (NOT in the units of the CRS of the geometry)
+	 */	
+	public double getLength(String wkt, int targetSRID) {
+		
+		Geometry g = WKT2Geometry(wkt);
+		Geometry gProjected = geomFlatTransform(g, targetSRID);     //Geometry projected to a flat Cartesian plane
+		if (gProjected != null)
+			return gProjected.getLength();	//Calculate the length of the given (multi)linestring or the perimeter of the given (multi)polygon in SQUARE METERS
+
+		return 0.0;   //This is not a line or polygon geometry, so it has no length or perimeter
+	}
+	
+	/** 
+	 * Built-in function that returns a pair of lon/lat coordinates (in WGS84) of a geometry as calculated from its the Well-Known Text representation.
 	 * @param wkt   WKT of the geometry
 	 * @param targetSRID   the EPSG code of the CRS of this geometry 
 	 * @return  An array with the pair of lon/lat coordinates
 	 */
-	public static double[] getLonLatCoords(String wkt, int targetSRID) {
+	public double[] getLonLatCoords(String wkt, int targetSRID) {
 
-	    WKTReader wktReader = new WKTReader();
-	    Geometry g = null;
-        try {
-        	g = wktReader.read(wkt);
-        	if (targetSRID != 4326)                   //In case that geometry is NOT georeferenced in WGS84, ...
-        	{                                         //... it should be transformed in order to calculate its lon/lat coordinates
-        		CoordinateReferenceSystem origCRS = CRS.decode("EPSG:" + targetSRID); //The CRS system of the original geometry
-        		CoordinateReferenceSystem finalCRS = CRS.decode("EPSG:4326");         //CRS for WGS84
-        		//Define a MathTransform object and apply it
-        		MathTransform transform = CRS.findMathTransform(origCRS, finalCRS);
-        		g = JTS.transform(g, transform); 	        		
-        	}
-        	
+	    Geometry g = geomTransformWGS84(wkt, targetSRID);
+	    if (g != null)
+	    {	
         	//Update the MBR of all geometries processed so far
   	        updateMBR(g);
         	
         	//Calculate the coordinates of its centroid	        	
-        	return new double[] {g.getCentroid().getX(), g.getCentroid().getY()};
-        	
-		} catch (Exception e) {
-			System.out.println("Geometry " + wkt + " is problematic.");
-			e.printStackTrace();
+        	return new double[] {g.getCentroid().getX(), g.getCentroid().getY()};	
 		}
         
 	    return null;
 	}
-		
+
+	
+	/**
+	 * Calculate the longitude at the centroid of the geometry
+	 * @param g  Input geometry
+	 * @return  Longitude (in WGS84) of the centroid of the geometry
+	 */
+	public double getLongitude(Geometry g) {
+  	
+		return g.getCentroid().getX();
+	}
+
+	/**
+	 * Calculate the latitude at the centroid of the geometry
+	 * @param g  Input geometry
+	 * @return  Latitude (in WGS84) of the centroid of the geometry
+	 */
+	public double getLatitude(Geometry g) {
+  	
+		return g.getCentroid().getY();
+	}
+	
 	/** 
 	 * Provides the internal geometry representation based on its the Well-Known Text, also applying transformation into another CRS (if required).
 	 * @param wkt   WKT of the geometry
@@ -630,8 +845,42 @@ public class Assistant {
 			ExceptionHandler.abort(e, "Output files were not merged.");
 		}
 	}
-		
 	
+	/**
+	 * Provides the next serial number (long) to be used as an intermediate identifier
+	 * @return  A long number.
+	 */
+    public long getNextSerial() {
+        return numberGenerator.getAndIncrement();
+    }
+    
+	/**
+	 * Provides a UUID (Universally Unique Identifier) that represents a 128-bit long value to be used in the URI of a transformed feature.
+     * Also known as GUID (Globally Unique Identifier).
+     * @param featureSource  The name of the feature source, to be used as suffix of the identifier.
+	 * @param id  A unique identifier of the feature.
+	 * @return The auto-generated UUID based on the concatenation of the feature source and the identifier..
+	 */
+	public UUID getUUID(String featureSource, String id) {
+			
+		UUID uuid = null;
+
+		//Auto-generate a serial number in case that no unique identifier is available for the original feature
+		//CAUTION! This serial number is neither retained not emitted in the resulting triples
+		if (id == null)
+			id = Long.toString(getNextSerial());
+		
+		//UUIDs generated by hashing over the concatenation of feature source name and the identifier
+		try {
+		    byte[] bytes = (featureSource + id).getBytes("UTF-8");
+			uuid = UUID.nameUUIDFromBytes(bytes);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		 
+		return uuid;	
+	}
+		
 	/**
 	 * Provides a UUID (Universally Unique Identifier) that represents a 128-bit long value to be used in the URI of a transformed feature.
      * Also known as GUID (Globally Unique Identifier).
@@ -655,7 +904,6 @@ public class Assistant {
 		 
 		return uuid;	
 	}
-		
 	
 	/**
 	 * Provides a UTF-8 encoding of the given string originally represented in the given encoding
@@ -671,4 +919,82 @@ public class Assistant {
 		return value;
 	}
 
+	/**
+	 * Built-in function that extracts the language tag from an attribute name. This tag will be attached to all values obtained for this attribute.
+	 * ASSUMPTION: The tag is composed from the suffix after the i-th character in the attribute name.
+	 * @param attr  The attribute name.
+	 * @param i  Index of the i-th character in the attribute name.
+	 * @return  The language tag to be applied in string literals created for values from this attribute.
+	 */
+	public String getLanguage(String attr, int i) {
+
+		String lang = null;
+		if ((attr.length() > i) && (attr.length() <= i+2))    //Allow only a 2-digit specification (ISO 639-1) for languages
+			lang = attr.substring(i);   //Get the suffix after the i-th character in the attribute name
+		return lang;
+	}
+	
+	/**
+	 * Built-in function that identifies the provider of the dataset as specified in the configuration settings.
+	 * @return  The name of the data provider.
+	 */
+	public String getDataSource() {
+		
+		return currentConfig.featureSource;	
+	}
+
+
+	/**
+	 * Built-in function that concatenates two string values into a new one.
+	 * TODO: Replace with a more generic function that can concatenate multiple values.
+	 * @param val1  The first value.
+	 * @param val2  The second value.
+	 * @return  The concatenated value.
+	 */
+	public String concatenate(String val1, String val2) {
+		
+		return (val1 + "  " + val2).trim();	
+	}
+	
+	/**
+	 * Applies a function at runtime, based on user-defined YML specifications regarding an attribute.
+	 * This is carried out thanks to the Java Reflection API.
+	 * @param methodName  The name of the method to invoke (e.g., getLanguage).
+	 * @param args  The necessary arguments for the method to run (may be multiple).
+	 * @return A string value resulting from the invocation (e.g., language tag extracted from the attribute name).
+	 */
+	public Object applyRuntimeMethod(String methodName, Object[] args) {
+		 Method method;
+		 Object res = null;
+		 try {
+			  Class<?> params[] = new Class[args.length];
+			  //Check each argument and determine its class or type
+			  for (int i = 0; i < args.length; i++) 
+			  {
+				  if (args[i] instanceof String)                 //String
+		                params[i] = String.class;
+				  else if (args[i] instanceof Integer)           //Integer
+		                params[i] = Integer.TYPE;
+				  else if (args[i] instanceof Double)            //Double
+		                params[i] = Double.TYPE;  
+				  else if (args[i] instanceof Float)             //Float
+		                params[i] = Float.TYPE; 
+				  else if (args[i] instanceof Geometry)          //Geometry
+		                params[i] = Geometry.class;
+		                                                           //TODO: Add other types in case they are needed in other build-in functions
+			  }
+			  //Identify the method that should be invoked with its proper parameters
+			  method = this.getClass().getDeclaredMethod(methodName, params);
+			  res = method.invoke(this, args);        //Result of the method should be cast to a data type by the caller
+			} 
+		 catch (SecurityException e) { e.printStackTrace(); }
+		 catch (NoSuchMethodException e) { e.printStackTrace(); } 
+		 catch (IllegalAccessException e) { e.printStackTrace(); } 
+		 catch (IllegalArgumentException e) { e.printStackTrace(); } 
+		 catch (InvocationTargetException e) { e.printStackTrace(); }
+		
+		 return res; 
+	}
+	
+	
 }

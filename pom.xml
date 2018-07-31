@@ -4,7 +4,7 @@
   <groupId>eu.slipo.athenarc</groupId>
   <artifactId>triplegeo</artifactId>
   <packaging>jar</packaging>
-  <version>1.4-SNAPSHOT</version>
+  <version>1.5-SNAPSHOT</version>
   <name>TripleGeo</name>
   <description>An open-source ETL tool for extracting geospatial features into RDF triples</description>
   <url>https://github.com/slipo-eu/TripleGeo</url>
@@ -186,7 +186,7 @@
    <dependency>
       <groupId>com.vividsolutions</groupId>
       <artifactId>jts</artifactId>
-      <version>1.11</version>
+      <version>1.13</version>
    </dependency>
 
    <dependency>
@@ -200,6 +200,12 @@
       <groupId>org.mapdb</groupId>
       <artifactId>mapdb</artifactId>
       <version>3.0.5</version>
+   </dependency>
+
+   <dependency>
+	  <groupId>org.openstreetmap.osmosis</groupId>
+      <artifactId>osmosis-pbf</artifactId>
+      <version>0.46</version>
    </dependency>
 
    <!-- Support for transformation based on RML mappings -->

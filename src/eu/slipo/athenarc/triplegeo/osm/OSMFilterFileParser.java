@@ -22,17 +22,32 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+/* DEVELOPMENT HISTORY
+ * Created by: Merten Peetz, 2017
+ * Modified: 31/5/2018 by Kostas Patroumpas; included method for providing the set of all identified categories
+ * Modified: 15/6/2018 by Kostas Patroumpas; included method for providing the set of all identified tags
+ * Last modified by: Kostas Patroumpas, 15/6/2018
+ */
 
 public class OSMFilterFileParser {
 	private static final int MAX_INDENT = 100; // Prevent stack overflow
 	private String filename;
+	private Set<String> tags;
+	private Set<String> categories;
 	
 	public OSMFilterFileParser(String filename) {
 		this.filename = filename;
 	}
 	
 	public List<OSMFilter> parse() {
+		
+		tags = new HashSet<String>();
+		categories = new HashSet<String>();
+		
 		// Load filter file
 		List<String> lines = null;
 		try {
@@ -102,6 +117,14 @@ public class OSMFilterFileParser {
 			// Make filter
 			OSMFilter filter = new OSMFilter(key, value, category);
 			
+			//Include tags to the list
+			tags.add(key);
+			tags.add(value);
+			
+			//Include category into the set of identified categories
+			if ((category != null) && (!category.trim().isEmpty()))
+				categories.add(category);
+			
 			// Add to highest level
 			if(level == 0) {
 				filters.add(filter);
@@ -145,7 +168,7 @@ public class OSMFilterFileParser {
 		// Verify filters
 		for(OSMFilter filter : filters) {
 			if(!isOSMFilterValid(filter)) {
-				System.out.println("Error: Parsing filter file: There is at least one filter without children that has no category name");
+				System.out.println("Error: Parsing filter file: There is at least one filter with key " + filter.getKey() + " without children that has no category name");
 				return null;
 			}
 		}
@@ -174,6 +197,16 @@ public class OSMFilterFileParser {
 	// Display an error message with line number
 	private void showError(String msg, int lineNumber) {
 		System.out.println("Error: Parsing filter file, line " + lineNumber + ": " + msg);
+	}
+	
+	//Return the set of all identified categories
+	public Set<String> getAllCategories() {
+		return categories;
+	}
+
+	//Return the set of all identified tags
+	public Set<String> getAllTags() {
+		return tags;
 	}
 	
 	private List<String> readOSMFilterFile(String filename) throws IOException {

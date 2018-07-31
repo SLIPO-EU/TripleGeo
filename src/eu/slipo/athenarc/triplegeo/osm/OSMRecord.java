@@ -1,5 +1,5 @@
 /*
- * @(#) OSMRecord.java 	 version 1.4   24/2/2018
+ * @(#) OSMRecord.java 	 version 1.5   24/2/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Class containing information about the OSM records (nodes, ways, or relations).
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY

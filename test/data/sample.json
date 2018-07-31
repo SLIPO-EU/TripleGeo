@@ -1,0 +1,670 @@
+    [
+        {
+            "ID": 104192,
+            "UUID": "C3CF65DA-50BC-484B-B579-B60730E0667F",
+            "ParentChargePointID": null,
+            "DataProviderID": 1,
+            "DataProvider": {
+                "WebsiteURL": "http:\/\/openchargemap.org",
+                "Comments": null,
+                "DataProviderStatusType": {
+                    "IsProviderEnabled": true,
+                    "ID": 1,
+                    "Title": "Manual Data Entry"
+                },
+                "IsRestrictedEdit": false,
+                "IsOpenDataLicensed": true,
+                "IsApprovedImport": true,
+                "License": "Licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)",
+                "DateLastImported": null,
+                "ID": 1,
+                "Title": "Open Charge Map Contributors"
+            },
+            "DataProvidersReference": null,
+            "OperatorID": 1,
+            "OperatorInfo": {
+                "WebsiteURL": null,
+                "Comments": null,
+                "PhonePrimaryContact": null,
+                "PhoneSecondaryContact": null,
+                "IsPrivateIndividual": null,
+                "AddressInfo": null,
+                "BookingURL": null,
+                "ContactEmail": null,
+                "FaultReportEmail": null,
+                "IsRestrictedEdit": null,
+                "ID": 1,
+                "Title": "(Unknown Operator)"
+            },
+            "OperatorsReference": null,
+            "UsageTypeID": 1,
+            "UsageType": {
+                "IsPayAtLocation": null,
+                "IsMembershipRequired": null,
+                "IsAccessKeyRequired": null,
+                "ID": 1,
+                "Title": "Public"
+            },
+            "UsageCost": null,
+            "AddressInfo": {
+                "ID": 104538,
+                "Title": "Paskulina ciglana (parking)",
+                "AddressLine1": "Vidovdanska",
+                "AddressLine2": null,
+                "Town": "Banja Luka",
+                "StateOrProvince": "RS",
+                "Postcode": "78000",
+                "CountryID": 33,
+                "Country": {
+                    "ISOCode": "BA",
+                    "ContinentCode": "EU",
+                    "ID": 33,
+                    "Title": "Bosnia And Herzegovina"
+                },
+                "Latitude": 44.774984203879,
+                "Longitude": 17.19128540741,
+                "ContactTelephone1": null,
+                "ContactTelephone2": null,
+                "ContactEmail": null,
+                "AccessComments": null,
+                "RelatedURL": null,
+                "Distance": null,
+                "DistanceUnit": 0
+            },
+            "NumberOfPoints": 3,
+            "GeneralComments": "Charging12 Superchargers, available 24\/7, up to 120kW",
+            "DatePlanned": null,
+            "DateLastConfirmed": null,
+            "StatusTypeID": 50,
+            "StatusType": {
+                "IsOperational": true,
+                "IsUserSelectable": true,
+                "ID": 50,
+                "Title": "Operational"
+            },
+            "DateLastStatusUpdate": "2018-06-09T01:04:00Z",
+            "DataQualityLevel": 1,
+            "DateCreated": "2018-05-17T07:56:00Z",
+            "SubmissionStatusTypeID": 200,
+            "SubmissionStatus": {
+                "IsLive": true,
+                "ID": 200,
+                "Title": "Submission Published"
+            },
+            "UserComments": null,
+            "PercentageSimilarity": null,
+            "Connections": [],
+            "MediaItems": null,
+            "MetadataValues": null,
+            "IsRecentlyVerified": true,
+            "DateLastVerified": "2018-05-17T07:56:00Z"
+        },
+        {
+            "ID": 97290,
+            "UUID": "AE99320F-501C-4392-9B50-CBB0FD8C1257",
+            "ParentChargePointID": null,
+            "DataProviderID": 1,
+            "DataProvider": {
+                "WebsiteURL": "http:\/\/openchargemap.org",
+                "Comments": null,
+                "DataProviderStatusType": {
+                    "IsProviderEnabled": true,
+                    "ID": 1,
+                    "Title": "Manual Data Entry"
+                },
+                "IsRestrictedEdit": false,
+                "IsOpenDataLicensed": true,
+                "IsApprovedImport": true,
+                "License": "Licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)",
+                "DateLastImported": null,
+                "ID": 1,
+                "Title": "Open Charge Map Contributors"
+            },
+            "DataProvidersReference": null,
+            "OperatorID": 45,
+            "OperatorInfo": {
+                "WebsiteURL": null,
+                "Comments": "For use when the operator of the equipment is a single business owner connected to the location and equipment is not part of a larger network",
+                "PhonePrimaryContact": null,
+                "PhoneSecondaryContact": null,
+                "IsPrivateIndividual": false,
+                "AddressInfo": null,
+                "BookingURL": null,
+                "ContactEmail": null,
+                "FaultReportEmail": null,
+                "IsRestrictedEdit": null,
+                "ID": 45,
+                "Title": "(Business Owner at Location)"
+            },
+            "OperatorsReference": null,
+            "UsageTypeID": 6,
+            "UsageType": {
+                "IsPayAtLocation": false,
+                "IsMembershipRequired": false,
+                "IsAccessKeyRequired": false,
+                "ID": 6,
+                "Title": "Private - For Staff, Visitors or Customers"
+            },
+            "UsageCost": null,
+            "AddressInfo": {
+                "ID": 97636,
+                "Title": "NIPEX Volkswagen service",
+                "AddressLine1": "Ljepunice bb",
+                "AddressLine2": null,
+                "Town": "Tuzla",
+                "StateOrProvince": null,
+                "Postcode": "75000",
+                "CountryID": 33,
+                "Country": {
+                    "ISOCode": "BA",
+                    "ContinentCode": "EU",
+                    "ID": 33,
+                    "Title": "Bosnia And Herzegovina"
+                },
+                "Latitude": 44.5584551,
+                "Longitude": 18.5722445,
+                "ContactTelephone1": null,
+                "ContactTelephone2": null,
+                "ContactEmail": null,
+                "AccessComments": null,
+                "RelatedURL": null,
+                "Distance": null,
+                "DistanceUnit": 0
+            },
+            "NumberOfPoints": 2,
+            "GeneralComments": null,
+            "DatePlanned": null,
+            "DateLastConfirmed": null,
+            "StatusTypeID": 50,
+            "StatusType": {
+                "IsOperational": true,
+                "IsUserSelectable": true,
+                "ID": 50,
+                "Title": "Operational"
+            },
+            "DateLastStatusUpdate": "2018-01-17T09:11:00Z",
+            "DataQualityLevel": 1,
+            "DateCreated": "2018-01-16T14:01:00Z",
+            "SubmissionStatusTypeID": 200,
+            "SubmissionStatus": {
+                "IsLive": true,
+                "ID": 200,
+                "Title": "Submission Published"
+            },
+            "UserComments": null,
+            "PercentageSimilarity": null,
+            "Connections": [
+                {
+                    "ID": 138166,
+                    "ConnectionTypeID": 25,
+                    "ConnectionType": {
+                        "FormalName": "IEC 62196-2 Type 2",
+                        "IsDiscontinued": false,
+                        "IsObsolete": false,
+                        "ID": 25,
+                        "Title": "Mennekes (Type 2)"
+                    },
+                    "Reference": null,
+                    "StatusTypeID": 50,
+                    "StatusType": {
+                        "IsOperational": true,
+                        "IsUserSelectable": true,
+                        "ID": 50,
+                        "Title": "Operational"
+                    },
+                    "LevelID": 2,
+                    "Level": {
+                        "Comments": "Over 2 kW, usually non-domestic socket type",
+                        "IsFastChargeCapable": false,
+                        "ID": 2,
+                        "Title": "Level 2 : Medium (Over 2kW)"
+                    },
+                    "Amps": 50,
+                    "Voltage": 400,
+                    "PowerKW": 34,
+                    "CurrentTypeID": 20,
+                    "CurrentType": {
+                        "Description": "Alternating Current - Three Phase",
+                        "ID": 20,
+                        "Title": "AC (Three-Phase)"
+                    },
+                    "Quantity": 2,
+                    "Comments": null
+                }
+            ],
+            "MediaItems": null,
+            "MetadataValues": null,
+            "IsRecentlyVerified": false,
+            "DateLastVerified": null
+        },
+        {
+            "ID": 96448,
+            "UUID": "3E8C669C-D33B-4881-A8DF-81980D71B8DD",
+            "ParentChargePointID": null,
+            "DataProviderID": 1,
+            "DataProvider": {
+                "WebsiteURL": "http:\/\/openchargemap.org",
+                "Comments": null,
+                "DataProviderStatusType": {
+                    "IsProviderEnabled": true,
+                    "ID": 1,
+                    "Title": "Manual Data Entry"
+                },
+                "IsRestrictedEdit": false,
+                "IsOpenDataLicensed": true,
+                "IsApprovedImport": true,
+                "License": "Licensed \n under Creative Commons Attribution-ShareAlike 4.0 \n International \n (CC BY-SA 4.0)",
+                "DateLastImported": null,
+                "ID": 1,
+                "Title": "Open Charge Map Contributors"
+            },
+            "DataProvidersReference": null,
+            "OperatorID": 1,
+            "OperatorInfo": {
+                "WebsiteURL": null,
+                "Comments": null,
+                "PhonePrimaryContact": null,
+                "PhoneSecondaryContact": null,
+                "IsPrivateIndividual": null,
+                "AddressInfo": null,
+                "BookingURL": null,
+                "ContactEmail": null,
+                "FaultReportEmail": null,
+                "IsRestrictedEdit": null,
+                "ID": 1,
+                "Title": "(Unknown Operator)"
+            },
+            "OperatorsReference": null,
+            "UsageTypeID": 5,
+            "UsageType": {
+                "IsPayAtLocation": true,
+                "IsMembershipRequired": false,
+                "IsAccessKeyRequired": false,
+                "ID": 5,
+                "Title": "Public - Pay At Location"
+            },
+            "UsageCost": null,
+            "AddressInfo": {
+                "ID": 96794,
+                "Title": "Hotel Termag Jahorina",
+                "AddressLine1": "Olimpijska 4",
+                "AddressLine2": "Olimpijska 4",
+                "Town": "Jahorina",
+                "StateOrProvince": "Pale municipality",
+                "Postcode": "71423",
+                "CountryID": 33,
+                "Country": {
+                    "ISOCode": "BA",
+                    "ContinentCode": "EU",
+                    "ID": 33,
+                    "Title": "Bosnia And Herzegovina"
+                },
+                "Latitude": 43.735385956859,
+                "Longitude": 18.568011332788,
+                "ContactTelephone1": "+387 57 270 422",
+                "ContactTelephone2": "+387 57 272 100",
+                "ContactEmail": "info@termaghotel.com",
+                "AccessComments": "Hotel Termag Jahorina",
+                "RelatedURL": "https:\\\\www.termaghotel.com",
+                "Distance": null,
+                "DistanceUnit": 0
+            },
+            "NumberOfPoints": 1,
+            "GeneralComments": null,
+            "DatePlanned": null,
+            "DateLastConfirmed": null,
+            "StatusTypeID": 50,
+            "StatusType": {
+                "IsOperational": true,
+                "IsUserSelectable": true,
+                "ID": 50,
+                "Title": "Operational"
+            },
+            "DateLastStatusUpdate": "2017-12-29T09:20:00Z",
+            "DataQualityLevel": 1,
+            "DateCreated": "2017-12-28T12:32:00Z",
+            "SubmissionStatusTypeID": 200,
+            "SubmissionStatus": {
+                "IsLive": true,
+                "ID": 200,
+                "Title": "Submission Published"
+            },
+            "UserComments": null,
+            "PercentageSimilarity": null,
+            "Connections": [
+                {
+                    "ID": 136706,
+                    "ConnectionTypeID": 17,
+                    "ConnectionType": {
+                        "FormalName": null,
+                        "IsDiscontinued": false,
+                        "IsObsolete": false,
+                        "ID": 17,
+                        "Title": "CEE 5 Pin"
+                    },
+                    "Reference": null,
+                    "StatusTypeID": 50,
+                    "StatusType": {
+                        "IsOperational": true,
+                        "IsUserSelectable": true,
+                        "ID": 50,
+                        "Title": "Operational"
+                    },
+                    "LevelID": 2,
+                    "Level": {
+                        "Comments": "Over 2 kW, usually non-domestic socket type",
+                        "IsFastChargeCapable": false,
+                        "ID": 2,
+                        "Title": "Level 2 : Medium (Over 2kW)"
+                    },
+                    "Amps": null,
+                    "Voltage": null,
+                    "PowerKW": 22,
+                    "CurrentTypeID": 20,
+                    "CurrentType": {
+                        "Description": "Alternating Current - Three Phase",
+                        "ID": 20,
+                        "Title": "AC (Three-Phase)"
+                    },
+                    "Quantity": 1,
+                    "Comments": null
+                }
+            ],
+            "MediaItems": null,
+            "MetadataValues": null,
+            "IsRecentlyVerified": false,
+            "DateLastVerified": null
+        },
+		{
+            "ID": 31455,
+            "UUID": "8C8E9BC1-1D4D-467F-827F-096B7A00FAA4",
+            "ParentChargePointID": null,
+            "DataProviderID": 26,
+            "DataProvider": {
+                "WebsiteURL": "http:\/\/www.oplaadpalen.nl\/",
+                "Comments": null,
+                "DataProviderStatusType": {
+                    "IsProviderEnabled": true,
+                    "ID": 20,
+                    "Title": "Automated Import"
+                },
+                "IsRestrictedEdit": false,
+                "IsOpenDataLicensed": true,
+                "IsApprovedImport": true,
+                "License": "Licensed under Attribution-NonCommercial-ShareAlike 3.0 : http:\/\/creativecommons.org\/licenses\/by-nc-sa\/3.0\/",
+                "DateLastImported": "2016-06-04T03:04:53.05Z",
+                "ID": 26,
+                "Title": "Oplaadpalen.nl"
+            },
+            "DataProvidersReference": "24140",
+            "OperatorID": 78,
+            "OperatorInfo": {
+                "WebsiteURL": "http:\/\/www.essent.nl\/content\/particulier\/producten\/elektrisch_rijden\/index.html",
+                "Comments": null,
+                "PhonePrimaryContact": "0800 377 36 83",
+                "PhoneSecondaryContact": null,
+                "IsPrivateIndividual": null,
+                "AddressInfo": null,
+                "BookingURL": null,
+                "ContactEmail": "elektrischrijden@essent.nl",
+                "FaultReportEmail": null,
+                "IsRestrictedEdit": null,
+                "ID": 78,
+                "Title": "Essent (NL)"
+            },
+            "OperatorsReference": "Essent EM-BG-00000001-01-00001",
+            "UsageTypeID": null,
+            "UsageType": null,
+            "UsageCost": "0.00 jaarabonnement",
+            "AddressInfo": {
+                "ID": 31801,
+                "Title": "ул. Вихрен 9",
+                "AddressLine1": "ул. Вихрен 9",
+                "AddressLine2": null,
+                "Town": "район Витоша",
+                "StateOrProvince": null,
+                "Postcode": "1618",
+                "CountryID": 39,
+                "Country": {
+                    "ISOCode": "BG",
+                    "ContinentCode": "EU",
+                    "ID": 39,
+                    "Title": "Bulgaria"
+                },
+                "Latitude": 42.667125,
+                "Longitude": 23.267916,
+                "ContactTelephone1": null,
+                "ContactTelephone2": null,
+                "ContactEmail": null,
+                "AccessComments": null,
+                "RelatedURL": "http:\/\/www.essent.nl",
+                "Distance": null,
+                "DistanceUnit": 0
+            },
+            "NumberOfPoints": 1,
+            "GeneralComments": null,
+            "DatePlanned": null,
+            "DateLastConfirmed": null,
+            "StatusTypeID": 50,
+            "StatusType": {
+                "IsOperational": true,
+                "IsUserSelectable": true,
+                "ID": 50,
+                "Title": "Operational"
+            },
+            "DateLastStatusUpdate": "2016-06-04T02:37:00Z",
+            "DataQualityLevel": 3,
+            "DateCreated": "2015-01-09T06:03:00Z",
+            "SubmissionStatusTypeID": 100,
+            "SubmissionStatus": {
+                "IsLive": true,
+                "ID": 100,
+                "Title": "Imported and Published"
+            },
+            "UserComments": null,
+            "PercentageSimilarity": null,
+            "Connections": [
+                {
+                    "ID": 34966,
+                    "ConnectionTypeID": 25,
+                    "ConnectionType": {
+                        "FormalName": "IEC 62196-2 Type 2",
+                        "IsDiscontinued": false,
+                        "IsObsolete": false,
+                        "ID": 25,
+                        "Title": "Mennekes (Type 2)"
+                    },
+                    "Reference": null,
+                    "StatusTypeID": null,
+                    "StatusType": null,
+                    "LevelID": 2,
+                    "Level": {
+                        "Comments": "Over 2 kW, usually non-domestic socket type",
+                        "IsFastChargeCapable": false,
+                        "ID": 2,
+                        "Title": "Level 2 : Medium (Over 2kW)"
+                    },
+                    "Amps": null,
+                    "Voltage": null,
+                    "PowerKW": 11,
+                    "CurrentTypeID": 10,
+                    "CurrentType": {
+                        "Description": "Alternating Current - Single Phase",
+                        "ID": 10,
+                        "Title": "AC (Single-Phase)"
+                    },
+                    "Quantity": null,
+                    "Comments": null
+                },
+                {
+                    "ID": 45880,
+                    "ConnectionTypeID": 25,
+                    "ConnectionType": {
+                        "FormalName": "IEC 62196-2 Type 2",
+                        "IsDiscontinued": false,
+                        "IsObsolete": false,
+                        "ID": 25,
+                        "Title": "Mennekes (Type 2)"
+                    },
+                    "Reference": null,
+                    "StatusTypeID": null,
+                    "StatusType": null,
+                    "LevelID": 2,
+                    "Level": {
+                        "Comments": "Over 2 kW, usually non-domestic socket type",
+                        "IsFastChargeCapable": false,
+                        "ID": 2,
+                        "Title": "Level 2 : Medium (Over 2kW)"
+                    },
+                    "Amps": null,
+                    "Voltage": null,
+                    "PowerKW": 11,
+                    "CurrentTypeID": 10,
+                    "CurrentType": {
+                        "Description": "Alternating Current - Single Phase",
+                        "ID": 10,
+                        "Title": "AC (Single-Phase)"
+                    },
+                    "Quantity": null,
+                    "Comments": null
+                }
+            ],
+            "MediaItems": null,
+            "MetadataValues": null,
+            "IsRecentlyVerified": false,
+            "DateLastVerified": null
+        },
+        {
+            "ID": 21331,
+            "UUID": "7D82405C-59EE-463C-A828-B0B6B9734D5D",
+            "ParentChargePointID": null,
+            "DataProviderID": 1,
+            "DataProvider": {
+                "WebsiteURL": "http:\/\/openchargemap.org",
+                "Comments": null,
+                "DataProviderStatusType": {
+                    "IsProviderEnabled": true,
+                    "ID": 1,
+                    "Title": "Manual Data Entry"
+                },
+                "IsRestrictedEdit": false,
+                "IsOpenDataLicensed": true,
+                "IsApprovedImport": true,
+                "License": "Licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)",
+                "DateLastImported": null,
+                "ID": 1,
+                "Title": "Open Charge Map Contributors"
+            },
+            "DataProvidersReference": null,
+            "OperatorID": 5,
+            "OperatorInfo": {
+                "WebsiteURL": "http:\/\/www.chargepoint.net\/",
+                "Comments": null,
+                "PhonePrimaryContact": "1-888-758-4389",
+                "PhoneSecondaryContact": null,
+                "IsPrivateIndividual": false,
+                "AddressInfo": null,
+                "BookingURL": null,
+                "ContactEmail": "support@coulombtech.com",
+                "FaultReportEmail": "support@coulombtech.com",
+                "IsRestrictedEdit": null,
+                "ID": 5,
+                "Title": "ChargePoint (Coulomb Technologies)"
+            },
+            "OperatorsReference": null,
+            "UsageTypeID": 1,
+            "UsageType": {
+                "IsPayAtLocation": null,
+                "IsMembershipRequired": null,
+                "IsAccessKeyRequired": null,
+                "ID": 1,
+                "Title": "Public"
+            },
+            "UsageCost": null,
+            "AddressInfo": {
+                "ID": 21676,
+                "Title": "FULLCHARGER \/ ATANASOV GROUP",
+                "AddressLine1": "Стефан Стамболов  \/  72, District Drujba 1",
+                "AddressLine2": "zh.k. Druzhba 4",
+                "Town": "Добрич-град",
+                "StateOrProvince": "Dobrich Region",
+                "Postcode": "9300",
+                "CountryID": 39,
+                "Country": {
+                    "ISOCode": "BG",
+                    "ContinentCode": "EU",
+                    "ID": 39,
+                    "Title": "Bulgaria"
+                },
+                "Latitude": 43.56689213672,
+                "Longitude": 27.84639980634,
+                "ContactTelephone1": null,
+                "ContactTelephone2": null,
+                "ContactEmail": null,
+                "AccessComments": null,
+                "RelatedURL": null,
+                "Distance": null,
+                "DistanceUnit": 0
+            },
+            "NumberOfPoints": 1,
+            "GeneralComments": null,
+            "DatePlanned": null,
+            "DateLastConfirmed": null,
+            "StatusTypeID": 50,
+            "StatusType": {
+                "IsOperational": true,
+                "IsUserSelectable": true,
+                "ID": 50,
+                "Title": "Operational"
+            },
+            "DateLastStatusUpdate": "2014-03-21T13:41:00Z",
+            "DataQualityLevel": 1,
+            "DateCreated": "2014-03-21T13:41:00Z",
+            "SubmissionStatusTypeID": 200,
+            "SubmissionStatus": {
+                "IsLive": true,
+                "ID": 200,
+                "Title": "Submission Published"
+            },
+            "UserComments": null,
+            "PercentageSimilarity": null,
+            "Connections": [
+                {
+                    "ID": 23179,
+                    "ConnectionTypeID": 13,
+                    "ConnectionType": {
+                        "FormalName": "Europlug 2-Pin (CEE 7\/16)",
+                        "IsDiscontinued": false,
+                        "IsObsolete": false,
+                        "ID": 13,
+                        "Title": "Europlug 2-Pin (CEE 7\/16)"
+                    },
+                    "Reference": null,
+                    "StatusTypeID": null,
+                    "StatusType": null,
+                    "LevelID": 2,
+                    "Level": {
+                        "Comments": "Over 2 kW, usually non-domestic socket type",
+                        "IsFastChargeCapable": false,
+                        "ID": 2,
+                        "Title": "Level 2 : Medium (Over 2kW)"
+                    },
+                    "Amps": 16,
+                    "Voltage": 230,
+                    "PowerKW": null,
+                    "CurrentTypeID": 10,
+                    "CurrentType": {
+                        "Description": "Alternating Current - Single Phase",
+                        "ID": 10,
+                        "Title": "AC (Single-Phase)"
+                    },
+                    "Quantity": 1,
+                    "Comments": null
+                }
+            ],
+            "MediaItems": null,
+            "MetadataValues": null,
+            "IsRecentlyVerified": false,
+            "DateLastVerified": null
+        }
+	]

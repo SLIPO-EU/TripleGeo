@@ -1,5 +1,5 @@
 /*
- * @(#) Classification.java 	 version 1.4   8/3/2018
+ * @(#) Classification.java 	 version 1.5   31/5/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -22,10 +22,12 @@ package eu.slipo.athenarc.triplegeo.utils;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +37,9 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.system.StreamRDF;
+import org.apache.jena.riot.system.StreamRDFWriter;
 
 import be.ugent.mmlab.rml.model.dataset.RMLDataset;
 import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
@@ -44,7 +49,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Parser for a (possibly multi-tier, hierarchical) classification scheme (category/subcategory/...). 
  * ASSUMPTION: Each category (at any level) must have a unique name, which is being used as its key the derived dictionary.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -52,7 +57,8 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Modified: 1/2/2018, included auto-generation of universally unique identifiers (UUID) to be used in the URIs of categories
  * Modified: 7/2/2018, supported export of classification scheme into RDF triples (modes: GRAPH, RML)
  * Modified: 15/2/2018; distinguishing whether the classification scheme is based on identifiers or names of categories
- * Last modified by: Kostas Patroumpas, 8/3/2018
+ * Modified: 2/5/2018; supported export of classification scheme into RDF triples in STREAM mode
+ * Last modified by: Kostas Patroumpas, 31/5/2018
  */
 
 public class Classification {
@@ -80,19 +86,20 @@ public class Classification {
 	/**
 	 * Constructor of the classification hierarchy representation
 	 * @param config  User-specified configuration for the transformation process.
+	 * @param classFile  Input file (CSV or YML) containing the user-specified classification scheme.
 	 * @param outFile  Output file containing the RDF triples resulted from transformation of the classification scheme.
 	 */
-	public Classification(Configuration config, String outFile) {
+	public Classification(Configuration config, String classFile, String outFile) {
 		
 		myAssistant = new Assistant();
 		currentConfig = config;
 		outputFile = outFile;     //Path to the (YML or CSV) file where classification hierarchy is stored; this path must be included in the configuration settings
 		
 		//Depending on the type of the file containing hierarchy of categories, call the respective parser
-		if (config.classificationSpec.endsWith(".yml"))
-			this.parseYMLFile(config.classificationSpec);    //Parse the YML file 
-		else if (config.classificationSpec.endsWith(".csv"))
-			this.parseCSVFile(config.classificationSpec);    //Parse the CSV file
+		if (classFile.endsWith(".yml"))
+			this.parseYMLFile(classFile);    //Parse the YML file 
+		else if (classFile.endsWith(".csv"))
+			this.parseCSVFile(classFile);    //Parse the CSV file
 		else
 		{
 			System.err.println("ERROR: Valid classification hierarchies must be stored in YML or CSV files.");
@@ -105,8 +112,13 @@ public class Classification {
 			myConverter = new RMLConverter(currentConfig);
 			executeParser4RML();
 		}
-		else
-		{	//Mode GRAPH or STREAM: Apply a custom mapping specified in YML in order to produce triples
+		else if (currentConfig.mode.contains("STREAM"))
+		{	//Mode STREAM: Apply a custom mapping specified in YML in order to produce triples
+			myConverter = new StreamConverter(currentConfig, outputFile);
+			executeParser4Stream();
+		}
+		else if (currentConfig.mode.contains("GRAPH"))
+		{	//Mode GRAPH: Apply a custom mapping specified in YML in order to produce triples
 			myConverter = new GraphConverter(currentConfig, outputFile);
 			executeParser4Graph();
 		}
@@ -551,7 +563,7 @@ public class Classification {
 		}
 
 		//Finally, store results collected in the disk-based RDF graph
-		//FIXME: In GRAPH mode, there is no need to export triples in a separate file, as these are included in the disk-based graph along with the triples from features 
+		//In GRAPH transformation mode, a separate disk-based graph is created for categories, distinct from the one used to collect triples from features 
 		numTriples = myConverter.getModel().listStatements().toSet().size();
 		try {
 		    //Export model to a suitable format
@@ -561,6 +573,74 @@ public class Classification {
 	    catch(Exception e) { 
 			ExceptionHandler.abort(e, "Serialized output cannot be written into a file. Please check configuration file.");
 		}
+		
+	    //Measure execution time
+		dt = System.currentTimeMillis() - t_start;
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, outputFile);
+	  }
+
+
+	  /**
+	   * Parses each item in the classification hierarchy and streamlines the resulting triples according to the given YML mapping. Applicable in STREAM transformation mode.
+	   */
+	  private void executeParser4Stream() {
+
+	    //System.out.println(myAssistant.getGMTime() + " Started processing features...");
+	    long t_start = System.currentTimeMillis();
+	    long dt = 0;
+	   
+	    int numRec = 0;
+	    int numTriples = 0;
+
+	    OutputStream outFile = null;
+		try {
+			outFile = new FileOutputStream(outputFile);
+		} 
+		catch (FileNotFoundException e) {
+		  ExceptionHandler.abort(e, "Output file not specified correctly.");
+		} 
+	  
+	    //CAUTION! Hard constraint: serialization into N-TRIPLES is only supported by Jena riot (stream) interface  
+	    StreamRDF stream = StreamRDFWriter.getWriterStream(outFile, Lang.NT);
+	    stream.start();                //Start issuing streaming triples
+	  		
+	    TripleGenerator myGenerator = new TripleGenerator(currentConfig);     //Will be used to generate all triples for each category
+		   
+		try {		   
+			//Iterate through all categories
+			for (Category rs : categories.values()) 
+			{
+		    	//Clean up any previous triples, in order to collect the new triples derived from the current feature
+				myGenerator.clearTriples();
+				
+//				System.out.println("CATEGORY: " + rs.printContents());
+
+				//Issue triples according to the attribute used for classification (id or name of categories) in the data
+				String val;
+				if (!currentConfig.classifyByName)
+					val = rs.getId();
+				else
+					val = rs.getName();
+	      		
+				//Pass attribute values to the generator in order to apply custom mapping(s) directly
+				//FIXME: This export is currently customized for classification schemes conforming to the SLIPO ontology only
+				myGenerator.transformCategory2RDF(rs.getUUID(), val, findUUID(rs.getParent()));
+				
+				//Append each triple to the output stream 
+				for (int i = 0; i <= myGenerator.getTriples().size()-1; i++) {
+					stream.triple(myGenerator.getTriples().get(i));
+					numTriples++;
+				}
+		        
+		        numRec++;
+			}
+	    }
+		catch(Exception e) { 
+			ExceptionHandler.warn(e, "An error occurred during transformation of an input record.");
+		}
+
+		//Finally, store results collected in the disk-based RDF graph
+		stream.finish();               //Finished issuing triples
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;

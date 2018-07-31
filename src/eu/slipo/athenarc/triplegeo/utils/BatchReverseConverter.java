@@ -1,5 +1,5 @@
 /*
- * @(#) BatchReverseConverter.java	version 1.4   28/2/2018
+ * @(#) BatchReverseConverter.java	version 1.5   28/2/2018
  *
  * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -41,9 +41,9 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
 /**
  * Recreates a disk-based RDF graph and extracts its contents through a user-specified SELECT query in SPARQL. 
  * Results can be written to a typical geographical files (currently supported: CSV and ESRI Shapefiles). 
- * The attribute names in the SELECT query will become the column names in the resulting files. 
+ * Attribute names in the SELECT query will become the column names in the resulting files. 
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY

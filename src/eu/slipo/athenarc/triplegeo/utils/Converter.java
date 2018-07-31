@@ -1,5 +1,5 @@
 /*
- * @(#) Converter.java 	 version 1.4   27/2/2018
+ * @(#) Converter.java 	 version 1.5   31/5/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -25,6 +25,7 @@ import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.csv.CSVRecord;
 import org.apache.jena.graph.Triple;
@@ -38,12 +39,12 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Conversion Interface for TripleGeo used in transformation of spatial features (including their non-spatial attributes) into RDF triples with various serializations.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 16/2/2013
- * Last modified: 27/2/2018
+ * Last modified: 31/5/2018
  */
 public interface Converter {  
     
@@ -87,12 +88,23 @@ public interface Converter {
 	 * Parses a single OSM record and creates the resulting triples (including geometric and non-spatial attributes)
 	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param rs  Representation of an OSM record with attributes extracted from an OSM element (node, way, or relation).
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 */
-	public void parse(Assistant myAssistant, OSMRecord rs, MathTransform reproject, int targetSRID);
+	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID);
 	
-
+	/**
+	 * Parses a single GPX waypoint or track and streamlines the resulting triples (including geometric and non-spatial attributes).
+	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
+	 * @param uuid  The UUID to be assigned to the URIs in the resulting triples
+	 * @param wkt  Well-Known Text representation of the geometry  
+	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
+	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
+	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
+	 */
+	public void parse(Assistant myAssistant, String uuid, String wkt, Map <String, String> attrValues, int targetSRID, String geomType);
+	
 	/**
 	 * Stores resulting tuples into a file.	
 	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)

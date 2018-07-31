@@ -1,5 +1,5 @@
 /*
- * @(#) OracleDbConnector.java 	 version 1.4   24/2/2018
+ * @(#) OracleDbConnector.java 	 version 1.5   24/2/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -31,7 +31,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Oracle implementation of DbConnector class.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY

@@ -1,5 +1,5 @@
 /*
- * @(#) GeoJsonToRdf.java	version 1.4   27/2/2018
+ * @(#) GeoJsonToRdf.java	version 1.5   19/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -40,8 +40,10 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 
 /**
  * Entry point to convert GeoJSON files into RDF triples.
+ * LIMITATIONS: - Nested properties (non-spatial) in GeoJSON are considered as carrying NULL values by GeoTools.
+ *              - Each feature must have the same properties, i.e., all features must comply with the same attribute schema. 
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -49,7 +51,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 3/11/2017, added support for system exit codes on abnormal termination
  * Modified: 7/11/2017, fixed issue with multiple instances of CRS factory
  * Modified: 13/12/2017, utilizing a streaming iterator in order to avoid loading the entire feature collection into memory
- * Last modified by: Kostas Patroumpas, 27/2/2018
+ * Last modified by: Kostas Patroumpas, 19/7/2018
  */
 public class GeoJsonToRdf {
 

@@ -1,5 +1,5 @@
 /*
- * @(#) Extractor.java	version 1.4  8/3/2018
+ * @(#) Extractor.java	version 1.5  13/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -38,7 +38,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Entry point to TripleGeo for converting from various input formats (MULTI-THREADED EXECUTION)
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -47,7 +47,8 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified: 8/11/2017; added support for preparing a classification scheme to be applied over entities
  * Modified: 21/11/2017; handling missing specifications for classification and RML mapping files
  * Modified: 12/2/2018; handling missing specifications on georeferencing (CRS: Coordinate Reference Systems) 
- * Last modified: 8/3/2018
+ * Modified: 13/7/2018; advanced handling of interrupted or aborted tasks
+ * Last modified: 13/7/2018
  */
 public class Extractor {
 
@@ -65,11 +66,14 @@ public class Extractor {
 	 * @throws InterruptedException
 	 * @throws ExecutionException
 	 */
-	@SuppressWarnings("unused")
-	public static void main(String[] args) throws InterruptedException, ExecutionException {
+//	@SuppressWarnings("unused")
+	public static void main(String[] args)  { 
 
 		System.out.println(Constants.COPYRIGHT);
 		
+	    List<Future<Task>> runnables;                  //List of transformation tasks to be executed by concurrent threads
+	    boolean failure = false;                       //Indicates whether at least one task has failed to conclude
+	    
 	    if (args.length >= 0)  {
 
 	    	myAssistant =  new Assistant();
@@ -144,7 +148,7 @@ public class Extractor {
 				if ((currentConfig.classificationSpec != null) && (!currentConfig.inputFormat.contains("OSM")))    //Classification for OSM XML data is handled by the OSM converter
 				{
 					String outClassificationFile = currentConfig.outputDir + FilenameUtils.getBaseName(currentConfig.classificationSpec) + myAssistant.getOutputExtension(currentConfig.serialization);
-					classification = new Classification(currentConfig, outClassificationFile);  
+					classification = new Classification(currentConfig, currentConfig.classificationSpec, outClassificationFile);  
 					outputFiles.add(outClassificationFile);
 				} 
 	        }  
@@ -188,18 +192,39 @@ public class Extractor {
 		    		System.out.println("using " + tasks.size() + " concurrent threads...");
 		    	else
 		    		System.out.println("in a single thread...");
-		        List<Future<Task>> results = exec.invokeAll(tasks);		        
-		    } 
+		        runnables = exec.invokeAll(tasks);	
+		        
+		        //Inspect each task on possible failure
+		        for (Future<Task> r : runnables) {
+		        	try {
+						if (r.get() == null)
+							failure = true;             //At least one task has failed
+					} catch (ExecutionException e) {
+						failure = true;
+						ExceptionHandler.warn(e, "A transformation task failed.");            //Execution aborted abnormally
+					}
+		        	catch (InterruptedException e) {
+		        		failure = true;
+		        		ExceptionHandler.warn(e, "A transformation task was interrupted.");   //Execution interrupted abnormally
+				    }
+		        }
+		    }		     
 		    catch(Exception e) {
 		    	ExceptionHandler.abort(e, "A transformation task failed.");      //Execution terminated abnormally
 		    }
 		    finally {
 		        exec.shutdown();
 		        long elapsed = System.currentTimeMillis() - start;
-		        System.out.println(myAssistant.getGMTime() + String.format(" Transformation process concluded successfully in %d ms.", elapsed));
-		        System.out.println("RDF results written into the following output files:" + outputFiles.toString());
-		        //Assistant.mergeFiles(outputFiles, "C:/Development/Java/workspace/TripleGeo/test/output/merged_output.rdf");
-		        System.exit(0);          //Execution completed successfully
+		        if (failure) {
+		        	System.out.println(myAssistant.getGMTime() + String.format(" Transformation process failed. Elapsed time: %d ms.", elapsed));
+		        	System.exit(1);          //Execution failed in at least one task
+		        }
+		        else {
+			        System.out.println(myAssistant.getGMTime() + String.format(" Transformation process concluded successfully in %d ms.", elapsed));
+			        System.out.println("RDF results written into the following output files:" + outputFiles.toString());
+			        //Assistant.mergeFiles(outputFiles, "C:/Development/Java/workspace/TripleGeo/test/output/merged_output.rdf");
+			        System.exit(0);          //Execution completed successfully
+		        }
 		    }
 		    
 	    } 

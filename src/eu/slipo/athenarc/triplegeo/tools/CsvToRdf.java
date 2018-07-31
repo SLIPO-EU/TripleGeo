@@ -1,5 +1,5 @@
 /*
- * @(#) CsvToRdf.java 	 version 1.4   27/2/2018
+ * @(#) CsvToRdf.java 	 version 1.5   27/2/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -57,10 +57,10 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Main entry point of the utility for extracting RDF triples from CSV file.
  * Instead of just lon/lat attributes for points, this utility also supports more complex geometry types, provided that input CSV includes an attribute with the WKT representation of such geometries.
- * LIMITATIONS: Currently, only supporting CSV files with header (i.e., named attributes)
- *              Apart from a delimiter, configuration files for CSV records must also specify whether there is a quote character in string values
+ * LIMITATIONS: Currently, only supporting CSV files with header (i.e., named attributes).
+ *              Apart from a delimiter, configuration files for CSV records must also specify whether there is a quote character in string values.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY

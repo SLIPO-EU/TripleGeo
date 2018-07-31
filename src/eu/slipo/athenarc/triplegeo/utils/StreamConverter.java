@@ -1,5 +1,5 @@
 /*
- * @(#) StreamConverter.java 	 version 1.4   2/3/2018
+ * @(#) StreamConverter.java 	 version 1.5   27/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -55,7 +55,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Provides a set of a streaming RDF triples in memory that can be readily serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -66,8 +66,10 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 24/1/2018, included auto-generation of UUIDs for the URIs of features
  * Modified: 7/2/2018, added support for exporting all available non-spatial attributes as properties
  * Modified: 14/2/2018; integrated handling of OSM records
+ * Modified: 9/5/2018; integrated handling of GPX data 
+ * Modified: 31/5/2018; integrated handling of classifications for OSM data
  * TODO: Determine data types for attributes in the resultset retrieved from DBMS and utilize them in transformation.
- * Last modified: 2/3/2018
+ * Last modified: 27/7/2018
  */
 
 public class StreamConverter implements Converter {
@@ -168,37 +170,37 @@ public class StreamConverter implements Converter {
 	{
 		SimpleFeatureImpl feature;
 		Geometry geometry;
-		String wkt = "";
-		List<String> columns = null;
+		String wkt = "";                 //Will hold geometry value
+		List<String> columns = null;     //Non-spatial attribute names
 	    
 		try 
 		{
 			//Iterate through all features	  
 			while(iterator.hasNext()) 
 			{
-				feature = (SimpleFeatureImpl) iterator.next();
-				geometry = (Geometry) feature.getDefaultGeometry();
-				    
+		        feature = (SimpleFeatureImpl) iterator.next();
+		        geometry = (Geometry) feature.getDefaultGeometry();
+				
 				//Determine attribute names for each feature
-				//CAUTION! This is only called for the first feature
+				//CAUTION! This is only called for the first feature, as the structure of the rest is considered identical
 			    if (columns == null)
 			    {
 			    	columns = new ArrayList<String>();
 			    	Collection<Property> props = feature.getProperties();
 			    	for (Property p: props)
-			    		if ( p != feature.getDefaultGeometryProperty())       //Exclude geometry attribute
+			    		if ( ! p.getName().equals(feature.getDefaultGeometryProperty().getName()))       //Exclude geometry attribute
 			    			columns.add(p.getName().toString());
 			    }
 		    
 		        //Convert feature into a temporary tuple for conversion of all non-spatial attributes
 		        Map<String,String> row = new HashMap<String, String>(columns.size());
 		        for (String col : columns) {
-		        	if (feature.getAttribute(col) != null)                    //Exclude NULL values
+		        	if (feature.getAttribute(col) != null)         //Exclude NULL values
 		        		row.put(col, feature.getAttribute(col).toString());
 		        }
 	        
-				//CAUTION! On-the-fly generation of a UUID for this feature
-				String uuid = myAssistant.getUUID(feature.getAttribute(currentConfig.attrKey).toString()).toString();
+				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
+				String uuid = myAssistant.getUUID(currentConfig.featureSource, row.get(currentConfig.attrKey)).toString();
 				
 				//CRS transformation
 		      	if (reproject != null)
@@ -268,16 +270,17 @@ public class StreamConverter implements Converter {
 		        	row.put(col, rs.getString(col));
 		        }
 		        
-				//CAUTION! On-the-fly generation of a UUID for this feature
-				String uuid = myAssistant.getUUID(rs.getString(currentConfig.attrKey)).toString();
-	  	        
+				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
+				String uuid = myAssistant.getUUID(currentConfig.featureSource, row.get(currentConfig.attrKey)).toString();
+				
 		        String wkt = null;
 		      	//Handle geometry attribute, if specified
 				if ((currentConfig.attrGeometry == null) && (currentConfig.attrX != null) && (currentConfig.attrY != null))       
 				{    //In case no single geometry attribute with WKT values is specified, compose WKT from a pair of coordinates
 				    String x = rs.getString(currentConfig.attrX);    //X-ordinate or longitude
 				    String y = rs.getString(currentConfig.attrY);    //Y-ordinate or latitude
-					wkt = "POINT (" + x + " " + y + ")";
+				    if ((x != null) && (y != null))
+				    	wkt = "POINT (" + x + " " + y + ")";
 				}
 				else if (currentConfig.attrGeometry != null)
 				{
@@ -337,17 +340,18 @@ public class StreamConverter implements Converter {
 			for (Iterator<CSVRecord> iterator = records; iterator.hasNext();) {
 				
 	            CSVRecord rs = (CSVRecord) iterator.next();
-				
-				//CAUTION! On-the-fly generation of a UUID for this feature
-				String uuid = myAssistant.getUUID(rs.get(currentConfig.attrKey)).toString();
 
+				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
+				String uuid = myAssistant.getUUID(currentConfig.featureSource, (rs.isSet(currentConfig.attrKey) ? rs.get(currentConfig.attrKey) : null)).toString();
+					
 		      	//Handle geometry attribute, if specified
 				String wkt = null;
 				if ((currentConfig.attrGeometry == null) && (currentConfig.attrX != null) && (currentConfig.attrY != null))       
 				{    //In case no single geometry attribute with WKT values is specified, compose WKT from a pair of coordinates
 				    String x = rs.get(currentConfig.attrX);    //X-ordinate or longitude
 				    String y = rs.get(currentConfig.attrY);    //Y-ordinate or latitude
-					wkt = "POINT (" + x + " " + y + ")";
+				    if ((x != null) && (y != null))
+				    	wkt = "POINT (" + x + " " + y + ")";
 				}
 				else if (currentConfig.attrGeometry != null)
 					wkt = rs.get(currentConfig.attrGeometry);  //ASSUMPTION: Geometry values are given as WKT
@@ -392,22 +396,23 @@ public class StreamConverter implements Converter {
 	
 	/**
 	 * Parses a single OSM record and streamlines the resulting triples (including geometric and non-spatial attributes).
-	 * Applicable in GRAPH transformation mode.
-	 * Input provided as an individual record. This method is used for input from OpenStreetMap XML.
+	 * Applicable in STREAM transformation mode.
+	 * Input provided as an individual record. This method is used for input from OpenStreetMap XML/PBF files.
 	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param rs  Representation of an OSM record with attributes extracted from an OSM element (node, way, or relation).
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 */	
-	public void parse(Assistant myAssistant, OSMRecord rs, MathTransform reproject, int targetSRID) 
+	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) 
 	{	
 		try {
-			//CAUTION! On-the-fly generation of a UUID for this feature
-			String uuid = myAssistant.getUUID(rs.getID()).toString();
+			//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
+			String uuid = myAssistant.getUUID(currentConfig.featureSource, rs.getID()).toString();
 			
   	        //Parse geometric representation
 			String wkt = null;
-			if (!rs.getGeometry().isEmpty())
+			if ((rs.getGeometry() != null) && (!rs.getGeometry().isEmpty()))
 			{
 				wkt = rs.getGeometry().toText();       //Get WKT representation	
 				if (wkt != null)
@@ -419,27 +424,29 @@ public class StreamConverter implements Converter {
 //				      	myAssistant.WKT2Geometry(wkt);                      //This is done only for updating the MBR of all geometries
 				}
 			}
-			
+
 			//Tags to be processed as attribute values
 			Map <String, String> attrValues = new HashMap<String, String>(rs.getTagKeyValue());
 			
-	      	//Include attributes for OSM identifier, name, and type
+	      	//Include standard attributes for OSM identifier, name, and type
 	      	attrValues.put("osm_id", rs.getID());
 	      	attrValues.put("name", rs.getName());
 	      	attrValues.put("type", rs.getType());
 	      	
-			//******************************************************************
-		  	//Include identified category in these tags
+		  	//Include identified category in these tags as an extra attribute
 	      	if (rs.getCategory() != null)
-	      		attrValues.put("Category", rs.getCategory()); 
+	      	{
+	      		if (currentConfig.attrCategory != null)                //Attribute to be used in the Registry as well
+	      			attrValues.put(currentConfig.attrCategory, rs.getCategory());      
+	      		else
+	      			attrValues.put("OSM_Category", rs.getCategory());  //Ad-hoc name for this extra attribute
+	      	}
 	      	else
-	      		return;          //CAUTION! Do not proceed to transform unless this is a recognized Point of Interest
-	      	//******************************************************************
+	      		return;          //CAUTION! Do not proceed to transform unless this feature complies with the filtering tags specified by the user
 	      	
 	      	//Process all available non-spatial attributes as specified in the collected (tag,value) pairs	
-	      	//CAUTION! Currently, each attribute name is used as the property in the resulting triple
-	      	//FIXME: Specify a classification hierarchy from the OSM tags used in filtering
-			String uri = myGenerator.transform(uuid, attrValues, wkt, targetSRID, null);
+	        //... including a classification hierarchy from the OSM tags used in filtering
+			String uri = myGenerator.transform(uuid, attrValues, wkt, targetSRID, classific);
 
 			//Get a record with basic attribute that will be used for the SLIPO Registry
 			if (myRegister != null)
@@ -456,13 +463,51 @@ public class StreamConverter implements Converter {
 				
 		} catch (Exception e) {
 			System.out.println("Problem at element with OSM id: " + rs.getID() + ". Excluded from transformation.");
-			System.out.println("RECORD: " + rs.toString());
 		}	
 		finally {
 			collectTriples();     //Dump any pending results into output file
 		}
 	}
 	
+	/**
+	 * Parses a single GPX waypoint/track or a single JSON node and streamlines the resulting triples (including geometric and non-spatial attributes).
+	 * Applicable in STREAM transformation mode.
+	 * Input provided as an individual record. This method is used for input data from GPX or JSON files.  
+	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
+	 * @param uuid  The UUID to be assigned to the URIs in the resulting triples
+	 * @param wkt  Well-Known Text representation of the geometry  
+	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
+	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
+	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
+	 */
+	public void parse(Assistant myAssistant, String uuid, String wkt, Map <String, String> attrValues, int targetSRID, String geomType) 
+	{	
+		try {
+	
+			//Pass this tuple for conversion to RDF triples 
+			//FIXME: Specify a classification hierarchy for the features
+	      	String uri = myGenerator.transform(uuid, attrValues, wkt, targetSRID, null);
+					 
+			//Get a record with basic attribute that will be used for the SLIPO Registry
+			if (myRegister != null)
+				myRegister.createTuple(uri, attrValues, wkt, targetSRID);
+			
+			++numRec;
+			  
+		    //Periodically, collect RDF triples resulting from this batch and dump results into output file
+			if (numRec % currentConfig.batch_size == 0) 
+			{
+				collectTriples();
+				myAssistant.notifyProgress(numRec);
+			}
+				
+		} catch (Exception e) {
+			ExceptionHandler.warn(e, "An error occurred during transformation of an input record.");
+		}	
+		finally {
+			collectTriples();     //Dump any pending results into output file
+		}
+	}
 		
 	/**
 	 * Collects RDF triples generated from a batch of features (their thematic attributes and their geometries) and streamlines them to output file.

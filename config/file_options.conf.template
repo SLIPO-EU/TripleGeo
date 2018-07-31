@@ -1,5 +1,5 @@
 ##############################
-## Template for configuring TripleGeo ver.1.4 in order to transform data from geographical files into RDF triples.
+## Template for configuring TripleGeo ver.1.5 in order to transform data from geographical files into RDF triples.
 ## Specify parameters according to the examples for your specific input file(s).
 ##############################
 
@@ -14,7 +14,9 @@
 ##     GPX ;
 ##     GEOJSON ;
 ##     XML (for handling XML/GML/KML/INSPIRE-aligned input);
-##     OSM (currently, only supporting OpenStreetMap XML format).
+##     OSM_XML (supporting OpenStreetMap XML format);
+##     OSM_PBF (supporting OpenStreetMap PBF format);
+##     JSON .
 #inputFormat = SHAPEFILE
 inputFormat = ${inputFormat}
 

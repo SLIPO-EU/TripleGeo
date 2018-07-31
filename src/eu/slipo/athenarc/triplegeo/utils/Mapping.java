@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.4   25/2/2018
+ * @(#) TripleGenerator.java 	 version 1.5   13/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -20,7 +20,9 @@ package eu.slipo.athenarc.triplegeo.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,14 +33,17 @@ import org.yaml.snakeyaml.Yaml;
 /**
  * Retains mappings of feature attributes (input) to RDF predicates (output) that will be used in generation of triples.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 21/12/2017
  * Modified: 21/12/2017, added reverse dictionary for each RDF predicate
  * Modified: 23/12/2017, added support for reading mappings from YML file
- * Last modified: 25/2/2018
+ * Modified: 25/4/2018; included specification for multi-faceted attributes with wild char '%'
+ * Modified: 30/4/2018; included specification for geometry-based, built-in functions
+ * Modified: 11/5/2018; included specification for literals with language tags; built-in functions with arguments 
+ * Last modified: 13/7/2018
  */
 
 public class Mapping {
@@ -55,6 +60,7 @@ public class Mapping {
 	    IS_PART_TAG_LANGUAGE,        //Properties that are part of composite classes, but literals should have language tags as well
 	    HAS_DATA_TYPE,               //Properties with literals having data type specifications
 	    HAS_DATA_TYPE_URL,           //Properties with objects that are URLs
+	    IS_LITERAL_TAG_LANGUAGE,     //Property with a plain literal with language tag
 	    IS_LITERAL,                  //Property with a plain literal without further specifications
 	    UNSPECIFIED;                 //No specification
 	}
@@ -72,6 +78,8 @@ public class Mapping {
 		String language;
 		String instance;
 		String part;
+		String generatorFunction;
+		List<String> functionArguments;
 		RDFDatatype dataType;	
 		MappingProfile profile;
 		
@@ -79,7 +87,8 @@ public class Mapping {
 		 * Constructor of mapProperties class.
 		 */
 		public mapProperties() {
-			entityType = predicate = resourceType = language = instance = part = null;
+			entityType = predicate = resourceType = language = instance = part = generatorFunction = null;
+			functionArguments = new ArrayList<String>();
 			dataType = null;
 			profile = null;
 		}
@@ -132,6 +141,22 @@ public class Mapping {
 		public void setPart(String p) {
 			part = p;
 		}
+
+		/**
+		 * Sets or updates the name of built-in function that will generate the values for this attribute.
+		 * @param f  The name of the built-in function (this function is declared in the Assistant class).
+		 */
+		public void setGeneratorFunction(String f) {
+			generatorFunction = f;
+		}
+
+		/**
+		 * Sets or updates an argument for a built-in function that will generate the values for this attribute.
+		 * @param a  The name of the argument to be used for the built-in function (this function declared in the Assistant class).
+		 */
+		public void setFunctionArgument(String a) {
+			functionArguments.add(a);
+		}
 		
 		/**
 		 * Sets or updates the data type for literals of a resource.
@@ -142,13 +167,15 @@ public class Mapping {
 
 			switch (d.toLowerCase()) {
 			   case "int": case "integer": dataType = XSDDatatype.XSDinteger; break;
+			   case "long":  dataType = XSDDatatype.XSDlong; break;
 			   case "float":  dataType = XSDDatatype.XSDfloat; break;
 			   case "double":  dataType = XSDDatatype.XSDdouble; break;	 
 			   case "date":  dataType = XSDDatatype.XSDdate; break;
 			   case "datetime":  dataType = XSDDatatype.XSDdateTime; break;
 			   case "timestamp":  dataType = XSDDatatype.XSDdateTimeStamp; break;
+			   case "boolean":  dataType = XSDDatatype.XSDboolean; break;
 			   case "uri":  dataType = XSDDatatype.XSDanyURI; break;
-			   default: dataType = XSDDatatype.XSDstring; break;
+			   default: dataType = XSDDatatype.XSDstring; break;                      //Every other data type is handled as a string
 			}			
 		}
 	
@@ -179,6 +206,8 @@ public class Mapping {
 				else
 					profile = MappingProfile.HAS_DATA_TYPE;
 			}
+			else if ((predicate != null) && (language != null))
+				profile = MappingProfile.IS_LITERAL_TAG_LANGUAGE;
 			else if (predicate != null)
 				profile = MappingProfile.IS_LITERAL;	
 			else
@@ -233,11 +262,27 @@ public class Mapping {
 		}	
  
 		/**
-		 * Provides he name of parent property that this resource is part of.
+		 * Provides the name of parent property that this resource is part of.
 		 * @return  The name of the parent property in the ontology.
 		 */
 		public String getPart() {
 			return part;
+		}
+
+		/**
+		 * Provides the name of built-in function that will be used to generate values for this attribute.
+		 * @return  The name of the built-in function.
+		 */
+		public String getGeneratorFunction() {
+			return generatorFunction;
+		}
+
+		/**
+		 * Provides the list of arguments where a built-in function will be applied in order to generate values for this attribute.
+		 * @return  The list of attributes (usually, attribute names in the original dataset).
+		 */
+		public List<String> getFunctionArguments() {
+			return functionArguments;
 		}
 		
 		/**
@@ -262,13 +307,30 @@ public class Mapping {
 	 */
 	Map<String, mapProperties> attrMappings;
 	
+	/**
+	 * Internal structure that keeps the names of all multi-faceted attributes (e.g., names in various languages)
+	 */
+	List<String> multiFacetedAttrs;
 	
+	/**
+	 * List that retains the names of the thematic attributes to be auto-generated. These attributes MUST not appear in the original dataset to be transformed.
+	 */
+	List<String> extraThematicAttrs;
+	
+	/**
+	 * List that retains the names of the geometric attributes to be auto-generated. These attributes MUST not appear in the original dataset to be transformed.
+	 */
+	List<String> extraGeometricAttrs;
+		
 	/**
 	 * Constructor of the Mapping class.
 	 */
 	public Mapping() {
 		
-		this.attrMappings = new HashMap<String, mapProperties>();	
+		this.attrMappings = new HashMap<String, mapProperties>();
+		this.multiFacetedAttrs = new ArrayList<String>();
+		this.extraThematicAttrs = new ArrayList<String>();
+		this.extraGeometricAttrs = new ArrayList<String>();
 	}
 	
 	/**
@@ -290,8 +352,34 @@ public class Mapping {
 			   case 3:  props.setLanguage(mappings[i]); break;
 			   case 4:  props.setInstance(mappings[i]); break;
 			   case 5:  props.setPart(mappings[i]); break;
-			   case 6:  props.setDataType(mappings[i]); break;
+			   case 6:  if (mappings[i].startsWith("geometry")) {
+				            props.setGeneratorFunction(mappings[i].substring(9));    //Strip off the "geometry." prefix from the function
+			            	this.extraGeometricAttrs.add(key);
+			            }
+			            else
+			            {   //Special handling in order to identify possible arguments to be used by the built-in function
+			            	int p = mappings[i].indexOf('(');
+			            	if (p >= 0)
+			            	{
+			            		props.setGeneratorFunction(mappings[i].substring(0, p));    //Keep only the name of the function
+			            		String[] args = mappings[i].substring(p+1, mappings[i].length()-1).split(",");
+			            		for (String arg: args)
+			            			props.setFunctionArgument(arg.trim());                           //Specify the arguments
+			            	}
+			            	else            	
+			            		props.setGeneratorFunction(mappings[i]);                      //Only the function name has been specified
+			            	this.extraThematicAttrs.add(key); 
+			            }
+			            break;
+			   case 7:  props.setDataType(mappings[i]); break;
 			}			
+		}
+
+		//Check whether the key (i.e., attribute name) contains the wild char '%' that is being used to distinguish multi-faceted attributes
+		if (key.contains("%"))
+		{
+			key = key.substring(0, key.indexOf('%'));         //Keep this attribute name after stripping off the suffix
+			this.multiFacetedAttrs.add(key);   
 		}
 		
 		//Hold these properties using the attribute name as key
@@ -334,16 +422,44 @@ public class Mapping {
 						   case "language":  props.setLanguage(map.get(key).get(subkey)); break;
 						   case "instanceOf":  props.setInstance(map.get(key).get(subkey)); break;
 						   case "partOf":  props.setPart(map.get(key).get(subkey)); break;
+						   case "generateWith":  
+						   		if (map.get(key).get(subkey).startsWith("geometry"))                     //Prefix for any geometry-based built-in function to be applied
+						   		{
+						   			props.setGeneratorFunction(map.get(key).get(subkey).substring(9));   //Strip off the "geometry." prefix from the function
+						   			this.extraGeometricAttrs.add(key);
+						   		}
+						   		else
+					            {   //Special handling in order to identify possible arguments to be used by the built-in function
+					            	int p = map.get(key).get(subkey).indexOf('(');
+					            	if (p >= 0)
+					            	{
+					            		props.setGeneratorFunction(map.get(key).get(subkey).substring(0, p));    //Keep only the name of the function
+					            		String[] args = map.get(key).get(subkey).substring(p+1, map.get(key).get(subkey).length()-1).split(",");
+					            		for (String arg: args)
+					            			props.setFunctionArgument(arg);                           //Specify the arguments
+					            	}
+					            	else            	
+					            		props.setGeneratorFunction(map.get(key).get(subkey));                      //Only the function name has been specified
+					            	this.extraThematicAttrs.add(key); 
+					            }
+						   		break;
 						   case "datatype":  props.setDataType(map.get(key).get(subkey)); break;
 						}
-					}
-
+					}		            
+		            
 					//Once all properties have been specified, determine the particular profile to be applied during generation of triples for this attribute
 					props.setMappingProfile();
-					
+							
+					//Check whether the key (i.e., attribute name) contains the wild char '%' that is being used to distinguish multi-faceted attributes
+					if (key.contains("%"))
+					{
+						key = key.substring(0, key.indexOf('%'));         //Keep this attribute name after stripping off the suffix
+						this.multiFacetedAttrs.add(key);   
+					}
 					
 					//Hold these properties using the attribute name as key
 					this.attrMappings.put(key, props);
+					
 				}	
 			}
 			catch(Exception e) {
@@ -384,5 +500,52 @@ public class Mapping {
 		
 		return null;	
 	}
+
+	/**
+	 * Identifies whether a multi-faceted attribute is included in the mapping specifications.
+	 * @param key  The name of the attribute as used in the dataset. 
+	 * @return  The name of its corresponding multi-faceted attribute in the mapping, i.e., without the suffix following the wild char '%' in the specification.
+	 */
+	public String findMultiFaceted(String key) {
+		
+		for (String item : this.multiFacetedAttrs)
+			if (key.startsWith(item))              //Multi-faceted attribute exists
+				return item;
+		
+		return null;   
+	}
 	
+	/**
+	 * Identifies the name(s) of any auto-generated attribute(s) based on geometric properties (e.g., area, length, perimeter).
+	 * @param f  The name of the built-in function that will be used to generate values for any such attribute.
+	 * @return  A list with the names of the auto-generated attribute(s).
+	 */
+	public List<String> findExtraGeometricAttr(String f) {
+		
+		List<String> items = new ArrayList<String>();
+		for (String item : this.extraGeometricAttrs)
+			if (this.find(item).getGeneratorFunction().equals(f))              //A geometry-based function has been defined for this attribute
+				items.add(item);
+		
+		return items;                                                          //Multiple attributes may have been declared with the same generator function
+	}
+	
+	
+	/**
+	 * Provides a list with the names of all thematic attributes that will be generated on-the-fly during transformation.
+	 * @return  List of thematic attributes to be dynamically added to those originally defined in the dataset.
+	 */
+	public List<String> getExtraThematicAttributes() {
+		
+		return this.extraThematicAttrs;
+	}
+	
+	/**
+	 * Provides a list with the names of all geometric attributes that will be generated on-the-fly during transformation.
+	 * @return  List of geometric attributes to be dynamically added to those originally defined in the dataset.
+	 */
+	public List<String> getExtraGeometricAttributes() {
+		
+		return this.extraGeometricAttrs;
+	}
 }

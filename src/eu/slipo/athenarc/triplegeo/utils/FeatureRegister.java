@@ -1,5 +1,5 @@
 /*
- * @(#) FeatureRegister.java 	 version 1.4   2/3/2018
+ * @(#) FeatureRegister.java 	 version 1.5   27/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -25,19 +25,23 @@ import java.util.Map;
 /**
  * Creates a record of attribute values concerning a feature that should be registered in the SLIPO Registry.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 24/1/2018
  * Modified: 24/1/2018, added export of basic attributes for SLIPO Registry
  * Modified: 12/2/2018, added on-the-fly calculation of lon/lat coordinates for SLIPO Registry
- * Last modified: 2/3/2018
+ * Modified: 3/7/2018; replaced any appearance of the delimiter character in string values
+ * Last modified: 27/7/2018
  */
 
 public class FeatureRegister {
 
 	private static Configuration currentConfig;
+	
+	Assistant myAssistant;
+	ValueChecker myChecker;
 	
 	private String rTuple;                 //Contains attribute values that will be used for registering features in the SLIPO Registry
 	private List<String> tuples4Registry;  //List of tuples for the SLIPO Registry as collected after transforming a batch of input features
@@ -50,6 +54,9 @@ public class FeatureRegister {
 	public FeatureRegister(Configuration config) {
 		    
 	    currentConfig = config;       //Configuration parameters as set up by the various conversion utilities (CSV, SHP, DBMS, etc.) 
+	    
+	    myAssistant = new Assistant(config);
+	    myChecker = new ValueChecker();
 	    
 	    attrKeys = new ArrayList<String>();   //Collection of names of non-spatial (thematic) attributes to take part in the registration
 	    
@@ -100,16 +107,16 @@ public class FeatureRegister {
 			double coords[] = null;
 
 	      	//Export selected attributes as required for SLIPO Registry
-  	        rTuple = uri + Constants.REGISTRY_CSV_DELIMITER + currentConfig.featureSource;
+  	        rTuple = uri + Constants.REGISTRY_CSV_DELIMITER + myChecker.removeDelimiter(currentConfig.featureSource);
   	        for (String key: attrKeys)
   	        {
-  	        	rTuple += Constants.REGISTRY_CSV_DELIMITER + row.get(key);
+  	        	rTuple += Constants.REGISTRY_CSV_DELIMITER + myChecker.removeDelimiter(row.get(key));
   	        }
 
   	        //Include lon/lat coordinates at WGS84 even if a geometry WKT is georeferenced in another SRID
   	        if (wkt != null) 
   	        { 
-  	        	coords = Assistant.getLonLatCoords(wkt, targetSRID);
+  	        	coords = myAssistant.getLonLatCoords(wkt, targetSRID);
 	  	        if (coords != null)
 	  	        	rTuple += Constants.REGISTRY_CSV_DELIMITER + coords[0] + Constants.REGISTRY_CSV_DELIMITER + coords[1];
 	  	        else

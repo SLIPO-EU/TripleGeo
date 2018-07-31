@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.4   2/3/2018
+ * @(#) TripleGenerator.java 	 version 1.5   27/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -33,12 +33,14 @@ import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.vocabulary.RDF;
 
+import com.vividsolutions.jts.geom.Geometry;
+
 import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
 
 /**
  * Generates a collection of RDF triples from the attributes of a given feature.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -50,15 +52,18 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
  * Modified: 14/2/2018; collecting attribute statistics on-the-fly while transforming each feature
  * Modified: 15/2/2018; added support for transforming thematic attributes according to a custom ontology specified in .YML
  * Modified: 21/2/2018; added support for calculated area and perimeter for geometries
- * TODO: Calculate area and perimeter of geometries in standard units (e.g., SI meters and square meters)
- * TODO: Values in thematic (non-spatial) attributes should be cleaned from special characters (e.g., newline, quotes, etc.) that may be problematic in the resulting triples
- * Last modified: 2/3/2018
+ * Modified: 23/4/2018; added support for mapping of multi-lingual attribute values 
+ * Modified: 11/5/2018; extra attributes on area, perimeter or length of geometries calculated in standard units (e.g., SI meters and square meters)
+ * Modified: 27/7/2018; values in thematic (non-spatial) attributes get cleaned from special characters (e.g., newline, quotes, etc.) that may be problematic in the resulting triples
+ * Last modified: 27/7/2018
  */
 
 public class TripleGenerator {
 
+	Assistant myAssistant;
+	ValueChecker myChecker;
 	private static Configuration currentConfig;
-	
+
 	private List<Triple> results;          //Container of resulting triples
 
 	Mapping attrMappings = null;           //Mapping of thematic attributes (input) to RDF predicates (output)
@@ -74,6 +79,9 @@ public class TripleGenerator {
      */
 	public TripleGenerator(Configuration config) {
 		    
+		myAssistant = new Assistant(config);
+		myChecker = new ValueChecker();
+		
 	    currentConfig = config;       //Configuration parameters as set up by the various conversion utilities (CSV, SHP, DBMS, etc.) 
 	    
 	    results = new ArrayList<>();          //Hold a collection of RDF triples resulting from transformation
@@ -166,24 +174,65 @@ public class TripleGenerator {
 		String uri = null;
 		try {
   	    	//Create a URI identifier for the RDF resource
-  	        String encodingResource = URLEncoder.encode(uuid, Constants.UTF_8).replace(Constants.WHITESPACE, Constants.REPLACEMENT);	  	      
+  	        String encodingResource = myChecker.replaceWhiteSpaceURL(URLEncoder.encode(uuid, Constants.UTF_8));	  	      
   	        uri = currentConfig.featureNS + encodingResource;
   	        
 	        //Parse geometric representation (including encoding to the target CRS)
 	        if (wkt != null)
 	        {
-	        	transformGeometry2RDF(uri, wkt, targetSRID);
-/*			        	
-	        	//*******************************************
-	        	//Only used for issuing extra lon/lat triples according to WGS84 GeoPosition RDF Vocabulary			        	
-	        	coords = Assistant.getLonLatCoords(wkt, targetSRID);
-	        	if (coords != null)
-	        	{
-	        		row.put("longitude", "" + coords[0]);
-	        		row.put("latitude", "" + coords[1]);
-	        	}			        	
-	        	//*******************************************
-*/			        	
+		        //Detect geometry type from the WKT representation (i.e., getting the text before parentheses)
+		  	  	String geomType = " ";
+		  	  	int a = wkt.indexOf("(");
+		  	  	if (a > 0)
+		  	  		geomType = wkt.substring(0, a).trim();
+
+		  	  	//Insert extra attributes concerning the CALCULATED area OR perimeter
+		  	  	if (attrMappings != null)
+		  	  	{
+			  	  	List<String> g;
+			  	  	if (geomType.toUpperCase().contains("POLYGON"))
+			  	  	{
+			  	  		g = attrMappings.findExtraGeometricAttr("getArea");
+			  	  		if (!g.isEmpty())
+			  	  			row.put(g.get(0), (myAssistant.applyRuntimeMethod("getArea", new Object[]{wkt, targetSRID})).toString());
+	
+			  	  		g = attrMappings.findExtraGeometricAttr("getLength");
+			  	  		if (!g.isEmpty())
+			  	  			row.put(g.get(0), (myAssistant.applyRuntimeMethod("getLength", new Object[]{wkt, targetSRID})).toString());
+			  	  	}
+			  	  	//Insert an extra property concerning the CALCULATED length of this linestring
+			  	  	else if (geomType.toUpperCase().contains("LINE"))
+			  	  	{
+			  	  		g = attrMappings.findExtraGeometricAttr("getLength");
+			  	  		if (!g.isEmpty())
+			  	  			row.put(g.get(0), (myAssistant.applyRuntimeMethod("getLength", new Object[]{wkt, targetSRID})).toString());
+			  	  	}
+			  	  	
+			  	  	//Insert extra attributes concerning lon/lat coordinates for the centroid 
+			  	  	Geometry geomProjected = myAssistant.geomTransformWGS84(wkt, targetSRID);
+			  	  	g = attrMappings.findExtraGeometricAttr("getLongitude");
+			  	  	if (!g.isEmpty())  		
+			  	  	    row.put(g.get(0), myAssistant.applyRuntimeMethod("getLongitude", new Object[]{geomProjected}).toString());	  
+			  	  	g = attrMappings.findExtraGeometricAttr("getLatitude");
+			  	  	if (!g.isEmpty())
+			  	  	    row.put(g.get(0), myAssistant.applyRuntimeMethod("getLatitude", new Object[]{geomProjected}).toString());		  	  
+/*		  	  	
+			  	    //ALTERNATIVE (NOT USED): Insert extra attributes concerning lon/lat coordinates for the centroid 
+			  	  	g = attrMappings.findExtraGeometricAttr("getLonLatCoords");
+			  	  	if (g != null)
+			  	  	{
+			  	  	    //Only used for issuing extra lon/lat triples according to WGS84 GeoPosition RDF Vocabulary			        	
+			        	double[] coords = (double[]) myAssistant.applyRuntimeMethod("getLonLatCoords", new Object[]{wkt, targetSRID});
+			        	if (coords != null)
+			        	{
+			        		row.put(g.get(0), "" + coords[0]);   //FIXME: Implicit assumption that the first attribute is always referring to longitude...
+			        		row.put(g.get(1), "" + coords[1]);   //...whereas the second one to latitude.
+			        	}			  	  		
+			  	  	}
+*/		  	  
+		  	  	}
+		  	  	//Apply transformation for the geometry
+	        	transformGeometry2RDF(uri, wkt, targetSRID, geomType);		        	
 	        }
         
 	        if (attrMappings != null) 
@@ -240,8 +289,9 @@ public class TripleGenerator {
 	 * @param uri  The URI assigned to this feature
 	 * @param wkt  Well-Known Text representation of the geometry 
 	 * @param srid  The EPSG identifier of the Coordinate Reference System of the geometry
+	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
 	 */
-	public void transformGeometry2RDF(String uri, String wkt, int srid) {	 
+	public void transformGeometry2RDF(String uri, String wkt, int srid, String geomType) {	 
 		
       try {
 
@@ -251,7 +301,7 @@ public class TripleGenerator {
         else if (currentConfig.targetGeoOntology.equalsIgnoreCase("Virtuoso"))    //Legacy Virtuoso RDF point geometries
         	insertVirtuosoPoint(uri, wkt);
         else
-        	insertWKTGeometry(uri, wkt, srid);            //Encoding geometry with a specific CRS is allowed in GeoSPARQL only
+        	insertWKTGeometry(uri, wkt, srid, geomType);            //Encoding geometry with a specific CRS is allowed in GeoSPARQL only
         
         //Type according to GeoSPARQL feature
         createTriple4Resource(uri, RDF.type.getURI(), currentConfig.geometryNS + Constants.FEATURE);
@@ -269,14 +319,8 @@ public class TripleGenerator {
 	 * @param wkt  Well-Known Text representation of the geometry 
 	 * @param srid  The EPSG identifier of the Coordinate Reference System of the geometry
 	 */
-	private void insertWKTGeometry(String uri, String wkt, int srid) {	
+	private void insertWKTGeometry(String uri, String wkt, int srid, String geomType) {	
 		
-	  	  //Detect geometry type from the WKT representation (i.e., getting the text before parentheses)
-	  	  String geomType = " ";
-	  	  int a = wkt.indexOf("(");
-	  	  if (a > 0)
-	  		  geomType = wkt.substring(0, a).trim();
-	  	
 	  	  //Create a link between a spatial feature and its respective geometry
 	  	  createTriple4Resource(uri, Constants.NS_GEO + "hasGeometry", uri + Constants.FEAT);
   	
@@ -286,12 +330,12 @@ public class TripleGenerator {
 	  	  //Insert extra properties concerning the CALCULATED area OR perimeter
 	  	  if (geomType.toUpperCase().contains("POLYGON"))
 	  	  {
-		  	  insertTriple4TypedLiteral(uri, currentConfig.ontologyNS + "area", "" + Assistant.getArea(wkt), TypeMapper.getInstance().getSafeTypeByName(Constants.NS_XSD + "float"));
-		  	  insertTriple4TypedLiteral(uri, currentConfig.ontologyNS + "length", "" + Assistant.getLength(wkt), TypeMapper.getInstance().getSafeTypeByName(Constants.NS_XSD + "float"));
+		  	  insertTriple4TypedLiteral(uri, currentConfig.ontologyNS + "area", "" + myAssistant.getArea(wkt), TypeMapper.getInstance().getSafeTypeByName(Constants.NS_XSD + "float"));
+		  	  insertTriple4TypedLiteral(uri, currentConfig.ontologyNS + "length", "" + myAssistant.getLength(wkt), TypeMapper.getInstance().getSafeTypeByName(Constants.NS_XSD + "float"));
 	  	  }
 	  	  //Insert an extra property concerning the CALCULATED length of this linestring
 	  	  else if (geomType.toUpperCase().contains("LINE"))
-		  	  insertTriple4TypedLiteral(uri, currentConfig.ontologyNS + "length", "" + Assistant.getLength(wkt), TypeMapper.getInstance().getSafeTypeByName(Constants.NS_XSD + "float"));
+		  	  insertTriple4TypedLiteral(uri, currentConfig.ontologyNS + "length", "" + myAssistant.getLength(wkt), TypeMapper.getInstance().getSafeTypeByName(Constants.NS_XSD + "float"));
 */
 	  	  //Encode SRID information before the WKT literal
 	  	  wkt = "<http://www.opengis.net/def/crs/EPSG/0/" + srid + "> " + wkt;
@@ -321,7 +365,7 @@ public class TripleGenerator {
 	 */
 	private void insertWGS84Point(String uri, String pointWKT) {
 	    	
-	    //Clean point WKT so as to retain its numeric coordinates only
+	    //Clean up point WKT so as to retain its numeric coordinates only
 	  	String[] parts = pointWKT.replace("POINT","").replace("(","").replace(")","").split(Constants.BLANK);
 	  	
 	  	//X-ordinate as a property
@@ -344,14 +388,43 @@ public class TripleGenerator {
 		
   	    try 
   	    {
+  	    	mapProperties mapping;
   	    	Set<String> indexCompAttrs = new HashSet<String>();      //Retains an index for all composite entities consisting of multiple attributes (e.g., address)
-  	        
+  	        	    	
   	        //Include a category identifier, as found in the classification scheme and suffixed with the user-specified namespace
 	      	if ((classific != null) && (classific.getUUID(attrValues.get(currentConfig.attrCategory))) != null)
 	      		attrValues.put(attrCategoryURI, currentConfig.featureClassNS + classific.getUUID(attrValues.get(currentConfig.attrCategory)));
+//	      	else
+//	      		System.out.println("CATEGORY NOT FOUND:" + attrValues.get(currentConfig.attrCategory));
 	      	
 	      	//Also include information about the data source provider as specified in the configuration
-	      	attrValues.put(attrDataSource, currentConfig.featureSource);
+	      	//attrValues.put(attrDataSource, currentConfig.featureSource);
+	      	
+	      	//Dynamically generate values for extra attributes using built-in functions
+	      	for (String extraAttr: attrMappings.getExtraThematicAttributes())
+	      	{
+	      		mapping = attrMappings.find(extraAttr);                 //Mapping associated with this attribute
+	      		
+	      		List<String> args = mapping.getFunctionArguments();     //Identify any arguments that should be used by the generator function
+	      		 
+	      		//Call built-in function in order to assign a value to this extra attribute
+	      		if ((args != null) && (!args.isEmpty()))
+	      		{
+	      			List<String> argv = new ArrayList<String>();
+	      			for (String arg: args)
+	      			{
+	      			    //For each argument, get its actual value to be used by the built-in function
+	      				String val = attrValues.get(arg);
+	      				if (val == null)
+	      					val = "";	      				
+	      				argv.add(val);             
+	      				
+	      			}
+	      			attrValues.put(extraAttr, (String) myAssistant.applyRuntimeMethod(mapping.getGeneratorFunction(), argv.toArray(new Object[argv.size()]))); 
+	      		}
+	      		else
+	      			attrValues.put(extraAttr, (String) myAssistant.applyRuntimeMethod(mapping.getGeneratorFunction(), new Object[]{}));
+	      	}
 	      	
   	        //Iterate over each attribute specified in the mapping and insert triple(s) according to its specifications
   	        for (String key: attrValues.keySet())
@@ -361,28 +434,56 @@ public class TripleGenerator {
   	        		String val = attrValues.get(key);
   	        		if ((val != null) && (!val.equals("")) && (!val.contains("Null")))       //Issue triples for NOT NULL/non-empty values only
   	        		{
-  	        			val = val.replaceAll("[\\\t|\\\n|\\\r]"," ");     //FIXME: Replacing newlines with space, but other special characters should be handled as well
+  	        			val = myChecker.removeIllegalChars(val);          //Replace special characters not allowed in literals 	        			
+  	        			mapping = attrMappings.find(key);                 //Mapping associated with this attribute
+  	        			String lang;                                      //Language used in string literals 
+  	        			String entityType = null;                         //Entity type used as a suffix to the URI
   	        			
-  	        			mapProperties mapping = attrMappings.find(key);   //Mapping associated with this attribute
-  	        			if (mapping == null)               //Cannot find a mapping for this attribute
+  	        			if (mapping == null)                              //Cannot find a mapping that exactly matches this attribute
   	        			{
-  	        				//Emit any attribute not specifically mapped to the ontology as triples for (key, value) pairs
-  	        				createTriple4Resource(uri, currentConfig.ontologyNS + "otherAttr", uri + "/" + key);
-  	        				createTriple4PlainLiteral(uri + "/" + key, currentConfig.ontologyNS + "key", key);
-  	        				createTriple4PlainLiteral(uri + "/" + key, currentConfig.ontologyNS + "value", val);
-  	        				
-  	        				continue;
+  	        				//Check whether this is a multi-faceted attribute (e.g., a name in various languages)
+  	        				//FIXME: Wild char '%' is used in YML mappings in order to specify such attributes
+  	        				String attrBase = attrMappings.findMultiFaceted(key);
+  	        				if (attrBase != null)                        //Multi-faceted attribute is specified in the mappings
+  	        					mapping = attrMappings.find(attrBase);   //Mapping associated with this multi-faceted attribute
+
+  	        				if (mapping == null)   //If still no mapping is found, then ...
+  	        				{
+  	        					//Trivial handling of any attribute not specifically mapped to the ontology by emitting triples for (key, value) pairs
+  	        					if (attrMappings.find("_") != null)      //Wild-card character used to denote any other attribute not specifically defined in the YML mapping 
+  	        					{
+  	        						mapping = attrMappings.find("_");
+		  	        				createTriple4Resource(uri, mapping.getPredicate(), uri + "/" + key);
+		  	        				createTriple4PlainLiteral(uri + "/" + key, currentConfig.ontologyNS + "key", key);
+		  	        				createTriple4PlainLiteral(uri + "/" + key, currentConfig.ontologyNS + "value", val);
+		  	        				updateStatistics(key);               //Update count of NOT NULL values transformed for this attribute
+  	        					}
+  	        					
+	  	        				continue;
+  	        				}
+  	        				else
+  	        				{
+  	        					//Apply a built-in function 
+  	        					lang = (String) myAssistant.applyRuntimeMethod(mapping.getLanguage(), new Object[]{key, attrBase.length()}); //Language tag is dynamically inferred from the last part of the attribute name
+  	        					if (lang != null)
+  	        						entityType = mapping.getEntityType() + "_" + lang;                 //URIs will also include a language suffix in order to be distinguishable
+  	        					else
+  	        						continue;
+  	        				}
+  	        			}
+  	        			else
+  	        			{
+  	        				lang = mapping.getLanguage();
+  	        				entityType = mapping.getEntityType();
   	        			}
     			
   	        			updateStatistics(key);                          //Update count of NOT NULL values transformed for this attribute
   	        			
   	        			//User specifications for transforming this attribute
   	        			String resPart = mapping.getPart();             //This resource is part of another entity (e.g., streetname is part of address)
-  	        			String resClass = mapping.getInstance();        //This resource instantiates a class (e.g., email instantiates a contact)
-  	        			String entityType = mapping.getEntityType();    //Entity type used as a suffix to the URI
+  	        			String resClass = mapping.getInstance();        //This resource instantiates a class (e.g., email instantiates a contact)	
         				String predicate = mapping.getPredicate();      //Predicate according to the ontology
         				String resType = mapping.getResourceType();     //Type of the resource                 
-        				String lang = mapping.getLanguage();            //Language used in string literals
         				RDFDatatype dataType = mapping.getDataType();   //Data type for literals
         				
         				//Handle value for this attribute according to its designated mapping profile
@@ -391,7 +492,8 @@ public class TripleGenerator {
         						createTriple4Resource(uri, predicate, uri + "/" + entityType);
         						createTriple4LanguageLiteral(uri + "/" + entityType, currentConfig.ontologyNS + resClass + "Value", val, lang);
         						createTriple4PlainLiteral(uri + "/" + entityType, currentConfig.ontologyNS + "language", lang);
-        						createTriple4PlainLiteral(uri + "/" + entityType, currentConfig.ontologyNS + resClass + "Type", resType); 
+        						if (!resType.trim().toUpperCase().equals("NONE"))     //FIXME: Issue triple for resource type unless it is explicitly suppressed
+        							createTriple4PlainLiteral(uri + "/" + entityType, currentConfig.ontologyNS + resClass + "Type", resType); 
         						//Also insert a triple for the RDF class of this entity
         						createTriple4Resource(uri + "/" + entityType, RDF.type.getURI(), currentConfig.ontologyNS + resClass);
         						break;
@@ -422,15 +524,14 @@ public class TripleGenerator {
             					}
             					createTriple4PlainLiteral(uri + "/" + resPart, predicate, val);
             					break;
-        					case HAS_DATA_TYPE_URL :             //Property with a URL object; URLs must be valid
-        						val = val.replaceAll("\\s+","");                  //Eliminate white spaces and invalid characters
-        						val = val.replaceAll("|","");
-        						if (!val.toLowerCase().matches("^\\w+://.*"))     //This value should be a URL, so put HTTP as its prefix
-        							val = "http://" + val;
-        						createTriple4Resource(uri, predicate, val);
+        					case HAS_DATA_TYPE_URL :             //Property with a URL object; URLs must be valid, otherwise they may be corrected by the checker
+        						createTriple4Resource(uri, predicate, myChecker.cleanupURL(val));
         						break;
         					case HAS_DATA_TYPE :                  //Property with a literal having data type specification
         						createTriple4TypedLiteral(uri, expandNamespace(predicate), val, dataType);
+        						break;
+        					case IS_LITERAL_TAG_LANGUAGE :        //Property with a plain literal with a language tag
+        						createTriple4LanguageLiteral(uri, predicate, val, lang);
         						break;
         					case IS_LITERAL :                     //Property with a plain literal without further specifications
         						createTriple4PlainLiteral(uri, predicate, val);
@@ -463,7 +564,7 @@ public class TripleGenerator {
   	    	String classificSource = currentConfig.featureSource;
   	    	
   	    	//Create an identifier for the RDF resource
-  	        String encodingResource = URLEncoder.encode(uuid, Constants.UTF_8).replace(Constants.WHITESPACE, Constants.REPLACEMENT);	  	      
+  	        String encodingResource = myChecker.replaceWhiteSpaceURL(URLEncoder.encode(uuid, Constants.UTF_8));	  	      
   	        String uri = currentConfig.featureClassNS + encodingResource;
 	      	  	
   	        //Create triples
@@ -471,7 +572,7 @@ public class TripleGenerator {
   	        createTriple4Resource(uri, RDF.type.getURI(), currentConfig.ontologyNS + "Term");
   	        createTriple4PlainLiteral(uri, currentConfig.ontologyNS + "value", name); 
   	    	if (parent_uuid != null)
-  	    		createTriple4Resource(uri, currentConfig.ontologyNS + "parent", currentConfig.featureClassNS + URLEncoder.encode(parent_uuid, Constants.UTF_8).replace(Constants.WHITESPACE, Constants.REPLACEMENT));	  
+  	    		createTriple4Resource(uri, currentConfig.ontologyNS + "parent", currentConfig.featureClassNS + myChecker.replaceWhiteSpaceURL(URLEncoder.encode(parent_uuid, Constants.UTF_8)));	  
   	    }
   	    catch(Exception e) { 
   	    	ExceptionHandler.warn(e, " An error occurred when attempting transformation of a thematic attribute value.");

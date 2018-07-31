@@ -1,5 +1,5 @@
 /*
- * @(#) GpxToRdf.java 	 version 1.4   8/3/2018
+ * @(#) GpxToRdf.java 	 version 1.5   27/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -19,11 +19,7 @@
 package eu.slipo.athenarc.triplegeo.tools;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +29,8 @@ import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 
-import org.apache.jena.riot.RDFFormat;
-import org.apache.jena.riot.system.StreamRDF;
-import org.apache.jena.riot.system.StreamRDFWriter;
+import org.apache.xerces.dom.ElementNSImpl;
+import org.w3c.dom.NodeList;
 
 import com.topografix.gpx.GpxType;
 import com.topografix.gpx.TrkType;
@@ -50,17 +45,15 @@ import eu.slipo.athenarc.triplegeo.utils.Converter;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.GraphConverter;
 import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
-import eu.slipo.athenarc.triplegeo.utils.TripleGenerator;
 
 
 /**
  * Main entry point of the utility for extracting RDF triples from GPX files.
  * LIMITATIONS: Currently supporting WAYPOINT and TRACK features only!
- * TODO: Implement transformation using a disk-based GRAPH model; Handle non-geometric attributes for tracks (if applicable).
- * TODO: Integrate handling of attribute mappings and feature classifications.
+ * TODO: Integrate handling of feature classifications.
  * GPX manual available at: http://www.topografix.com/gpx_manual.asp
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -69,7 +62,9 @@ import eu.slipo.athenarc.triplegeo.utils.TripleGenerator;
  * Modified: 19/12/2017, reorganized collection of triples using TripleGenerator
  * Modified: 24/1/2018, included auto-generation of UUIDs for the URIs of features
  * Modified: 7/2/2018, added support for exporting all available non-spatial attributes as properties
- * Last modified by: Kostas Patroumpas, 8/3/2018
+ * Modified: 9/5/2018, unified handling for GRAPH and STREAM transformation modes
+ * Modified: 16/5/2018; handling of extra user-specified attributes in GPX extensions
+ * Last modified by: Kostas Patroumpas, 27/7/2018
 */
 
 
@@ -97,7 +92,7 @@ public class GpxToRdf {
 		  currentConfig = config;
 		  inputFile = inFile;
 		  outputFile = outFile;
-		  this.sourceSRID = 4326;       //ASSUMPTION: All geometries in GPX are always expected in WGS84 georeference
+		  this.sourceSRID = 4326;            //ASSUMPTION: All geometries in GPX are always expected in WGS84 georeference
 	      this.targetSRID = 4326;
 	      myAssistant = new Assistant();
 	      
@@ -111,7 +106,7 @@ public class GpxToRdf {
  
 	/**
 	 * Applies transformation according to the configuration settings.
-	 * TODO: RML mode not currently supported; GRAPH mode not currently implemented.
+	 * TODO: RML mode not currently supported.
 	 */
 	public void apply() {
 		
@@ -123,9 +118,12 @@ public class GpxToRdf {
 				{
 				  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
 				  myConverter = new GraphConverter(currentConfig, outputFile);
-				 
-				  //Export data after constructing a model on disk
-				  executeParser4Graph(gpx);
+				  			
+				  //Parse each record in order to create the necessary triples on disk (including geometric and non-spatial attributes)
+				  parseDocument(gpx);
+				  
+				  //Export the RDF graph into a user-specified serialization
+				  myConverter.store(myAssistant, outputFile);
 				  
 				  //Remove all temporary files as soon as processing is finished
 				  myAssistant.removeDirectory(myConverter.getTDBDir());
@@ -134,9 +132,17 @@ public class GpxToRdf {
 				{
 				  //Mode STREAM: consume records and streamline them into a serialization file
 				  myConverter =  new StreamConverter(currentConfig, outputFile);
+				
+				  //Parse each record and streamline the resulting triples (including geometric and non-spatial attributes)
+				  parseDocument(gpx);
 				  
-				  //Export data in a streaming fashion
-				  executeParser4Stream(gpx);
+				  //Finalize the output RDF file
+				  myConverter.store(myAssistant, outputFile);
+				}
+				else
+				{
+					System.err.println("Transformation of GPX data is possible under either GRAPH or STREAM mode. RML mode is currently not supported.");
+					throw new IllegalArgumentException(Constants.INCORRECT_SETTING);
 				}
 	      } catch (Exception e) {
 	    	  ExceptionHandler.abort(e, "");
@@ -169,54 +175,22 @@ public class GpxToRdf {
 			return gpx; 
 	}
 	  
+	  
 	
 	/**
-	 * Parse each item (waypoint, track) from GPX document in order to create the necessary triples on disk (including geometric and non-spatial attributes). Applicable in GRAPH transformation mode.  
+	 * Parse each item (waypoint, track) from GPX document in order to create the necessary triples on disk (including geometric and non-spatial attributes).  
 	 * @param gpx  The GPX document with waypoints and tracks.
 	 */
-	private void executeParser4Graph(GpxType gpx) {
-		  //TODO: Implement method for disk-based model.
-	  
-	}
-	  
-
-	/**
-	 * Parse each item (waypoint, track) from GPX document in order to streamline the resulting triples (including geometric and non-spatial attributes). Applicable in STREAM transformation mode.  
-	 * @param gpx  The GPX document with waypoints and tracks.
-	 */
-	private void executeParser4Stream(GpxType gpx) {
-	
-	    long t_start = System.currentTimeMillis();
-	    long dt = 0;
-	    int numRec = 0;
-	    int numTriples = 0;
-	    
-		OutputStream outFile = null;
-		try {
-			outFile = new FileOutputStream(outputFile);
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		} 
-		
-		//IMPORTANT: Currently, it seems that only NTRIPLES serialization can be dealt with in a streaming fashion
-		StreamRDF stream = StreamRDFWriter.getWriterStream(outFile, RDFFormat.NTRIPLES);
-		TripleGenerator myGenerator = new TripleGenerator(currentConfig);     //Will be used to generate all triples per input feature  
-	    //System.out.println(myAssistant.getGMTime() + " Started processing features...");
-	    
-	    stream.start();             //Start issuing triples
+	private void parseDocument(GpxType gpx) {
 	    	    
 	    try {
 		    //PHASE I: Iterate through all tracks in the GPX file
 		    List<TrkType> tracks = gpx.getTrk();
 		    for (TrkType track : tracks) 
 		    {    					
-				//CAUTION! On-the-fly generation of a UUID for this feature
-				String uuid = myAssistant.getUUID(track.toString()).toString();
-				
-	  	    	//Create an identifier for the RDF resource
-	  	        String encodingResource = URLEncoder.encode(uuid, Constants.UTF_8).replace(Constants.WHITESPACE, Constants.REPLACEMENT);	  	      
-	  	        String uri = currentConfig.featureNS + encodingResource;
-	  	          	        
+		    	//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
+				String uuid = myAssistant.getUUID(currentConfig.featureSource, track.toString()).toString();
+
 		        List<TrksegType> trackSegments = track.getTrkseg();
 	
 		        //Gather all non-spatial attributes into a temporary map
@@ -228,39 +202,41 @@ public class GpxToRdf {
 				addTagValue(row, "link", track.getLink());
 				addTagValue(row, "number", track.getNumber());
 				addTagValue(row, "type", track.getType());
-				addTagValue(row, "extensions", track.getExtensions());
+
+				//Handle extensions by adding each one as an extra attribute into the temporary map
+				addExtensionValues(row, track.getExtensions().getAny());
 				
-				//Process all available non-spatial attributes
-				//CAUTION! Currently, each attribute name is used as the property in the resulting triple
-				if (!row.isEmpty())
-					myGenerator.transformPlainThematic2RDF(uri, row);
-			
+				//Geometry may be a LINESTRING (for a single track segment) or a MULTILINESTRING (if track consists of multiple segments)
+				String wkt;
+				Boolean singleSegment = (trackSegments.size() == 1);
+				if (singleSegment)
+					wkt = "LINESTRING ";
+				else
+					wkt = "MULTILINESTRING (";
+		
 	            //Extract geometry for each track segment
-		        for (TrksegType seg: trackSegments) {
-		        	String wkt = "LINESTRING (";
+		        for (TrksegType seg: trackSegments) {		        	
+		        	wkt  = wkt + "(";
 		            List<WptType> points = seg.getTrkpt();
 		            for(WptType point : points) {
 		                //System.out.println("TrackPoint recorded at " + point.getTime() + " at elevation: " + point.getEle() + " with coordinates: " + point.getLon() + "," + point.getLat());
 		            	wkt  = wkt + point.getLon() + " " + point.getLat() + ","; 	
 		            }
-		            wkt = wkt.substring(0, wkt.length()-1) + ")";
+		            wkt = wkt.substring(0, wkt.length()-1) + ")";	  
 		            
-					//Parse geometric representation
-		            myGenerator.transformGeometry2RDF(uri, wkt, targetSRID);    //currentConfig.featureName, id
-		          
-					//Append each triple to the output stream 
-					for (int i = 0; i <= myGenerator.getTriples().size()-1; i++) {
-						stream.triple(myGenerator.getTriples().get(i));
-						numTriples++;
-					}
-		
-					//Clean up any collected triples, in order to collect the new triples derived from the next feature
-					myGenerator.clearTriples();
-					
-					myAssistant.notifyProgress(++numRec);  			    
-		        }    		    
-		    }
-	
+		            if (!singleSegment)
+		            	wkt = wkt + ",";     //Separator of segments in MULTILINESTRING
+		        }  
+		        
+	            if (!singleSegment)
+	            	wkt = wkt + ")";         //Close MULTILINESTRING    
+			 
+				//Process all available attributes (including geometry)
+				//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
+				if (!row.isEmpty())
+					myConverter.parse(myAssistant, uuid, wkt, row, targetSRID, "LINESTRING");
+		    }	    
+		    
 		    //PHASE II: Iterate through all waypoints in the GPX file
 		    List<WptType> points = gpx.getWpt();
 	
@@ -271,16 +247,9 @@ public class GpxToRdf {
 		    	//Waypoint coordinates are always assumed to be georeferenced in WGS84 
 				String wkt = "POINT (" + point.getLon() + " " + point.getLat() + ")";
 	
-				//CAUTION! On-the-fly generation of a UUID for this feature
-				String uuid = myAssistant.getUUID(point.toString()).toString();
-				
-	  	    	//Create an identifier for the RDF resource
-	  	        String encodingResource = URLEncoder.encode(uuid, Constants.UTF_8).replace(Constants.WHITESPACE, Constants.REPLACEMENT);	  	      
-	  	        String uri = currentConfig.featureNS + encodingResource;
+				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
+				String uuid = myAssistant.getUUID(currentConfig.featureSource, point.toString()).toString();
 	  	        
-				//Parse geometric representation
-				myGenerator.transformGeometry2RDF(uri, wkt, targetSRID);	   //currentConfig.featureName, id
-	
 				//Gather all non-spatial attributes into a temporary map
 				Map<String, String> row = new HashMap<String, String>();
 				addTagValue(row, "ele", point.getEle());
@@ -301,34 +270,21 @@ public class GpxToRdf {
 				addTagValue(row, "pdop", point.getPdop());
 				addTagValue(row, "ageofdgpsdata", point.getAgeofdgpsdata());
 				addTagValue(row, "dgpsid", point.getDgpsid());
-				addTagValue(row, "extensions", point.getExtensions());
-				
-				//Process all available non-spatial attributes
-				//CAUTION! Currently, each attribute name is used as the property in the resulting triple
+			    		
+				//Handle extensions by adding each one as an extra attribute into the temporary map
+				addExtensionValues(row, point.getExtensions().getAny());
+		
+				//Process all available attributes (including geometry)
+				//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
 				if (!row.isEmpty())
-					myGenerator.transformPlainThematic2RDF(uri, row);
+					myConverter.parse(myAssistant, uuid, wkt, row, targetSRID, "POINT");
 				
-				//Append each triple to the output stream 
-				for (int i = 0; i <= myGenerator.getTriples().size()-1; i++) {
-					stream.triple(myGenerator.getTriples().get(i));
-					numTriples++;
-				}
-				
-				//Clean up any collected triples, in order to collect the new triples derived from the next feature
-				myGenerator.clearTriples();
-				
-				myAssistant.notifyProgress(++numRec);  
 		    }
 		}
 		catch(Exception e) { 
 			ExceptionHandler.warn(e, "An error occurred during transformation of an input record.");
 		}
 	
-		stream.finish();               //Finished issuing triples
-		    
-		//Final notification
-		dt = System.currentTimeMillis() - t_start;
-		myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, null, currentConfig.mode, outputFile);  
 	}	  
 
 	
@@ -349,4 +305,21 @@ public class GpxToRdf {
 		  row.put(tag,  val.toString());
 	}
 
+	
+	/**
+	 * Updates a dictionary with the values specified in custom GPX extensions (the name of the custom attribute is used as the key for the respective value)
+	 * @param row  Dictionary with (tag, value) pairs
+	 * @param ext  The list of extensions specified for a GPX waypoint or track
+	 */
+	private void addExtensionValues(Map<String,String> row, List<Object> ext) {
+
+		for (Object e: ext)
+		{
+			NodeList nl = ((ElementNSImpl) e).getChildNodes();
+			for (int i =0; i< nl.getLength(); i++)
+				if (nl.item(i).getLocalName() != null)                 //Ignore null values in attributes specified in this extension
+					addTagValue(row, nl.item(i).getLocalName(), nl.item(i).getTextContent());
+		}
+	}
+	
 }

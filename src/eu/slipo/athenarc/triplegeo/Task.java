@@ -1,5 +1,5 @@
 /*
- * @(#) Executor.java	version 1.4   24/2/2018
+ * @(#) Executor.java	version 1.5   20/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -21,9 +21,11 @@ package eu.slipo.athenarc.triplegeo;
 import eu.slipo.athenarc.triplegeo.tools.CsvToRdf;
 import eu.slipo.athenarc.triplegeo.tools.GeoJsonToRdf;
 import eu.slipo.athenarc.triplegeo.tools.GpxToRdf;
+import eu.slipo.athenarc.triplegeo.tools.JsonToRdf;
 import eu.slipo.athenarc.triplegeo.tools.RdbToRdf;
 import eu.slipo.athenarc.triplegeo.tools.ShpToRdf;
-import eu.slipo.athenarc.triplegeo.tools.OsmToRdf;
+import eu.slipo.athenarc.triplegeo.tools.OsmXmlToRdf;
+import eu.slipo.athenarc.triplegeo.tools.OsmPbfToRdf;
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
 import eu.slipo.athenarc.triplegeo.utils.Classification;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
@@ -33,7 +35,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Running a transformation task as a separate thread under the given configuration settings.
  * @author Kostas Patroumpas
- * @version 1.4
+ * @version 1.5
  */
 
 /* DEVELOPMENT HISTORY
@@ -41,7 +43,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified by: Kostas Patroumpas, 18/10/2017
  * Modified: 8/11/2017, added support for system exit codes on abnormal termination
  * Modified: 21/11/2017, added support for user-specified classification schemes for shapefiles, CSV, and DBMS data sources 
- * Last modified by: Kostas Patroumpas, 24/2/2018
+ * Last modified by: Kostas Patroumpas, 20/7/2018
  */
 public class Task {
 
@@ -84,9 +86,18 @@ public class Task {
 				GeoJsonToRdf conv = new GeoJsonToRdf(config, classific, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
-			else if (currentFormat.trim().contains("OSM")) {
-				OsmToRdf conv = new OsmToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+			else if (currentFormat.trim().contains("JSON")) {
+				JsonToRdf conv = new JsonToRdf(config, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
+			}
+			else if (currentFormat.trim().contains("OSM_XML")) {
+				OsmXmlToRdf conv = new OsmXmlToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+				conv.apply();
+			}
+			else if (currentFormat.trim().contains("OSM_PBF")) {
+				OsmPbfToRdf conv = new OsmPbfToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+				conv.apply();
+				conv.close();
 			}
 			else if (currentFormat.trim().contains("XML")) {   //This includes INSPIRE data (GML) and metadata (XML), as well as GML and KML files
 				String fileXSLT = config.mappingSpec;          //Predefined XSLT stylesheet to be applied in transformation
