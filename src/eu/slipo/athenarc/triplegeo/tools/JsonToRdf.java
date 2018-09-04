@@ -1,5 +1,5 @@
 /*
- * @(#) JsonToRdf.java 	 version 1.5   26/7/2018
+ * @(#) JsonToRdf.java 	 version 1.5   4/9/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -37,6 +37,9 @@ import org.opengis.referencing.operation.MathTransform;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.PrecisionModel;
+import com.vividsolutions.jts.io.WKTReader;
 
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
@@ -58,7 +61,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 19/7/2018
  * Modified: 20/7/2018, added support for exporting all available non-spatial attributes as properties
- * Last modified by: Kostas Patroumpas, 26/7/2018
+ * Last modified by: Kostas Patroumpas, 4/9/2018
 */
 
 public class JsonToRdf {  
@@ -101,7 +104,12 @@ public class JsonToRdf {
 		  	        boolean lenient = true; // allow for some error due to different datums
 		  	        CoordinateReferenceSystem sourceCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.sourceCRS);
 		  	        CoordinateReferenceSystem targetCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.targetCRS);    
-		  	        reproject = CRS.findMathTransform(sourceCRS, targetCRS, lenient);  	        
+		  	        reproject = CRS.findMathTransform(sourceCRS, targetCRS, lenient);  
+		  	        
+		  	        //Needed for parsing original geometry in WTK representation
+		  	        GeometryFactory geomFactory = new GeometryFactory(new PrecisionModel(), sourceSRID);
+		  	        myAssistant.wktReader = new WKTReader(geomFactory);
+		  	        
 		  		} catch (Exception e) {
 		  			ExceptionHandler.abort(e, "Error in CRS transformation (reprojection) of geometries.");      //Execution terminated abnormally
 		  		}
