@@ -1,5 +1,5 @@
 /*
- * @(#) ValueChecker.java 	 version 1.5   31/7/2018
+ * @(#) ValueChecker.java 	 version 1.6   25/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -18,38 +18,79 @@
  */
 package eu.slipo.athenarc.triplegeo.utils;
 
+import java.io.InputStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Removes or replaces illegal characters from a literal value.
- * LIMITATIONS: Currently handling only some basic cases that may cause trouble (e.g., line breaks) in resulting files with RDF triples.
- * @author Kostas Patroumpas
- * @version 1.5
- */
+import javax.xml.bind.JAXB;
+import javax.xml.bind.annotation.XmlElement;
+
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 27/7/2018
  * Modified: 27/7/2018; replaced any appearance of the delimiter character in string values
- * Last modified: 31/7/2018
+ * Modified: 25/10/2018; supporting a resource XML file that lists user-specified search and replacement strings for literals.
+ * Last modified: 25/10/2018
  */
 
+
+/**
+ * Class to hold the collection of patterns specified in an XML resource file.
+ */
+class Patterns {
+    @XmlElement(name = "pattern")
+    public List<Pattern> patterns;
+}
+
+/**
+ * An individual pattern with a distinct key, specifying a search string that should be replaced with a replacement string.
+ */
+class Pattern {
+	public String key;
+    public String search;
+    public String replace;   
+}
+ 
+/**
+ * Removes or replaces illegal characters from a literal value.
+ * LIMITATIONS: Currently handling only some basic cases that may cause trouble (e.g., line breaks) in literals included in RDF triples.
+ * @author Kostas Patroumpas
+ * @version 1.6
+ */
 public class ValueChecker {
 
-	private Map<String, String> replacements;  //List of string values to check (keys) for presence in a given literal and their respective replacements (values)
+	private Map<String, Pattern> replacements;     //Dictionary of string values to check (keys) for presence in a given literal and their respective replacements (values)
 	           
     /**
      * Constructs a ValueChecker object that will be used for checking (and possibly correcting) literals for specific anomalies before issuing RDF triples
      */
 	public ValueChecker() {
-		 
-		//TODO: Utilize an external resource file where correspondence between unwanted characters and their replacements can be specified by the user.
-		replacements = new HashMap<String, String>();
-		replacements.put(Constants.REGISTRY_CSV_DELIMITER, " ");     //Replace predefined delimiter with a BLANK character
-		replacements.put("|",""); 
-		replacements.put("\\s+",""); 
-		replacements.put("[\\\t|\\\n|\\\r]"," "); 
-	    
+		 	
+		replacements = new HashMap<String, Pattern>();
+		
+		//Utilized an external resource file where correspondence between unwanted characters and their replacements can be specified by the user.
+//		replacements = new HashMap<String, String>();
+//		replacements.put(Constants.REGISTRY_CSV_DELIMITER, " ");     //Replace predefined delimiter with a BLANK character 
+//		replacements.put("\\s+",""); 
+//		replacements.put("\"", "'");
+//		replacements.put("[\\\t|\\\n|\\\r]"," "); 
+
+		try {		
+			//The resource XML file where correspondence between unwanted characters and their replacements is specified by the user.
+			InputStream in = getClass().getResourceAsStream("/replacements.xml"); 			//Open resource XML file as a stream
+
+			//Obtain the entire tree of patterns from the given XML input
+			Patterns f = JAXB.unmarshal(in, Patterns.class);
+			for (Pattern p : f.patterns)
+			{
+				replacements.put(p.key, p);       //Store patterns in the dictionary
+//				System.out.println("Adding pattern " + p.key + ": " + p.search + " --> " + p.replace);
+			}
+		} 
+		catch (Exception e) {
+			ExceptionHandler.warn(e, "Resource XML file with patterns not allowed in literals was not found or malformed!");
+        }
 	 }
 
 	/**
@@ -58,8 +99,12 @@ public class ValueChecker {
 	 * @return  The same string value with any illegal characters removed.
 	 */
 	 public String removeIllegalChars(String val) {
+		 
 		  if (val != null)
-			  return val.replaceAll("[\\\t|\\\n|\\\r]"," ");     //FIXME: Replacing newlines with space, but other special characters should be handled as well
+		  { 
+			  val = findReplacePattern(val, replacements.get("DOUBLE_QUOTE"));   //Replace any double quote with a single quote
+			  return findReplacePattern(val, replacements.get("TAB_NEWLINE"));   //Replacing newlines with SPACE, but other special characters should be handled as well
+		  }
 		  return "";                                             //In case of NULL values, return and empty string
 	  }
 	
@@ -69,9 +114,11 @@ public class ValueChecker {
 	   * @return  The same string value after the delimiter character has been replaced. 
 	   */
 	  public String removeDelimiter(String val) {
+		  
 		  if (val != null)
-			  return val.replace(Constants.REGISTRY_CSV_DELIMITER, " ");     //Replace delimiter with a BLANK
-		  return "";                                                         //In case of NULL values, return and empty string
+			  return findReplaceSubstring(val, replacements.get("CSV_DEFAULT_DELIMITER"));   //Replace delimiter with a SEMICOLON
+//			  return val.replace(Constants.REGISTRY_CSV_DELIMITER, ";");     //Replace delimiter with a SEMICOLON
+		  return "";                                                         //In case of NULL values, return an empty string
 	  }
 		
 	  /**
@@ -80,10 +127,15 @@ public class ValueChecker {
 	   * @return  The same string value as a valid HTTP address
 	   */
 	  public String cleanupURL(String val) {
-		  if (val != null) {
-			  val = val.replaceAll("\\s+","");                  //Eliminate white spaces and invalid characters
-			  val = val.replaceAll("|","");                     //Character | is invalid for URLs
-			  val = val.replace("\\","/");                      //Backslash characters '\' are not allowed in URLs
+		  
+		  if (val != null) 
+		  {	  
+			  val = findReplacePattern(val, replacements.get("WHITE_SPACE"));       //Eliminate white spaces and invalid characters 
+			  val = findReplaceSubstring(val, replacements.get("URL_BACKSLASH"));   //Backslash characters '\' are not allowed in URLs
+			  val = findReplacePattern(val, replacements.get("VALIDATE_URL"));      //Any invalid characters like <, >, |, " are eliminated from this URL			  
+			  //val = val.replaceAll("\\s+","");                                //Eliminate white spaces and invalid characters             
+			  //val = val.replace("\\","/");                                    //Backslash characters '\' are not allowed in URLs	  
+			  //val = val.replaceAll("[^a-zA-Z0-9-._~:/?#@!$&'()*+,;=]", "");   //Any invalid characters like <, >, |, " are eliminated from this URL
 			  if (!val.toLowerCase().matches("^\\w+://.*"))     //This value should be a URL, so put HTTP as its prefix
 				  val = "http://" + val;                        //In case that no protocol has been specified, assume that this is HTTP
 		  }
@@ -91,13 +143,37 @@ public class ValueChecker {
 	  }
 	  
 	  /**
-	   * Remove whitespace characters from a URL
-	   * @param val  A string value representing a URL
-	   * @return  The URL with any whitespace characters replaced
+	   * Remove whitespace characters from a string literal
+	   * @param val  A string value that possibly contains whitespace
+	   * @return  The original string with any whitespace characters replaced
 	   */
-	  public String replaceWhiteSpaceURL(String val) {
+	  public String replaceWhiteSpace(String val) {
+		  
 		  if (val != null)
-			  return val.replace(Constants.WHITESPACE, Constants.REPLACEMENT);
+			  return findReplaceSubstring(val, replacements.get("WHITE_SPACE"));		  
+//			  return val.replace("\\s+", Constants.REPLACEMENT);
 		  return val;
+	  }
+	  
+	  /**
+	   * Find a given substring and replace it with another string in a literal.
+	   * @param val  A literal value to be searched for the substring.
+	   * @param p  A pattern specifying a search and a replacement string (specified in the external resource XML file).
+	   * @return  The modified literal after replacement.
+	   */
+	  public String findReplaceSubstring(String val, Pattern p) {
+		  
+		  return val.replace(p.search, p.replace);
+	  }
+	  
+	  /**
+	   * Find a given pattern (i.e., regular expression) and replace it with another string in a literal.
+	   * @param val  A literal value to be searched for the pattern.
+	   * @param p  A pattern specifying a search regular expression and a replacement string (specified in the external resource XML file).
+	   * @return  The modified literal after replacement.
+	   */
+	  public String findReplacePattern(String val, Pattern p) {
+			  
+		  return val.replaceAll(p.search, p.replace);
 	  }
 }

@@ -1,7 +1,7 @@
 /*
- * @(#) Assistant.java 	 version 1.5  27/7/2018
+ * @(#) Assistant.java 	 version 1.6  24/10/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,13 +31,20 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.sql.Blob;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.lang.reflect.InvocationTargetException;
@@ -75,7 +82,7 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
 /**
  * Assistance class with various helper methods used in transformation or reverse transformation.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -85,7 +92,9 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
  * Modified: 23/4/2018, added support for executing build-in functions at runtime using the Java Reflection API.
  * Modified: 30/4/2018; calculation of area and length for geometries done in Cartesian coordinates in order to return values in SI units (meters, square meters)
  * Modified: 27/7/2018; auto-generation of intermediate identifiers if missing in the original data
- * Last modified by: Kostas Patroumpas, 27/7/2018
+ * Modified: 27/7/2018; added function to validate ISO 639-1 language codes
+ * Modified: 9/10/2018; added built-in function to generate URIs based either on UUIDs or original feature IDs
+ * Last modified by: Kostas Patroumpas, 24/10/2018
  */
 
 public class Assistant {
@@ -96,7 +105,9 @@ public class Assistant {
 	private static Envelope mbr = null;            //Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
 	private static Configuration currentConfig;
 
-	 private AtomicLong numberGenerator = new AtomicLong(1L);    //Used to generate serial numbers, i.e., consecutive positive integers starting from 1
+	private static Set<String> ISO_LANGUAGES = new HashSet<String> (Arrays.asList(Locale.getISOLanguages()));   //List of ISO 639-1 language codes
+	
+	private AtomicLong numberGenerator = new AtomicLong(1L);    //Used to generate serial numbers, i.e., consecutive positive integers starting from 1
 	 
 	/**
 	 * Constructor of the class without explicit declaration of configuration settings.
@@ -289,9 +300,10 @@ public class Assistant {
 	 * @param serialization  A string with the user-specified serialization of output triples.
 	 * @param attrStatistics  Statistics collected per attribute during transformation.
 	 * @param mode  Transformation mode, as specified in the configuration.
+	 * @param targetSRID  Output spatial reference system (CRS).
 	 * @param outputFile  Path to the output file containing the RDF triples.
 	 */
-	public void reportStatistics(long dt, int numRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String outputFile) {
+	public void reportStatistics(long dt, int numRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile) {
 		
 		 System.out.println(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + numRec + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
 		 
@@ -304,6 +316,10 @@ public class Assistant {
 		 execStatistics.put("Input record count", numRec);
 		 execStatistics.put("Output triple count", numTriples);
 		 execStatistics.put("Output serialization", serialization);
+		 if (targetSRID != null)
+			 execStatistics.put("Output CRS", "EPSG:" + targetSRID);
+		 else
+			 execStatistics.put("Output CRS", "EPSG:4326");             //Assuming default CRS: WGS84
 		 execStatistics.put("Output file", outputFile);
 		 execStatistics.put("Transformation mode", mode);
 	
@@ -320,7 +336,7 @@ public class Assistant {
 		 Map<String, Object> allStats = new HashMap<String, Object>();
 		 allStats.put("Execution Metadata", execStatistics);
 		 allStats.put("MBR of transformed geometries (WGS84)", mapMBR);
-		 allStats.put("Attribute Statistics", attrStatistics);
+		 allStats.put("Attribute Statistics", new TreeMap<String, Integer>(attrStatistics));     //Sort collection by attribute name
 		 
 	    //Convert metadata to JSON and write to a file
 	    try {
@@ -334,7 +350,7 @@ public class Assistant {
 
 	
 	/**
-	 * Removes all files from a given directory. Used for removing intermediate files created during transformation.	
+	 * Removes a given directory and all its contents. Used for removing intermediate files created during transformation.	
 	 * @param path The path to the directory.
 	 * @return  The path to a temporary directory that holds intermediate files.
 	 * @throws IOException 
@@ -362,6 +378,31 @@ public class Assistant {
 	      return path;	
 	}
 
+	/**
+	 * Removes all files from a given directory. Used for removing intermediate files created during transformation.	
+	 * @param path The path to the directory.
+	 * @throws IOException 
+	 */
+	public void cleanupFilesInDir(String path){
+		 
+		File f = new File(path);
+
+	      if (f.isDirectory()) {
+	        if (f.exists()) {
+	          String[] myfiles = f.list();
+	          if (myfiles.length > 0) {
+	            for (int i = 0; i < myfiles.length; i++) {
+	              File auxFile = new File(path + "/" + myfiles[i]);     //Always safe to use '/' instead of File.separatorChar in any OS
+//				  System.out.println("Removing ... " + auxFile.getPath());
+	              if (auxFile.isDirectory())      //Recursively delete files in subdirectory
+	            	  removeDirectory(auxFile.getPath());
+	              auxFile.delete();
+	            }
+	          }
+	        }
+	      }
+	}
+	
 	/**
 	 * Creates a temporary directory under the specified path. Used for holding intermediate files created during transformation.	
 	 * @param path The path to the directory.
@@ -855,13 +896,13 @@ public class Assistant {
     }
     
 	/**
-	 * Provides a UUID (Universally Unique Identifier) that represents a 128-bit long value to be used in the URI of a transformed feature.
+	 * Built-in function that provides a UUID (Universally Unique Identifier) that represents a 128-bit long value to be used in the URI of a transformed feature.
      * Also known as GUID (Globally Unique Identifier).
      * @param featureSource  The name of the feature source, to be used as suffix of the identifier.
 	 * @param id  A unique identifier of the feature.
 	 * @return The auto-generated UUID based on the concatenation of the feature source and the identifier..
 	 */
-	public UUID getUUID(String featureSource, String id) {
+	public String getUUID(String featureSource, String id) {
 			
 		UUID uuid = null;
 
@@ -869,7 +910,7 @@ public class Assistant {
 		//CAUTION! This serial number is neither retained not emitted in the resulting triples
 		if (id == null)
 			id = Long.toString(getNextSerial());
-		
+
 		//UUIDs generated by hashing over the concatenation of feature source name and the identifier
 		try {
 		    byte[] bytes = (featureSource + id).getBytes("UTF-8");
@@ -877,32 +918,47 @@ public class Assistant {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		 
-		return uuid;	
+
+		return uuid.toString();	
 	}
 		
 	/**
-	 * Provides a UUID (Universally Unique Identifier) that represents a 128-bit long value to be used in the URI of a transformed feature.
-     * Also known as GUID (Globally Unique Identifier).
+	 * Built-in function that provides a UUID (Universally Unique Identifier) that represents a 128-bit long value to be used in the URI of a transformed feature.
+     * This UUID is generated by hashing over the original identifier. Also known as GUID (Globally Unique Identifier).
 	 * @param id  A unique identifier of the feature.
 	 * @return The auto-generated UUID.
 	 */
-	public UUID getUUID(String id) {
+	public String getUUID(String id) {
 			
 		UUID uuid = null;
-		
-		//OPTION #1: A secure random UUID with minimal chance of collisions with existing ones
-		//uuid = UUID.randomUUID();
-		
-		//OPTION #2: UUIDs generated by hashing over the identifier
+
 		try {
-		    byte[] bytes = id.getBytes("UTF-8");
+		    byte[] bytes = id.getBytes("UTF-8");     //UUIDs generated by hashing over the original identifier
 			uuid = UUID.nameUUIDFromBytes(bytes);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		 
-		return uuid;	
+		return uuid.toString();	
+	}
+
+	/**
+	 * Built-in function that provides a UUID (Universally Unique Identifier) that represents a 128-bit long value to be used in the URI of a transformed feature.
+     * This is a secure random UUID with minimal chance of collisions with existing ones. Also known as GUID (Globally Unique Identifier).
+	 * @return The auto-generated UUID.
+	 */
+	public String getRandomUUID() {		
+		return UUID.randomUUID().toString();          //random UUID
+	} 
+
+	/**
+	 * Build-in function that retains the original identifier of a feature in the resulting URI or the transformed resource.
+	 * @param id  A unique identifier of the feature.
+	 * @return   The identifier to be used for the transformed resource.
+	 */
+	public String keepOriginalID(String id) {
+		
+		return id;	
 	}
 	
 	/**
@@ -920,6 +976,15 @@ public class Assistant {
 	}
 
 	/**
+	 * Checks if the given string represents a valid ISO 639-1 language code (2 digits)
+	 * @param s  An input string value 
+	 * @return  True is this is a valid ISO 639-1 language code; otherwise, False.
+	 */
+	public boolean isValidISOLanguage(String s) {
+        return ISO_LANGUAGES.contains(s);
+    }
+	
+	/**
 	 * Built-in function that extracts the language tag from an attribute name. This tag will be attached to all values obtained for this attribute.
 	 * ASSUMPTION: The tag is composed from the suffix after the i-th character in the attribute name.
 	 * @param attr  The attribute name.
@@ -929,8 +994,8 @@ public class Assistant {
 	public String getLanguage(String attr, int i) {
 
 		String lang = null;
-		if ((attr.length() > i) && (attr.length() <= i+2))    //Allow only a 2-digit specification (ISO 639-1) for languages
-			lang = attr.substring(i);   //Get the suffix after the i-th character in the attribute name
+		if (attr.length() > i)   //&& (attr.length() <= i+2)    //CAUTION! Not checking here for a valid 2-digit specification (ISO 639-1) for languages
+			lang = attr.substring(i);                           //Get the suffix after the i-th character in the attribute name
 		return lang;
 	}
 	
@@ -945,8 +1010,7 @@ public class Assistant {
 
 
 	/**
-	 * Built-in function that concatenates two string values into a new one.
-	 * TODO: Replace with a more generic function that can concatenate multiple values.
+	 * Built-in function that concatenates a pair of string values into a new one.
 	 * @param val1  The first value.
 	 * @param val2  The second value.
 	 * @return  The concatenated value.
@@ -954,6 +1018,21 @@ public class Assistant {
 	public String concatenate(String val1, String val2) {
 		
 		return (val1 + "  " + val2).trim();	
+	}
+
+
+	/**
+	 * Built-in function that concatenates an array of multiple string values into a unified one.
+	 * @param values  The array of string values.
+	 * @return  The concatenated value.
+	 */
+	public String concatenate(String[] values) {
+		
+		String concat = null;
+		for (String v: values) {
+			concat = new StringBuilder(concat).append(v).append(" ").toString();			
+		}
+		return concat.trim();
 	}
 	
 	/**
@@ -971,6 +1050,7 @@ public class Assistant {
 			  //Check each argument and determine its class or type
 			  for (int i = 0; i < args.length; i++) 
 			  {
+				  //Handle data types in case they are needed in built-in functions
 				  if (args[i] instanceof String)                 //String
 		                params[i] = String.class;
 				  else if (args[i] instanceof Integer)           //Integer
@@ -979,9 +1059,12 @@ public class Assistant {
 		                params[i] = Double.TYPE;  
 				  else if (args[i] instanceof Float)             //Float
 		                params[i] = Float.TYPE; 
+				  else if (args[i] instanceof Date)              //Date
+		                params[i] = Date.class; 
+				  else if (args[i] instanceof Timestamp)         //Timestamp
+		                params[i] = Timestamp.class; 
 				  else if (args[i] instanceof Geometry)          //Geometry
 		                params[i] = Geometry.class;
-		                                                           //TODO: Add other types in case they are needed in other build-in functions
 			  }
 			  //Identify the method that should be invoked with its proper parameters
 			  method = this.getClass().getDeclaredMethod(methodName, params);

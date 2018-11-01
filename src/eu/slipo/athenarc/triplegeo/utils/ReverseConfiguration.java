@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseConfiguration.java 	 version 1.5   2/3/2018
+ * @(#) ReverseConfiguration.java 	 version 1.6   2/3/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -29,7 +29,7 @@ import java.util.logging.Level;
  * Parser of user-specified configuration files for reconstructing records from an RDF graph (Reverse Transformation).
  * 
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY

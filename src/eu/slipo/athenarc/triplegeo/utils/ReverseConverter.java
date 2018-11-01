@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseConverter.java 	 version 1.5   24/2/2018
+ * @(#) ReverseConverter.java 	 version 1.6   24/2/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -26,7 +26,7 @@ import org.apache.jena.rdf.model.Literal;
 /**
  * Reverse Conversion Interface for TripleGeo used in reconstructing (relational) records from an RDF graph.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY

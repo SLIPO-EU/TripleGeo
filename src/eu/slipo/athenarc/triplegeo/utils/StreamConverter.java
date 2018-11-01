@@ -1,7 +1,7 @@
 /*
- * @(#) StreamConverter.java 	 version 1.5   27/7/2018
+ * @(#) StreamConverter.java 	 version 1.6   10/10/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2018 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Provides a set of a streaming RDF triples in memory that can be readily serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -69,7 +69,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 9/5/2018; integrated handling of GPX data 
  * Modified: 31/5/2018; integrated handling of classifications for OSM data
  * TODO: Determine data types for attributes in the resultset retrieved from DBMS and utilize them in transformation.
- * Last modified: 27/7/2018
+ * Last modified: 10/10/2018
  */
 
 public class StreamConverter implements Converter {
@@ -198,9 +198,6 @@ public class StreamConverter implements Converter {
 		        	if (feature.getAttribute(col) != null)         //Exclude NULL values
 		        		row.put(col, feature.getAttribute(col).toString());
 		        }
-	        
-				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-				String uuid = myAssistant.getUUID(currentConfig.featureSource, row.get(currentConfig.attrKey)).toString();
 				
 				//CRS transformation
 		      	if (reproject != null)
@@ -210,7 +207,7 @@ public class StreamConverter implements Converter {
 		      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetGeoOntology.trim());
 		      	
 		      	//Pass this tuple for conversion to RDF triples 
-		      	String uri = myGenerator.transform(uuid, row, wkt, targetSRID, classific);
+		      	String uri = myGenerator.transform(row, wkt, targetSRID, classific);
 				
 				//Get a record with basic attribute that will be used for the SLIPO Registry
 				if (myRegister != null)
@@ -269,9 +266,6 @@ public class StreamConverter implements Converter {
 		        for (String col : columns) {
 		        	row.put(col, rs.getString(col));
 		        }
-		        
-				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-				String uuid = myAssistant.getUUID(currentConfig.featureSource, row.get(currentConfig.attrKey)).toString();
 				
 		        String wkt = null;
 		      	//Handle geometry attribute, if specified
@@ -294,7 +288,7 @@ public class StreamConverter implements Converter {
 				}
 	
 		        //Pass this tuple for conversion to RDF triples 
-		      	String uri = myGenerator.transform(uuid, row, wkt, targetSRID, classific);
+		      	String uri = myGenerator.transform(row, wkt, targetSRID, classific);
 		      		
 				//Get a record with basic attribute that will be used for the SLIPO Registry
 				if (myRegister != null)
@@ -342,7 +336,7 @@ public class StreamConverter implements Converter {
 	            CSVRecord rs = (CSVRecord) iterator.next();
 
 				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-				String uuid = myAssistant.getUUID(currentConfig.featureSource, (rs.isSet(currentConfig.attrKey) ? rs.get(currentConfig.attrKey) : null)).toString();
+				//String uuid = myAssistant.getUUID(currentConfig.featureSource, (rs.isSet(currentConfig.attrKey) ? rs.get(currentConfig.attrKey) : null)).toString();
 					
 		      	//Handle geometry attribute, if specified
 				String wkt = null;
@@ -366,7 +360,7 @@ public class StreamConverter implements Converter {
 		      	}
 		      	
 		      	//Pass this tuple for conversion to RDF triples 
-		      	String uri = myGenerator.transform(uuid, rs.toMap(), wkt, targetSRID, classific);
+		      	String uri = myGenerator.transform(rs.toMap(), wkt, targetSRID, classific);
 			
 				//Get a record with basic attribute that will be used for the SLIPO Registry
 				if (myRegister != null)
@@ -408,7 +402,7 @@ public class StreamConverter implements Converter {
 	{	
 		try {
 			//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-			String uuid = myAssistant.getUUID(currentConfig.featureSource, rs.getID()).toString();
+			//String uuid = myAssistant.getUUID(currentConfig.featureSource, rs.getID()).toString();
 			
   	        //Parse geometric representation
 			String wkt = null;
@@ -446,7 +440,7 @@ public class StreamConverter implements Converter {
 	      	
 	      	//Process all available non-spatial attributes as specified in the collected (tag,value) pairs	
 	        //... including a classification hierarchy from the OSM tags used in filtering
-			String uri = myGenerator.transform(uuid, attrValues, wkt, targetSRID, classific);
+			String uri = myGenerator.transform(attrValues, wkt, targetSRID, classific);
 
 			//Get a record with basic attribute that will be used for the SLIPO Registry
 			if (myRegister != null)
@@ -474,20 +468,24 @@ public class StreamConverter implements Converter {
 	 * Applicable in STREAM transformation mode.
 	 * Input provided as an individual record. This method is used for input data from GPX or JSON files.  
 	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
-	 * @param uuid  The UUID to be assigned to the URIs in the resulting triples
 	 * @param wkt  Well-Known Text representation of the geometry  
 	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
 	 */
-	public void parse(Assistant myAssistant, String uuid, String wkt, Map <String, String> attrValues, int targetSRID, String geomType) 
+	public void parse(Assistant myAssistant, String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType) 
 	{	
-		try {
-	
+		try {	
+			String uri;
+			
 			//Pass this tuple for conversion to RDF triples 
-			//FIXME: Specify a classification hierarchy for the features
-	      	String uri = myGenerator.transform(uuid, attrValues, wkt, targetSRID, null);
-					 
+			if (currentConfig.attrCategory == null)
+				uri = myGenerator.transform(attrValues, wkt, targetSRID, null);         //There no category specified for this feature,...
+			else
+				uri = myGenerator.transform(attrValues, wkt, targetSRID, classific);	//..., otherwise utilize the user-specified classification hierarchy		
+
+			
 			//Get a record with basic attribute that will be used for the SLIPO Registry
 			if (myRegister != null)
 				myRegister.createTuple(uri, attrValues, wkt, targetSRID);
@@ -566,7 +564,7 @@ public class StreamConverter implements Converter {
 		
 	    //Measure execution time and issue statistics on the entire process
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile);
 	}
 
 	

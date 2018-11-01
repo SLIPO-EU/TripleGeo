@@ -1,5 +1,5 @@
 /*
- * @(#) Extractor.java	version 1.5  13/7/2018
+ * @(#) Extractor.java	version 1.5  10/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -38,7 +38,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Entry point to TripleGeo for converting from various input formats (MULTI-THREADED EXECUTION)
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -48,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified: 21/11/2017; handling missing specifications for classification and RML mapping files
  * Modified: 12/2/2018; handling missing specifications on georeferencing (CRS: Coordinate Reference Systems) 
  * Modified: 13/7/2018; advanced handling of interrupted or aborted tasks
- * Last modified: 13/7/2018
+ * Last modified: 10/10/2018
  */
 public class Extractor {
 

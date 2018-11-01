@@ -1,5 +1,5 @@
 /*
- * @(#) Classification.java 	 version 1.5   31/5/2018
+ * @(#) Classification.java 	 version 1.6   4/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -49,7 +49,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Parser for a (possibly multi-tier, hierarchical) classification scheme (category/subcategory/...). 
  * ASSUMPTION: Each category (at any level) must have a unique name, which is being used as its key the derived dictionary.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -58,7 +58,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Modified: 7/2/2018, supported export of classification scheme into RDF triples (modes: GRAPH, RML)
  * Modified: 15/2/2018; distinguishing whether the classification scheme is based on identifiers or names of categories
  * Modified: 2/5/2018; supported export of classification scheme into RDF triples in STREAM mode
- * Last modified by: Kostas Patroumpas, 31/5/2018
+ * Last modified by: Kostas Patroumpas, 4/10/2018
  */
 
 public class Classification {
@@ -511,7 +511,7 @@ public class Classification {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, null, currentConfig.mode, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, null, currentConfig.mode, null, outputFile);
 	  }
 
 
@@ -576,7 +576,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile);
 	  }
 
 
@@ -644,7 +644,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile);
 	  }
 
 }

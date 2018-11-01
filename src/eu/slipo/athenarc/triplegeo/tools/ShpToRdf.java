@@ -1,5 +1,5 @@
 /*
- * @(#) ShpToRdf.java	version 1.5   12/7/2018
+ * @(#) ShpToRdf.java	version 1.6   5/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -48,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Entry point to convert ESRI shapefiles into RDF triples.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -59,7 +59,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
  * Modified: 13/12/2017, utilizing a streaming iterator in order to avoid loading the entire feature collection into memory
  * Modified: 12/7/2018, checking availability of basic shapefile components before starting any processing
- * Last modified by: Kostas Patroumpas, 12/7/2018
+ * Last modified by: Kostas Patroumpas, 5/10/2018
  */
 public class ShpToRdf {
 	
@@ -99,7 +99,8 @@ public class ShpToRdf {
 	      myAssistant = new Assistant();
 
 	      //Check if a coordinate transform is required for geometries
-	      if (currentConfig.targetCRS != null)
+	      if (currentConfig.targetCRS != null) 
+	      {
 	  	    try {
 	  	        boolean lenient = true; // allow for some error due to different datums
 	  	        CoordinateReferenceSystem sourceCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.sourceCRS);
@@ -108,6 +109,14 @@ public class ShpToRdf {
 	  		} catch (Exception e) {
 	  			ExceptionHandler.abort(e, "Error in CRS transformation (reprojection) of geometries.");      //Execution terminated abnormally
 	  		}
+	      }
+	      else  //No transformation specified; determine the CRS of geometries
+	      {
+	    	  if (sourceSRID == 0)
+	    		  this.targetSRID = 4326;          //All features assumed in WGS84 lon/lat coordinates
+	    	  else
+	    		  this.targetSRID = sourceSRID;    //Retain original CRS
+	      }
 		 	    
 		  // Other parameters
 		  if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {

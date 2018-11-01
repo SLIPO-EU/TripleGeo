@@ -1,4 +1,7 @@
-﻿osm_id:
+﻿URI:                                     ##SLIPO-specific constraint: Specifies a URI of each POI; If needed, extra attribute "DATA_SOURCE" is used for constructing these URIs                
+  entity: uri
+  generateWith: getUUID(DATA_SOURCE,osm_id)     ##Function call to generate URI
+osm_id:
   partOf: sourceInfo
   entity: source
   predicate: slipo:poiRef

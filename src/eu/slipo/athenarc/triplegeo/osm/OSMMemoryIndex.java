@@ -1,5 +1,5 @@
 /*
- * @(#) OSMMemoryIndex.java 	 version 1.5   11/7/2018
+ * @(#) OSMMemoryIndex.java 	 version 1.6   11/7/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Support for in-memory indexing of OSM elements.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY

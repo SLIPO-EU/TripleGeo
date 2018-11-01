@@ -1,5 +1,5 @@
 /*
- * @(#) Converter.java 	 version 1.5   31/5/2018
+ * @(#) Converter.java 	 version 1.6   25/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -39,12 +39,12 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Conversion Interface for TripleGeo used in transformation of spatial features (including their non-spatial attributes) into RDF triples with various serializations.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 16/2/2013
- * Last modified: 31/5/2018
+ * Last modified: 25/10/2018
  */
 public interface Converter {  
     
@@ -97,13 +97,13 @@ public interface Converter {
 	/**
 	 * Parses a single GPX waypoint or track and streamlines the resulting triples (including geometric and non-spatial attributes).
 	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
-	 * @param uuid  The UUID to be assigned to the URIs in the resulting triples
 	 * @param wkt  Well-Known Text representation of the geometry  
 	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
 	 */
-	public void parse(Assistant myAssistant, String uuid, String wkt, Map <String, String> attrValues, int targetSRID, String geomType);
+	public void parse(Assistant myAssistant, String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType);
 	
 	/**
 	 * Stores resulting tuples into a file.	

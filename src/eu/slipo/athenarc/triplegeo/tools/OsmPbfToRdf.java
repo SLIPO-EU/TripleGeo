@@ -1,5 +1,5 @@
 /*
- * @(#) OsmPbfToRdf.java	version 1.5   11/7/2018
+ * @(#) OsmPbfToRdf.java	version 1.6   24/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -72,25 +72,29 @@ import eu.slipo.athenarc.triplegeo.utils.Converter;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.GraphConverter;
 import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
+import eu.slipo.athenarc.triplegeo.utils.ValueChecker;
 
 /**
  * Entry point to convert OpenStreetMap (OSM) PBF (compressed) files into RDF triples using Osmosis.
  * LIMITATIONS: - Depending on system and JVM resources, transformation can handle only a moderate amount of OSM features.
- *              - RML transformation mode not supported. 
+ *              - RML transformation mode not currently supported. 
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 2/7/2018
  * Modified: 2/7/2018; added filters for tags in order to assign categories to extracted OSM features according to a user-specified classification scheme (defined in an extra YML file).
  * Modified: 4/7/2018; reorganized identification of categories based on OSM tags
- * Last modified by: Kostas Patroumpas, 11/7/2018
+ * Modified: 27/9/2018; excluded creation of linear ring geometries for roads and barriers; polygons are created instead
+ * Modified; 24/10/2018; allowing transformation to proceed even in case that no filters (using OSM tags) have been specified; no classification scheme will be used in this case.
+ * Last modified by: Kostas Patroumpas, 24/10/2018
  */
 public class OsmPbfToRdf implements Sink {
 
 	  Converter myConverter;
 	  Assistant myAssistant;
+	  ValueChecker myChecker;
 	  private MathTransform reproject = null;
 	  int sourceSRID;                       //Source CRS according to EPSG 
 	  int targetSRID;                       //Target CRS according to EPSG
@@ -146,6 +150,7 @@ public class OsmPbfToRdf implements Sink {
 	      this.sourceSRID = sourceSRID;                      //Assume that OSM input is georeferenced in WGS84
 	      this.targetSRID = targetSRID;
 	      myAssistant = new Assistant();
+	      myChecker = new ValueChecker();
 	      
 	      //Get filter definitions over combinations of OSM tags in order to determine POI categories
 	      try {
@@ -157,8 +162,11 @@ public class OsmPbfToRdf implements Sink {
 		      recBuilder = new OSMRecordBuilder(osmClassific.getFilters());
 		      
 		      //Create the internal representation of this classification scheme
-		      String outClassificationFile = currentConfig.outputDir + FilenameUtils.getBaseName(currentConfig.classificationSpec) + myAssistant.getOutputExtension(currentConfig.serialization);
-		      classification = new Classification(currentConfig, classFile, outClassificationFile);
+		      if (tags != null) 
+		      {
+		    	  String outClassificationFile = currentConfig.outputDir + FilenameUtils.getBaseName(currentConfig.classificationSpec) + myAssistant.getOutputExtension(currentConfig.serialization);
+		    	  classification = new Classification(currentConfig, classFile, outClassificationFile);
+		      }
 		      
 	      }
 		  catch(Exception e) { 
@@ -182,11 +190,8 @@ public class OsmPbfToRdf implements Sink {
 	  			ExceptionHandler.abort(e, "Error in CRS transformation (reprojection) of geometries.");      //Execution terminated abnormally
 	  		}
 	      }
-	      else    //No transformation specified; determine the CRS of geometries...
-	      {
-	    		  this.targetSRID = 4326;          //... as the original OSM features assumed in WGS84 lon/lat coordinates
-	    		  System.out.println(Constants.WGS84_PROJECTION);
-	      }
+	      else                                 //No transformation specified; determine the CRS of geometries...
+	    	  this.targetSRID = 4326;          //... as the original OSM features assumed in WGS84 lon/lat coordinates
 		          
 	      //Other parameters
 	      if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {
@@ -201,7 +206,7 @@ public class OsmPbfToRdf implements Sink {
 		  
 		    //Depending of input file size, determine if indices will be kept in-memory of will be disk-based
 	    	File inFile = new File(inputFile);
-	    	if (inFile.length() < 0.05 * Runtime.getRuntime().maxMemory() ) {          //CAUTION! Rule of thumb: Input PBF file size is less than 5% of the JVM heap size, so memory is expected to be sufficient for indexing OSM elements    
+	    	if (inFile.length() < 0.02 * Runtime.getRuntime().maxMemory() ) {          //CAUTION! Rule of thumb: Input PBF file size is less than 5% of the JVM heap size, so memory is expected to be sufficient for indexing OSM elements    
 	    		//OPTION #1: Memory-based native Java structures for indexing
 	    		recBuilder.nodeIndex = new OSMMemoryIndex(); 
 	    		recBuilder.wayIndex = new OSMMemoryIndex();
@@ -335,9 +340,9 @@ public class OsmPbfToRdf implements Sink {
 
 	            //Collect tags associated with this OSM element
 	            for (Tag myTag : myNode.getTags()) {
-	            	nodeTmp.setTagKeyValue( myTag.getKey(), myTag.getValue());
-	        		if (tags.contains(myTag.getKey()))  {     		//CAUTION! Filter out any OSM elements not related to tags specified by the user
-	        			keepIndexed = true;
+	            	nodeTmp.setTagKeyValue( myTag.getKey(), myChecker.removeIllegalChars(myTag.getValue()));
+	        		if ((tags == null) || (tags.contains(myTag.getKey())))  {     		//CAUTION! Filter out any OSM elements not related to tags specified by the user
+	        			keepIndexed = true;                                             //In case of no tags specified for filtering, index all nodes
 	        		}
 	            }
 	            
@@ -361,13 +366,13 @@ public class OsmPbfToRdf implements Sink {
 	        	Way myWay = ((WayContainer) entityContainer).getEntity();    
 	              		 
 	        	for (Tag myTag : myWay.getTags()) {
-	        		if (tags.contains(myTag.getKey()))  {     		//CAUTION! Filter out any OSM elements not related to tags specified by the user
-	        			keepIndexed = true;
+	        		if ((tags == null) || (tags.contains(myTag.getKey())))  {     		//CAUTION! Filter out any OSM elements not related to tags specified by the user
+	        			keepIndexed = true;                                             //In case of no tags specified for filtering, index all ways
 	        			break;
 	        		}
 	        	}
        		 
-	        	if (scanWays)  {    
+	        	if (scanWays)  {	
 	        		//Either this OSM way is filtered or referenced by a relation, so its nodes should be kept in the index
 	        		if ((keepIndexed) || (recBuilder.wayIndex.containsKey("" + myWay.getId()))) {                                 
 		        		for (WayNode entry: myWay.getWayNodes()) {
@@ -395,7 +400,7 @@ public class OsmPbfToRdf implements Sink {
 	
 		            //Collect tags associated with this OSM element
 		            for (Tag myTag : myWay.getTags()) {
-		            	wayTmp.setTagKeyValue( myTag.getKey(), myTag.getValue());
+		            	wayTmp.setTagKeyValue( myTag.getKey(), myChecker.removeIllegalChars(myTag.getValue()));
 		            }
 		            
 		            for (WayNode entry: myWay.getWayNodes()) {
@@ -409,10 +414,17 @@ public class OsmPbfToRdf implements Sink {
 		            }
 		            Geometry geom = geometryFactory.buildGeometry(wayTmp.getNodeGeometries());
 		            
-		            if((wayTmp.getNodeGeometries().size() > 3) && wayTmp.getNodeGeometries().get(0).equals(wayTmp.getNodeGeometries().get(wayTmp.getNodeGeometries().size()-1)))   {
-		            //checks if the beginning and ending node are the same and the number of nodes are more than 3. 
+		            //Check if the beginning and ending node are the same and the number of nodes are more than 3. 
 		            //These nodes must be more than 3, because JTS does not allow construction of a linear ring with less than 3 points
-		                
+		            if((wayTmp.getNodeGeometries().size() > 3) && wayTmp.getNodeGeometries().get(0).equals(wayTmp.getNodeGeometries().get(wayTmp.getNodeGeometries().size()-1)))
+		            {
+		               //Always construct a polygon when a linear ring is detected
+		               LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
+		               Polygon poly = new Polygon(linear, null, geometryFactory);
+		               wayTmp.setGeometry(poly);  
+		            	
+		               /*************************************************
+		               //OPTION NOT USED: Construct a linear ring geometry when this feature is either a barrier or a road
 		               if (!((wayTmp.getTagKeyValue().containsKey("barrier")) || wayTmp.getTagKeyValue().containsKey("highway"))){
 		            	   //this is not a barrier nor a road, so construct a polygon geometry
 		               
@@ -424,6 +436,7 @@ public class OsmPbfToRdf implements Sink {
 		                  LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
 		                  wayTmp.setGeometry(linear);  
 		               }
+		               **************************************************/
 		            }
 		            else if (wayTmp.getNodeGeometries().size() > 1) {
 		            //it is an open geometry with more than one nodes, make it linestring 
@@ -454,8 +467,8 @@ public class OsmPbfToRdf implements Sink {
 	        	 Relation myRelation = ((RelationContainer) entityContainer).getEntity();    
 	        	 
         		 for (Tag myTag : myRelation.getTags()) {
-        			 if (tags.contains(myTag.getKey()))  {     		//CAUTION! Filter out any OSM elements not related to tags specified by the user
-        				keepIndexed = true;
+        			 if ((tags == null) || (tags.contains(myTag.getKey())))  {     		//CAUTION! Filter out any OSM elements not related to tags specified by the user
+        				keepIndexed = true;                                             //In case of no tags specified for filtering, index all nodes
         				break;
         			 }
         		 }
@@ -495,7 +508,7 @@ public class OsmPbfToRdf implements Sink {
 			          
 		             //Collect tags associated with this OSM element
 		             for (Tag myTag : myRelation.getTags()) {
-		            	 relationTmp.setTagKeyValue(myTag.getKey(), myTag.getValue());
+		            	 relationTmp.setTagKeyValue(myTag.getKey(), myChecker.removeIllegalChars(myTag.getValue()));
 		             }
 			         
 		             //Collect all members of this relation

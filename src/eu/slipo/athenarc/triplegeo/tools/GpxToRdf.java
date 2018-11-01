@@ -1,5 +1,5 @@
 /*
- * @(#) GpxToRdf.java 	 version 1.5   27/7/2018
+ * @(#) GpxToRdf.java 	 version 1.6   25/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -39,6 +39,7 @@ import com.topografix.gpx.WptType;
 
 
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
+import eu.slipo.athenarc.triplegeo.utils.Classification;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
 import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.Converter;
@@ -50,10 +51,9 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Main entry point of the utility for extracting RDF triples from GPX files.
  * LIMITATIONS: Currently supporting WAYPOINT and TRACK features only!
- * TODO: Integrate handling of feature classifications.
  * GPX manual available at: http://www.topografix.com/gpx_manual.asp
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -64,7 +64,8 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 7/2/2018, added support for exporting all available non-spatial attributes as properties
  * Modified: 9/5/2018, unified handling for GRAPH and STREAM transformation modes
  * Modified: 16/5/2018; handling of extra user-specified attributes in GPX extensions
- * Last modified by: Kostas Patroumpas, 27/7/2018
+ * Modified: 25/10/2018; integrate handling of a user-specified classification scheme for features.
+ * Last modified by: Kostas Patroumpas, 25/10/2018
 */
 
 
@@ -72,24 +73,27 @@ public class GpxToRdf {
 
 	Converter myConverter;
 	Assistant myAssistant;
-	int sourceSRID;                       //Source CRS according to EPSG 
-	int targetSRID;                       //Target CRS according to EPSG
-	private Configuration currentConfig;  //User-specified configuration settings
-	private String inputFile;             //Input GPX file
-	private String outputFile;            //Output RDF file
+	int sourceSRID;                        //Source CRS according to EPSG 
+	int targetSRID;                        //Target CRS according to EPSG
+	private Configuration currentConfig;   //User-specified configuration settings
+	private Classification classification; //Classification hierarchy for assigning categories to features
+	private String inputFile;              //Input GPX file
+	private String outputFile;             //Output RDF file
 
 	/**
 	 * Constructor for the transformation process from GPX file to RDF.
 	 * @param config  Parameters to configure the transformation.
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param inFile  Path to input GPX file.
 	 * @param outFile  Path to the output file that collects RDF triples.
 	 * @param sourceSRID  Spatial reference system (EPSG code) of the input GPX file.
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @throws ClassNotFoundException
 	 */
-	public GpxToRdf(Configuration config, String inFile, String outFile, int sourceSRID, int targetSRID) throws ClassNotFoundException {
+	public GpxToRdf(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) throws ClassNotFoundException {
   
 		  currentConfig = config;
+		  this.classification = classific;
 		  inputFile = inFile;
 		  outputFile = outFile;
 		  this.sourceSRID = 4326;            //ASSUMPTION: All geometries in GPX are always expected in WGS84 georeference
@@ -106,7 +110,6 @@ public class GpxToRdf {
  
 	/**
 	 * Applies transformation according to the configuration settings.
-	 * TODO: RML mode not currently supported.
 	 */
 	public void apply() {
 		
@@ -139,7 +142,7 @@ public class GpxToRdf {
 				  //Finalize the output RDF file
 				  myConverter.store(myAssistant, outputFile);
 				}
-				else
+				else   //TODO: Implement method for handling transformation using RML mappings
 				{
 					System.err.println("Transformation of GPX data is possible under either GRAPH or STREAM mode. RML mode is currently not supported.");
 					throw new IllegalArgumentException(Constants.INCORRECT_SETTING);
@@ -189,7 +192,7 @@ public class GpxToRdf {
 		    for (TrkType track : tracks) 
 		    {    					
 		    	//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-				String uuid = myAssistant.getUUID(currentConfig.featureSource, track.toString()).toString();
+				//String uuid = myAssistant.getUUID(currentConfig.featureSource, track.toString()).toString();
 
 		        List<TrksegType> trackSegments = track.getTrkseg();
 	
@@ -234,7 +237,7 @@ public class GpxToRdf {
 				//Process all available attributes (including geometry)
 				//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
 				if (!row.isEmpty())
-					myConverter.parse(myAssistant, uuid, wkt, row, targetSRID, "LINESTRING");
+					myConverter.parse(myAssistant, wkt, row, classification, targetSRID, "LINESTRING");
 		    }	    
 		    
 		    //PHASE II: Iterate through all waypoints in the GPX file
@@ -248,7 +251,7 @@ public class GpxToRdf {
 				String wkt = "POINT (" + point.getLon() + " " + point.getLat() + ")";
 	
 				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-				String uuid = myAssistant.getUUID(currentConfig.featureSource, point.toString()).toString();
+				//String uuid = myAssistant.getUUID(currentConfig.featureSource, point.toString()).toString();
 	  	        
 				//Gather all non-spatial attributes into a temporary map
 				Map<String, String> row = new HashMap<String, String>();
@@ -277,7 +280,7 @@ public class GpxToRdf {
 				//Process all available attributes (including geometry)
 				//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
 				if (!row.isEmpty())
-					myConverter.parse(myAssistant, uuid, wkt, row, targetSRID, "POINT");
+					myConverter.parse(myAssistant, wkt, row, classification, targetSRID, "POINT");
 				
 		    }
 		}
@@ -302,7 +305,7 @@ public class GpxToRdf {
 		  return;
 		  
 	  if (val != null)
-		  row.put(tag,  val.toString());
+		  row.put(tag,  val.toString().trim());
 	}
 
 	
@@ -316,9 +319,10 @@ public class GpxToRdf {
 		for (Object e: ext)
 		{
 			NodeList nl = ((ElementNSImpl) e).getChildNodes();
-			for (int i =0; i< nl.getLength(); i++)
+			for (int i =0; i< nl.getLength(); i++) {
 				if (nl.item(i).getLocalName() != null)                 //Ignore null values in attributes specified in this extension
-					addTagValue(row, nl.item(i).getLocalName(), nl.item(i).getTextContent());
+					addTagValue(row, nl.item(i).getLocalName(), nl.item(i).getTextContent().trim());
+			}
 		}
 	}
 	

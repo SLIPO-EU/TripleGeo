@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.5   13/7/2018
+ * @(#) TripleGenerator.java 	 version 1.6   10/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -33,7 +33,7 @@ import org.yaml.snakeyaml.Yaml;
 /**
  * Retains mappings of feature attributes (input) to RDF predicates (output) that will be used in generation of triples.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -43,7 +43,8 @@ import org.yaml.snakeyaml.Yaml;
  * Modified: 25/4/2018; included specification for multi-faceted attributes with wild char '%'
  * Modified: 30/4/2018; included specification for geometry-based, built-in functions
  * Modified: 11/5/2018; included specification for literals with language tags; built-in functions with arguments 
- * Last modified: 13/7/2018
+ * Modified: 9/10/2018; included specification for custom URIs
+ * Last modified: 10/10/2018
  */
 
 public class Mapping {
@@ -62,6 +63,7 @@ public class Mapping {
 	    HAS_DATA_TYPE_URL,           //Properties with objects that are URLs
 	    IS_LITERAL_TAG_LANGUAGE,     //Property with a plain literal with language tag
 	    IS_LITERAL,                  //Property with a plain literal without further specifications
+	    IS_URI,                      //Custom handling of URIs 
 	    UNSPECIFIED;                 //No specification
 	}
 	
@@ -160,7 +162,7 @@ public class Mapping {
 		
 		/**
 		 * Sets or updates the data type for literals of a resource.
-		 * TODO: Currently handles only data types utilized in the SLIPO ontology. 
+		 * IMPORTANT! Currently handles only data types utilized in the SLIPO ontology. 
 		 * @param d  The XSD data type to be assigned to literals.
 		 */
 		public void setDataType(String d) {
@@ -210,6 +212,8 @@ public class Mapping {
 				profile = MappingProfile.IS_LITERAL_TAG_LANGUAGE;
 			else if (predicate != null)
 				profile = MappingProfile.IS_LITERAL;	
+			else if (entityType.equalsIgnoreCase("URI"))                       //Specific handling for URIs (not actually generating any property)
+				profile = MappingProfile.IS_URI;
 			else
 				profile = MappingProfile.UNSPECIFIED;
 
@@ -364,10 +368,12 @@ public class Mapping {
 			            		props.setGeneratorFunction(mappings[i].substring(0, p));    //Keep only the name of the function
 			            		String[] args = mappings[i].substring(p+1, mappings[i].length()-1).split(",");
 			            		for (String arg: args)
-			            			props.setFunctionArgument(arg.trim());                           //Specify the arguments
+			            			props.setFunctionArgument(arg.trim());                    //Specify the arguments
 			            	}
 			            	else            	
 			            		props.setGeneratorFunction(mappings[i]);                      //Only the function name has been specified
+			            	
+			            	//Add this property to extra thematic attributes
 			            	this.extraThematicAttrs.add(key); 
 			            }
 			            break;
@@ -375,6 +381,13 @@ public class Mapping {
 			}			
 		}
 
+		//Once all properties have been specified, determine the particular profile to be applied during generation of triples for this attribute
+		props.setMappingProfile();
+		
+		//In case of a URI specification, this should not be considered along with thematic attributes
+		if (props.getMappingProfile().equals(MappingProfile.IS_URI))
+			this.extraThematicAttrs.remove(key);
+		
 		//Check whether the key (i.e., attribute name) contains the wild char '%' that is being used to distinguish multi-faceted attributes
 		if (key.contains("%"))
 		{
@@ -439,7 +452,9 @@ public class Mapping {
 					            			props.setFunctionArgument(arg);                           //Specify the arguments
 					            	}
 					            	else            	
-					            		props.setGeneratorFunction(map.get(key).get(subkey));                      //Only the function name has been specified
+					            		props.setGeneratorFunction(map.get(key).get(subkey));         //Only the function name has been specified
+					            	
+					            	//Add this property to extra thematic attributes
 					            	this.extraThematicAttrs.add(key); 
 					            }
 						   		break;
@@ -449,7 +464,11 @@ public class Mapping {
 		            
 					//Once all properties have been specified, determine the particular profile to be applied during generation of triples for this attribute
 					props.setMappingProfile();
-							
+					
+					//In case of a URI specification, this should not be considered along with thematic attributes
+					if (props.getMappingProfile().equals(MappingProfile.IS_URI))
+						this.extraThematicAttrs.remove(key);
+						
 					//Check whether the key (i.e., attribute name) contains the wild char '%' that is being used to distinguish multi-faceted attributes
 					if (key.contains("%"))
 					{

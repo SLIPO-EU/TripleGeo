@@ -1,5 +1,5 @@
 /*
- * @(#) JsonToRdf.java 	 version 1.5   4/9/2018
+ * @(#) JsonToRdf.java 	 version 1.6   25/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -42,6 +42,7 @@ import com.vividsolutions.jts.geom.PrecisionModel;
 import com.vividsolutions.jts.io.WKTReader;
 
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
+import eu.slipo.athenarc.triplegeo.utils.Classification;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
 import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.Converter;
@@ -53,28 +54,28 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Main entry point of the utility for extracting RDF triples from JSON documents.
  * LIMITATIONS: The entire JSON document is read in memory before parsing, so large files require suitable configuration of the JVM heap size. 
- * TODO: Integrate handling of feature classifications.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 19/7/2018
  * Modified: 20/7/2018, added support for exporting all available non-spatial attributes as properties
- * Last modified by: Kostas Patroumpas, 4/9/2018
+ * Modified: 25/10/2018; integrate handling of a user-specified classification scheme for features.
+ * Last modified by: Kostas Patroumpas, 25/10/2018
 */
 
 public class JsonToRdf {  
 
-
 	Converter myConverter;
 	Assistant myAssistant;
 	private MathTransform reproject = null;
-	int sourceSRID;                       //Source CRS according to EPSG 
-	int targetSRID;                       //Target CRS according to EPSG
-	private Configuration currentConfig;  //User-specified configuration settings
-	private String inputFile;             //Input GPX file
-	private String outputFile;            //Output RDF file
+	int sourceSRID;                        //Source CRS according to EPSG 
+	int targetSRID;                        //Target CRS according to EPSG
+	private Configuration currentConfig;   //User-specified configuration settings
+	private Classification classification; //Classification hierarchy for assigning categories to features
+	private String inputFile;              //Input JSON file
+	private String outputFile;             //Output RDF file
 
 	//Initialize a CRS factory for possible reprojections
 	private static final CRSAuthorityFactory crsFactory = ReferencingFactoryFinder
@@ -83,15 +84,17 @@ public class JsonToRdf {
 	/**
 	 * Constructor for the transformation process from JSON document to RDF.
 	 * @param config  Parameters to configure the transformation.
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param inFile  Path to input JSON file.
 	 * @param outFile  Path to the output file that collects RDF triples.
 	 * @param sourceSRID  Spatial reference system (EPSG code) of the input JSON file.
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @throws ClassNotFoundException
 	 */
-	public JsonToRdf(Configuration config, String inFile, String outFile, int sourceSRID, int targetSRID) throws ClassNotFoundException {
+	public JsonToRdf(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) throws ClassNotFoundException {
   
 		  currentConfig = config;
+		  classification = classific;
 		  inputFile = inFile;
 		  outputFile = outFile;
 		  this.sourceSRID = sourceSRID;
@@ -117,10 +120,7 @@ public class JsonToRdf {
 	      else  //No transformation specified; determine the CRS of geometries
 	      {
 	    	  if (sourceSRID == 0)
-	    	  {
 	    		  this.targetSRID = 4326;          //All features assumed in WGS84 lon/lat coordinates
-	    		  System.out.println(Constants.WGS84_PROJECTION);
-	    	  }
 	    	  else
 	    		  this.targetSRID = sourceSRID;    //Retain original CRS
 	      }
@@ -135,7 +135,6 @@ public class JsonToRdf {
  
 	/**
 	 * Applies transformation according to the configuration settings.
-	 * TODO: RML mode not currently supported.
 	 */
 	public void apply() {
 		
@@ -168,7 +167,7 @@ public class JsonToRdf {
 				  //Finalize the output RDF file
 				  myConverter.store(myAssistant, outputFile);
 				}
-				else
+				else    //TODO: Implement method for handling transformation using RML mappings
 				{
 					System.err.println("Transformation of JSON data is possible under either GRAPH or STREAM mode. RML mode is currently not supported.");
 					throw new IllegalArgumentException(Constants.INCORRECT_SETTING);
@@ -285,7 +284,7 @@ public class JsonToRdf {
 	private void processRecord(Map<String, String> record) {
    
     	//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-		String uuid = myAssistant.getUUID(currentConfig.featureSource + record.get(currentConfig.attrKey)).toString();
+		//String uuid = myAssistant.getUUID(currentConfig.featureSource + record.get(currentConfig.attrKey)).toString();
 		
 		String wkt = null;
 		
@@ -301,7 +300,7 @@ public class JsonToRdf {
 	    //Process all available attributes (including geometry)
 		//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
 		if (!record.isEmpty())
-			myConverter.parse(myAssistant, uuid, wkt, record, targetSRID, "POINT");
+			myConverter.parse(myAssistant, wkt, record, classification, targetSRID, "POINT");
 	}
 
 	

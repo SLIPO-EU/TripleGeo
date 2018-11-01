@@ -1,5 +1,5 @@
 /*
- * @(#) OsmXmlToRdf.java	version 1.5   11/7/2018
+ * @(#) OsmXmlToRdf.java	version 1.6   24/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -69,14 +69,15 @@ import eu.slipo.athenarc.triplegeo.utils.Converter;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.GraphConverter;
 import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
+import eu.slipo.athenarc.triplegeo.utils.ValueChecker;
 
 
 /**
  * Entry point to convert OpenStreetMap (OSM) XML files into RDF triples using Saxon XSLT.
  * LIMITATIONS: - Depending on system and JVM resources, transformation can handle only a moderate amount of OSM features.
- *              - RML transformation mode not supported. 
+ *              - RML transformation mode not currently supported. 
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -92,12 +93,15 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 15/6/2018; introduced a preliminary scan of OSM ways and relations in order to index referenced elements only.
  * Modified: 20/6/2018; added option for disk-based indices in order to cope with larger OSM datasets
  * Modified: 4/7/2018; reorganized identification of categories based on OSM tags
- * Last modified by: Kostas Patroumpas, 11/7/2018
+ * Modified: 27/9/2018; excluded creation of linear ring geometries for roads and barriers; polygons are created instead
+ * Modified; 24/10/2018; allowing transformation to proceed even in case that no filters (using OSM tags) have been specified; no classification scheme will be used in this case.
+ * Last modified by: Kostas Patroumpas, 24/10/2018
  */
 public class OsmXmlToRdf extends DefaultHandler {
 
 	  Converter myConverter;
 	  Assistant myAssistant;
+	  ValueChecker myChecker;
 	  private MathTransform reproject = null;
 	  int sourceSRID;                       //Source CRS according to EPSG 
 	  int targetSRID;                       //Target CRS according to EPSG
@@ -155,6 +159,7 @@ public class OsmXmlToRdf extends DefaultHandler {
 	      this.sourceSRID = sourceSRID;                      //Assume that OSM input is georeferenced in WGS84
 	      this.targetSRID = targetSRID;
 	      myAssistant = new Assistant();
+	      myChecker = new ValueChecker();
 	      
 	      //Get filter definitions over combinations of OSM tags in order to determine POI categories
 	      try {
@@ -166,8 +171,11 @@ public class OsmXmlToRdf extends DefaultHandler {
 		      recBuilder = new OSMRecordBuilder(osmClassific.getFilters());
 		     
 		      //Create the internal representation of this classification scheme
-		      String outClassificationFile = currentConfig.outputDir + FilenameUtils.getBaseName(currentConfig.classificationSpec) + myAssistant.getOutputExtension(currentConfig.serialization);
-		      classification = new Classification(currentConfig, classFile, outClassificationFile);
+		      if (tags != null) 
+		      {
+		    	  String outClassificationFile = currentConfig.outputDir + FilenameUtils.getBaseName(currentConfig.classificationSpec) + myAssistant.getOutputExtension(currentConfig.serialization);
+		    	  classification = new Classification(currentConfig, classFile, outClassificationFile);
+		      }
 		      
 	      }
 		  catch(Exception e) { 
@@ -191,11 +199,8 @@ public class OsmXmlToRdf extends DefaultHandler {
 	  			ExceptionHandler.abort(e, "Error in CRS transformation (reprojection) of geometries.");      //Execution terminated abnormally
 	  		}
 	      }
-	      else    //No transformation specified; determine the CRS of geometries...
-	      {
-	    		  this.targetSRID = 4326;          //... as the original OSM features assumed in WGS84 lon/lat coordinates
-	    		  System.out.println(Constants.WGS84_PROJECTION);
-	      }
+	      else                                 //No transformation specified; determine the CRS of geometries...
+	    	  this.targetSRID = 4326;          //... as the original OSM features assumed in WGS84 lon/lat coordinates
 		    
 	      //Other parameters
 	      if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {
@@ -395,21 +400,21 @@ public class OsmXmlToRdf extends DefaultHandler {
 		        } 
 		        else if (elementName.equalsIgnoreCase("tag")) {
 		        	if ((scanWays) || (scanRelations))	{                     	//In preliminary phase, if no tag of this OSM element is included in the OSM filters, no references need be indexed
-	        			if (tags.contains(attributes.getValue("k")))       		//CAUTION! Filter out any OSM elements not related to tags specified by the user
-	        				keepIndexed = true;
+	        			if ((tags == null) || (tags.contains(attributes.getValue("k"))))       		//CAUTION! Filter out any OSM elements not related to tags specified by the user
+	        				keepIndexed = true;                                                     //In case of no tags specified for filtering, index all OSM elements
 		        	}
 		        	else {                                                                  //In the parsing phase, keep all tags for that OSM element
 			            if (inNode) {
 			                //If the path is in an OSM node, then set tagKey and value to the corresponding node     
-			                nodeTmp.setTagKeyValue(attributes.getValue("k"), attributes.getValue("v"));
+			                nodeTmp.setTagKeyValue(attributes.getValue("k"), myChecker.removeIllegalChars(attributes.getValue("v")));
 			            } 
 			            else if (inWay) {
 			                //Otherwise, if the path is in an OSM way, then set tagKey and value to the corresponding way
-			                wayTmp.setTagKeyValue(attributes.getValue("k"), attributes.getValue("v"));
+			                wayTmp.setTagKeyValue(attributes.getValue("k"), myChecker.removeIllegalChars(attributes.getValue("v")));
 			            } 
 			            else if(inRelation){
 			                //Set the key-value pairs of OSM relation tags
-			                relationTmp.setTagKeyValue(attributes.getValue("k"), attributes.getValue("v"));
+			                relationTmp.setTagKeyValue(attributes.getValue("k"), myChecker.removeIllegalChars(attributes.getValue("v")));
 			            }
 		        	}
 		        } 
@@ -477,21 +482,29 @@ public class OsmXmlToRdf extends DefaultHandler {
 			            }
 			            Geometry geom = geometryFactory.buildGeometry(wayTmp.getNodeGeometries());
 
-			            if((wayTmp.getNodeGeometries().size() > 3) && wayTmp.getNodeGeometries().get(0).equals(wayTmp.getNodeGeometries().get(wayTmp.getNodeGeometries().size()-1)))   {
-			            //checks if the beginning and ending node are the same and the number of nodes are more than 3. 
+			            //Check if the beginning and ending node are the same and the number of nodes are more than 3. 
 			            //These nodes must be more than 3, because JTS does not allow construction of a linear ring with less than 3 points
-			                
-			               if (!((wayTmp.getTagKeyValue().containsKey("barrier")) || wayTmp.getTagKeyValue().containsKey("highway"))){
-			            	   //this is not a barrier nor a road, so construct a polygon geometry
-			               
-			            	   LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
-			            	   Polygon poly = new Polygon(linear, null, geometryFactory);
-			            	   wayTmp.setGeometry(poly);               
-			               }
-			               else {    //it is either a barrier or a road, so construct a linear ring geometry 
-			                  LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
-			                  wayTmp.setGeometry(linear);  
-			               }
+			            if((wayTmp.getNodeGeometries().size() > 3) && wayTmp.getNodeGeometries().get(0).equals(wayTmp.getNodeGeometries().get(wayTmp.getNodeGeometries().size()-1)))
+			            { 
+				               //Always construct a polygon when a linear ring is detected
+				               LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
+				               Polygon poly = new Polygon(linear, null, geometryFactory);
+				               wayTmp.setGeometry(poly);  
+				            	
+				               /*************************************************
+				               //OPTION NOT USED: Construct a linear ring geometry when this feature is either a barrier or a road
+				               if (!((wayTmp.getTagKeyValue().containsKey("barrier")) || wayTmp.getTagKeyValue().containsKey("highway"))){
+				            	   //this is not a barrier nor a road, so construct a polygon geometry
+				               
+				            	   LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
+				            	   Polygon poly = new Polygon(linear, null, geometryFactory);
+				            	   wayTmp.setGeometry(poly);               
+				               }
+				               else {    //it is either a barrier or a road, so construct a linear ring geometry 
+				                  LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
+				                  wayTmp.setGeometry(linear);  
+				               }
+				               **************************************************/
 			            }
 			            else if (wayTmp.getNodeGeometries().size() > 1) {
 			            //it is an open geometry with more than one nodes, make it linestring 

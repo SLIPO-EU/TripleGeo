@@ -1,5 +1,5 @@
 /*
- * @(#) RdfToCsv.java 	 version 1.5   26/2/2018
+ * @(#) RdfToCsv.java 	 version 1.6   26/2/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -53,7 +53,7 @@ import eu.slipo.athenarc.triplegeo.utils.BatchReverseConverter;
  *              - Apart from a delimiter, configuration files for CSV records may also specify whether there is a quote character in string values
  *              - Reverse transformation discards attribute values that contain the quote or delimiter characters; otherwise, the CSV file may be malformed.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY

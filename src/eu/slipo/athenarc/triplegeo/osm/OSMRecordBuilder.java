@@ -1,5 +1,5 @@
 /*
- * @(#) OsmRecordBuilder.java	version 1.5   4/7/2018
+ * @(#) OsmRecordBuilder.java	version 1.6   24/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -36,13 +36,14 @@ import com.vividsolutions.jts.operation.linemerge.LineMerger;
 /**
  * Creates OSM record objects that contain all geospatial and thematic information from OSM elements (nodes, ways, relations).
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 19/4/2017
  * Modified: 7/9/2017; reorganized methods in order to be applicable to both XML and PBF input files from OpenStreetMap.
- * Last modified by: Kostas Patroumpas, 4/7/2018
+ * Modified: 24/10/2018; allowing transformation even in case that no filters (using OSM tags) have been specified over OSM features
+ * Last modified by: Kostas Patroumpas, 24/10/2018
  */
 
 public class OSMRecordBuilder {
@@ -121,13 +122,15 @@ public class OSMRecordBuilder {
     public OSMRecord createOSMRecord(OSMNode n) {
   
 		OSMRecord rec = new OSMRecord();
-	  	rec.setID("N" + n.getID());
+	  	rec.setID("node/" + n.getID());
 	  	rec.setType(n.getTagKeyValue().get("type"));
 	  	rec.setName(n.getTagKeyValue().get("name"));
 	  	rec.setGeometry(n.getGeometry());
 	  	rec.setTags(n.getTagKeyValue());
-	  	rec.setCategory(getCategory(n.getTagKeyValue()));       //Search among the user-specified filters in order to assign a category to this OSM feature
-	  	
+	  	if (filters != null)
+	  		rec.setCategory(getCategory(n.getTagKeyValue()));       //Search among the user-specified filters in order to assign a category to this OSM feature
+	  	else
+	  		rec.setCategory("node");                                //Assign this category in cae that no user-specified classification is available
 	  	return rec;  	
     }
   
@@ -140,13 +143,15 @@ public class OSMRecordBuilder {
     public OSMRecord createOSMRecord(OSMWay w) {
   
 		OSMRecord rec = new OSMRecord();
-	  	rec.setID("W" + w.getID());
+	  	rec.setID("way/" + w.getID());
 	  	rec.setType(w.getTagKeyValue().get("type"));
 	  	rec.setName(w.getTagKeyValue().get("name"));
 	  	rec.setGeometry(w.getGeometry());
 	  	rec.setTags(w.getTagKeyValue());
-	  	rec.setCategory(getCategory(w.getTagKeyValue()));       //Search among the user-specified filters in order to assign a category to this OSM feature
-	  	
+	  	if (filters != null)
+	  		rec.setCategory(getCategory(w.getTagKeyValue()));       //Search among the user-specified filters in order to assign a category to this OSM feature
+	  	else
+	  		rec.setCategory("way");                                 //Assign this category in cae that no user-specified classification is available
 	  	return rec;
     }
   
@@ -192,11 +197,14 @@ public class OSMRecordBuilder {
 
 	    boolean incomplete = false;                             //Marks an OSM relation as incomplete in order to re-parse it at the end of the process
   		OSMRecord rec = new OSMRecord();
-    	rec.setID("R" + r.getID());
+    	rec.setID("relation/" + r.getID());
     	rec.setType(r.getTagKeyValue().get("type"));
     	rec.setName(r.getTagKeyValue().get("name"));
     	rec.setTags(r.getTagKeyValue());
-    	rec.setCategory(getCategory(r.getTagKeyValue()));       //Search among the user-specified filters in order to assign a category to this OSM feature
+    	if (filters != null)
+    		rec.setCategory(getCategory(r.getTagKeyValue()));   //Search among the user-specified filters in order to assign a category to this OSM feature
+	  	else
+	  		rec.setCategory("relation");                        //Assign this category in cae that no user-specified classification is available
     	
     	//Reconstruct geometry from relating with its elementary nodes and ways
     	GeometryFactory geometryFactory = new GeometryFactory();

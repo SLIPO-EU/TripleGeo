@@ -1,5 +1,5 @@
 /*
- * @(#) Constants.java 	 version 1.5   15/6/2018
+ * @(#) Constants.java 	 version 1.6   24/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -22,13 +22,13 @@ package eu.slipo.athenarc.triplegeo.utils;
  * Constants utilized in the transformation and reverse transformation processes.
  *
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
  * initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
  * Modified by: Kostas Patroumpas, 8/2/2013; adjusted to TripleGeo functionality
- * Last modified: 15/6/2018
+ * Last modified: 24/10/2018
  */
 public class Constants {
 
@@ -46,22 +46,7 @@ public class Constants {
   /**
    * Suffix to URIs for geometries of features
    */
-  public static final String FEAT = "/geom";   
-  
-  /**
-   * Whitespace in string literals
-   */
-  public static final String WHITESPACE = "+";  
-  
-  /**
-   * Replacement for single space
-   */
-  public static final String REPLACEMENT = "%20";     
-  
-  /**
-   * Single space character
-   */
-  public static final String BLANK = " ";  
+  public static final String GEO_URI_SUFFIX = "/geom"; 
   
   /**
    * Default delimiter of the CSV file used for registering features in the SLIPO Registry
@@ -165,7 +150,6 @@ public class Constants {
   
   
   //ALIASES for most common tags and properties for RDF triples
-  
   public static final String GEOMETRY = "Geometry";
   public static final String FEATURE = "Feature";
   public static final String LATITUDE = "lat";
@@ -175,10 +159,8 @@ public class Constants {
   
   
   //Strings appearing in user notifications and warnings
-  
-  public static final String COPYRIGHT = "*********************************************************************\n*                      TripleGeo version 1.5                        *\n* Developed by the Information Systems Management Institute.        *\n* Copyright (C) 2013-2018 Athena Research Center, Greece.           *\n* This program comes with ABSOLUTELY NO WARRANTY.                   *\n* This is FREE software, distributed under GPL license.             *\n* You are welcome to redistribute it under certain conditions       *\n* as mentioned in the accompanying LICENSE file.                    *\n*********************************************************************\n";
+  public static final String COPYRIGHT = "*********************************************************************\n*                      TripleGeo version 1.6                        *\n* Developed by the Information Systems Management Institute.        *\n* Copyright (C) 2013-2018 Athena Research Center, Greece.           *\n* This program comes with ABSOLUTELY NO WARRANTY.                   *\n* This is FREE software, distributed under GPL license.             *\n* You are welcome to redistribute it under certain conditions       *\n* as mentioned in the accompanying LICENSE file.                    *\n*********************************************************************\n";
   public static final String RML_COPYRIGHT = "NOTICE: TripleGeo makes use of RML processing modules (http://rml.io/) under MIT license; Copyright (c) 2013-2017, Ghent University-iMinds-Multimedia Lab.";
-  public static final String OSMPOISPBF_COPYRIGHT = "NOTICE: TripleGeo employs OSM filters for classification of POIs as specified by the OsmPoisPbf tool (https://github.com/MorbZ/OsmPoisPbf) under GPL license; Copyright (c) 2012-2015, Merten Peetz.";
   public static final String INCORRECT_CONFIG = "Incorrect number of arguments. A properties file with proper configuration settings is required.";
   public static final String INCORRECT_SETTING = "Incorrect or no value set for at least one parameter. Please specify a correct value in the configuration settings.";
   public static final String INCORRECT_DBMS = "Incorrect or no value set for the DBMS where input data is stored. Please specify a correct value in the configuration settings.";

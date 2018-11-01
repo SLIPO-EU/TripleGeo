@@ -1,5 +1,5 @@
 /*
- * @(#) CsvToRdf.java 	 version 1.5   27/2/2018
+ * @(#) CsvToRdf.java 	 version 1.6   5/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -46,7 +46,6 @@ import com.vividsolutions.jts.io.WKTReader;
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
 import eu.slipo.athenarc.triplegeo.utils.Classification;
 import eu.slipo.athenarc.triplegeo.utils.Configuration;
-import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.Converter;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.GraphConverter;
@@ -60,7 +59,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: Currently, only supporting CSV files with header (i.e., named attributes).
  *              Apart from a delimiter, configuration files for CSV records must also specify whether there is a quote character in string values.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -73,7 +72,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 7/11/2017, fixed issue with multiple instances of CRS factory
  * Modified: 24/11/2017, added support for recognizing character encoding for strings
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
- * Last modified by: Kostas Patroumpas, 27/2/2018
+ * Last modified by: Kostas Patroumpas, 5/10/2018
  */
 public class CsvToRdf {
 
@@ -135,10 +134,7 @@ public class CsvToRdf {
 	      else  //No transformation specified; determine the CRS of geometries
 	      {
 	    	  if (sourceSRID == 0)
-	    	  {
 	    		  this.targetSRID = 4326;          //All features assumed in WGS84 lon/lat coordinates
-	    		  System.out.println(Constants.WGS84_PROJECTION);
-	    	  }
 	    	  else
 	    		  this.targetSRID = sourceSRID;    //Retain original CRS
 	      }

@@ -1,5 +1,5 @@
 /*
- * @(#) OsmClassification.java	version 1.5   11/7/2018
+ * @(#) OsmClassification.java	version 1.6   24/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -19,7 +19,6 @@
 package eu.slipo.athenarc.triplegeo.osm;
 
 import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -28,20 +27,20 @@ import java.util.Set;
 
 import org.apache.commons.io.FilenameUtils;
 
-import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
  * Given a YAML file with OSM tags and their correspondence to categories/subcategories, it creates a representation of a hierarchical classification scheme.
  * LIMITATION: The resulting classification scheme is stored in an intermediate CSV file. 
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 7/9/2017
  * Modified: 7/9/2017; added filters for tags in order to assign categories to extracted OSM features according to a user-specified classification scheme (defined in a YAML file).
- * Last modified by: Kostas Patroumpas, 11/7/2018
+ * Modified: 24/10/2018; allowing transformation to proceed even in case that no filters (using OSM tags) have been specified; no classification scheme will be used in this case.
+ * Last modified by: Kostas Patroumpas, 24/10/2018
  */
 public class OSMClassification {
 
@@ -70,14 +69,18 @@ public class OSMClassification {
 	public String apply() {
 	      //Get filter definitions over combinations of OSM tags in order to determine POI categories
 	      try {
-	    	  System.out.println(Constants.OSMPOISPBF_COPYRIGHT);
 		      //Read YML file from configuration settings containing assignment of OSM tags to categories
 		      filterFileParser = new OSMFilterFileParser(classificationSpec);    
 		      filters = filterFileParser.parse();   //Parse the file containing filters for assigning categories to OSM features
 		      if (filters == null)
-		    	  throw new FileNotFoundException(classificationSpec);
+		      {
+		    	  tags = null;               //No tags specified for filtering, so all OSM features should be extracted
+		    	  System.out.println("No classification scheme will be used in filtering. All valid OSM features will be extracted.");
+		    	  return null;
+//		    	  throw new FileNotFoundException(classificationSpec);
+		      }
 		      
-		      //FIXME: This representation assumes that categories are represented as strings in the YML file for each respective OSM tag	      
+		      //ASSUMPTION: Categories are represented as strings in the YML file for each respective OSM tag	      
 		      BufferedWriter csvWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(classFile), StandardCharsets.UTF_8));
 	    	  //Write header	
 		      csvWriter.write("\"CATEGORY_ID\", \"CATEGORY\", \"SUBCATEGORY_ID\", \"SUBCATEGORY\"");
@@ -90,11 +93,11 @@ public class OSMClassification {
 		      Set<String> categories = filterFileParser.getAllCategories();
 		      for (String c: categories) 
 		      {
-		    	  if (c.contains("_"))  //FIXME: Assumption that an "_" character is used as delimiter between items in the various tiers in the category name, e.g., "FOOD,RESTAURANT"
+		    	  if (c.contains("_"))  //ASSUMPTION: An "_" character is used as delimiter between items in the various tiers in the category name, e.g., "EAT/DRINK,RESTAURANT"
 		    	  {
 		    		  String[] parts = c.split("_");
 		    		  //Prepare a row for an intermediate CSV file that will hold the classification hierarchy  
-		    	      csvWriter.write("\"" + parts[0] + "\",\"" + parts[0] + "\",\"" + c + "\",\"" + parts[1] + "\"");  //FIXME: Subcategory identifiers must be identical to those specified in the YML file
+		    	      csvWriter.write("\"" + parts[0] + "\",\"" + parts[0] + "\",\"" + c + "\",\"" + parts[1] + "\"");  //ASSUMPTION: Subcategory identifiers must be identical to those specified in the YML file
 		    	      csvWriter.newLine();
 		    	  }
 		      }

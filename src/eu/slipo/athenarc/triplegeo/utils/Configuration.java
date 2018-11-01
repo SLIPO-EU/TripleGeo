@@ -1,5 +1,5 @@
 /*
- * @(#) Configuration.java 	 version 1.5   2/3/2018
+ * @(#) Configuration.java 	 version 1.6   2/3/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -30,7 +30,7 @@ import java.util.logging.Level;
  * Parser of user-specified configuration files to be used during transformation of geospatial features into RDF triples.
  *
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY

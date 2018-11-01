@@ -1,5 +1,5 @@
 /*
- * @(#) RMLDatasetConverter.java 	 version 1.5   31/5/2018
+ * @(#) RMLDatasetConverter.java 	 version 1.6   25/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -63,7 +63,7 @@ import org.apache.commons.lang.StringEscapeUtils;
 /**
  * Creates and populates a RML dataset so that data can be serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -71,7 +71,7 @@ import org.apache.commons.lang.StringEscapeUtils;
  * Modified: 3/11/2017, added support for system exit codes on abnormal termination
  * Modified: 18/2/2018; Included attribute statistics calculated during transformation
  * TODO: This mode does NOT currently include support for the SLIPO Registry.
- * Last modified by: Kostas Patroumpas, 31/5/2018
+ * Last modified by: Kostas Patroumpas, 25/10/2018
  */
 public class RMLConverter implements Converter {
 
@@ -292,7 +292,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, outputFile);		    
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile);		    
 		  
 	}
 
@@ -398,7 +398,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, outputFile);  
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile);  
 	}
 
 
@@ -497,25 +497,25 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, outputFile); 
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile); 
 	}
 	
 
 	/**
 	 * Parses a single OSM record and streamlines the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping.
 	 * Input provided as an individual record (used with input format: OpenStreetMap XML).
-	 * TODO: Not implemented for RML transformation mode.
+	 * TODO: Implement for RML transformation mode.
 	 */
 	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) {
 	
 	}
 			
 	/**
-	 * Parses a single GPX waypoint or track and streamlines the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping.
-	 * Input provided as an individual record (used with input format: GPX).
-	 * TODO: Not implemented for RML transformation mode.
+	 * Parses a single GPX waypoint/track or a single JSON node and streamlines the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping.
+	 * Input provided as an individual record (used with input format: GPX, JSON).
+	 * TODO: Implement for RML transformation mode.
 	 */
-	public void parse(Assistant myAssistant, String uuid, String wkt, Map<String, String> attrValues, int targetSRID, String geomType) {
+	public void parse(Assistant myAssistant, String wkt, Map<String, String> attrValues, Classification classific, int targetSRID, String geomType) {
 		
 	}
 	

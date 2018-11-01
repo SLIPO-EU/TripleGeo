@@ -1,5 +1,5 @@
 /*
- * @(#) Executor.java	version 1.5   20/7/2018
+ * @(#) Executor.java	version 1.6   25/10/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -35,7 +35,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Running a transformation task as a separate thread under the given configuration settings.
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
@@ -43,7 +43,8 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified by: Kostas Patroumpas, 18/10/2017
  * Modified: 8/11/2017, added support for system exit codes on abnormal termination
  * Modified: 21/11/2017, added support for user-specified classification schemes for shapefiles, CSV, and DBMS data sources 
- * Last modified by: Kostas Patroumpas, 20/7/2018
+ * Modified: 19/7/2018, added support for JSON and OSM PBF data sources 
+ * Last modified by: Kostas Patroumpas, 25/10/2018
  */
 public class Task {
 
@@ -61,7 +62,7 @@ public class Task {
 	 */
 	public Task(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) 
 	{
-    	currentFormat = config.inputFormat.toUpperCase();           //Possible values: SHAPEFILE, DBMS, CSV, GPX, GEOJSON, OSM, XML
+    	currentFormat = config.inputFormat.toUpperCase();           //Possible values: SHAPEFILE, DBMS, CSV, GPX, GEOJSON, JSON, OSM_XML, OSM_PBF, XML
     	//System.out.println("Transforming " + inFile + " from " + currentFormat + " into " + outFile);
     	
         try {		
@@ -79,7 +80,7 @@ public class Task {
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("GPX")) {
-				GpxToRdf conv = new GpxToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+				GpxToRdf conv = new GpxToRdf(config, classific, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("GEOJSON")) {
@@ -87,7 +88,7 @@ public class Task {
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("JSON")) {
-				JsonToRdf conv = new JsonToRdf(config, inFile, outFile, sourceSRID, targetSRID);
+				JsonToRdf conv = new JsonToRdf(config, classific, inFile, outFile, sourceSRID, targetSRID);
 				conv.apply();
 			}
 			else if (currentFormat.trim().contains("OSM_XML")) {
@@ -100,7 +101,7 @@ public class Task {
 				conv.close();
 			}
 			else if (currentFormat.trim().contains("XML")) {   //This includes INSPIRE data (GML) and metadata (XML), as well as GML and KML files
-				String fileXSLT = config.mappingSpec;          //Predefined XSLT stylesheet to be applied in transformation
+				String fileXSLT = config.mappingSpec;          //Predefined XSLT stylesheet must be available to be applied in transformation
 				myAssistant =  new Assistant();
 				myAssistant.saxonTransform(inFile, fileXSLT, outFile);
 			}	

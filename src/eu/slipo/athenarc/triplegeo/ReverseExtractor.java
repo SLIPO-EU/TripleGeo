@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseExtractor.java	version 1.5   28/2/2018
+ * @(#) ReverseExtractor.java	version 1.6   28/2/2018
  *
  * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -37,7 +37,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  * LIMITATIONS: Currently only supporting CSV (delimited) files and ESRI Shapefiles.
  * TODO: Include support for GEOJSON?
  * @author Kostas Patroumpas
- * @version 1.5
+ * @version 1.6
  */
 
 /* DEVELOPMENT HISTORY
