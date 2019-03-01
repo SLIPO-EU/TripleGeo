@@ -1,7 +1,7 @@
 /*
- * @(#) ShpToRdf.java	version 1.6   5/10/2018
+ * @(#) ShpToRdf.java	version 1.7   5/10/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Entry point to convert ESRI shapefiles into RDF triples.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY

@@ -1,7 +1,7 @@
 /*
- * @(#) OSMRecord.java 	 version 1.6   24/2/2018
+ * @(#) OSMRecord.java 	 version 1.7   24/2/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Class containing information about the OSM records (nodes, ways, or relations).
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY

@@ -39,7 +39,7 @@ import com.vividsolutions.jts.geom.GeometryFactory;
  * @author MapPlus, mapplus@gmail.com, http://onspatial.com
  * @since 2012-10-30
  * @see
- * Modified by: Kostas Patroumpas, 14/12/2017; removed logging for efficiency
+ * Modified by: Kostas Patroumpas, 28/2/2019; removed logging for efficiency
  */
 public class PGDBDecoder {
 //    protected static final Logger LOGGER = Logging.getLogger(PGDBDecoder.class);
@@ -226,21 +226,21 @@ public class PGDBDecoder {
 //        boolean flatFeature = false;
         ShapeType shapeType = hasZ ? ShapeType.POLYGONZ : ShapeType.POLYGON;
         PolygonHandler handler = new PolygonHandler(gf);
-        return (Geometry) handler.read(buffer, shapeType);
+        return (Geometry) handler.read(buffer, shapeType, true);
     }
 
     private Geometry readMultiLineString(ByteBuffer buffer, boolean hasZ, boolean isMultiPatch) {
 //        boolean flatFeature = false;
         ShapeType shapeType = hasZ ? ShapeType.ARCZ : ShapeType.ARC;
         MultiLineHandler handler = new MultiLineHandler(gf);
-        return (Geometry) handler.read(buffer, shapeType);
+        return (Geometry) handler.read(buffer, shapeType, true);
     }
 
     private Geometry readMultiPoint(ByteBuffer buffer, boolean hasZ) {
 //        boolean flatFeature = false;
         ShapeType shapeType = hasZ ? ShapeType.MULTIPOINTZ : ShapeType.MULTIPOINT;
         MultiPointHandler handler = new MultiPointHandler(gf);
-        return (Geometry) handler.read(buffer, shapeType);
+        return (Geometry) handler.read(buffer, shapeType, true);
     }
 
     private Geometry readPoint(ByteBuffer buffer, boolean hasZ) {

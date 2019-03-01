@@ -1,7 +1,7 @@
 /*
- * @(#) BatchReverseConverter.java	version 1.6   28/2/2018
+ * @(#) BatchReverseConverter.java	version 1.7   28/2/2018
  *
- * Copyright (C) 2013-2017 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Systems Management Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
  * Results can be written to a typical geographical files (currently supported: CSV and ESRI Shapefiles). 
  * Attribute names in the SELECT query will become the column names in the resulting files. 
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY

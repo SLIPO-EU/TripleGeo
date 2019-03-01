@@ -1,7 +1,7 @@
 /*
- * @(#) Converter.java 	 version 1.6   25/10/2018
+ * @(#) Converter.java 	 version 1.7   28/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,12 +39,12 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Conversion Interface for TripleGeo used in transformation of spatial features (including their non-spatial attributes) into RDF triples with various serializations.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 16/2/2013
- * Last modified: 25/10/2018
+ * Last modified: 28/2/2019
  */
 public interface Converter {  
     
@@ -94,6 +94,7 @@ public interface Converter {
 	 */
 	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID);
 	
+	
 	/**
 	 * Parses a single GPX waypoint or track and streamlines the resulting triples (including geometric and non-spatial attributes).
 	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
@@ -104,6 +105,24 @@ public interface Converter {
 	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
 	 */
 	public void parse(Assistant myAssistant, String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType);
+
+	
+	/**
+	 * Parses a Map structure of (key, value) pairs and streamlines the resulting triples (including geometric and non-spatial attributes).
+	 * Applicable in STREAM transformation mode.
+	 * Input provided as an individual record. This method is used when running over Spark/GeoSpark.
+	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
+	 * @param wkt  Well-Known Text representation of the geometry
+	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
+	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
+	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
+	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
+	 * @param partition_index  The index of the partition.
+	 * @param outputFile  Path to the output file that collects RDF triples.
+	 */
+	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile);
+
 	
 	/**
 	 * Stores resulting tuples into a file.	
@@ -111,8 +130,16 @@ public interface Converter {
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
 	public void store(Assistant myAssistant, String outputFile);
-	
 
+	
+	/**
+	 * Finalizes storage of resulting tuples into a file. This method is used when running over Spark/GeoSpark.
+	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
+	 * @param outputFile  Path to the output file that collects RDF triples.
+	 * @param partition_index  The index of the partition.
+	 */
+	public void store(Assistant myAssistant, String outputFile, int partition_index) ;
+	
 	/**
 	 * Retains the header (column names) of an input CSV file.
 	 * @param header  A array of attribute (column) names.

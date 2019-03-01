@@ -1,7 +1,7 @@
 /*
- * @(#) RdbToRdf.java 	 version 1.6   27/2/2018
+ * @(#) RdbToRdf.java 	 version 1.7   27/2/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ import eu.slipo.athenarc.triplegeo.utils.Constants;
 /**
  * Entry point of the utility for extracting RDF triples from spatially-enabled DBMSs.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY

@@ -1,7 +1,7 @@
 /*
- * @(#) FeatureRegister.java 	 version 1.6   27/7/2018
+ * @(#) FeatureRegister.java 	 version 1.7   27/7/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Creates a record of attribute values concerning a feature that should be registered in the SLIPO Registry.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY

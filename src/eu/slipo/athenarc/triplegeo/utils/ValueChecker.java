@@ -1,7 +1,7 @@
 /*
- * @(#) ValueChecker.java 	 version 1.6   25/10/2018
+ * @(#) ValueChecker.java 	 version 1.7   25/10/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /*
- * @(#) StreamConverter.java 	 version 1.6   10/10/2018
+ * @(#) StreamConverter.java 	 version 1.7   27/2/2019
  *
- * Copyright (C) 2013-2018 Information Management Systems Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Provides a set of a streaming RDF triples in memory that can be readily serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
@@ -69,7 +69,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 9/5/2018; integrated handling of GPX data 
  * Modified: 31/5/2018; integrated handling of classifications for OSM data
  * TODO: Determine data types for attributes in the resultset retrieved from DBMS and utilize them in transformation.
- * Last modified: 10/10/2018
+ * Last modified: 27/2/2019
  */
 
 public class StreamConverter implements Converter {
@@ -506,7 +506,74 @@ public class StreamConverter implements Converter {
 			collectTriples();     //Dump any pending results into output file
 		}
 	}
-		
+
+
+
+	/**
+	 * Parses a Map structure of (key, value) pairs and streamlines the resulting triples (including geometric and non-spatial attributes).
+	 * Applicable in STREAM transformation mode.
+	 * Input provided as an individual record. This method is used when running over Spark/GeoSpark.
+	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
+	 * @param wkt  Well-Known Text representation of the geometry
+	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
+	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
+	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
+	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
+	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
+	 * @param partition_index  The index of the partition.
+	 * @param outputFile  Path to the output file that collects RDF triples.
+	 */
+	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile)
+	{
+		try {
+			if (wkt == null) {
+				if ((currentConfig.attrGeometry == null) && (currentConfig.attrX != null) && (currentConfig.attrY != null)) {    //In case no single geometry attribute with WKT values is specified, compose WKT from a pair of coordinates
+					String x = attrValues.get(currentConfig.attrX);    //X-ordinate or longitude
+					String y = attrValues.get(currentConfig.attrY);    //Y-ordinate or latitude
+					if ((x != null) && (y != null))
+						wkt = "POINT (" + x + " " + y + ")";
+				} else if (currentConfig.attrGeometry != null)
+					wkt = attrValues.get(currentConfig.attrGeometry);  //ASSUMPTION: Geometry values are given as WKT
+			}
+
+			if (wkt != null)
+			{
+				//CRS transformation
+				if (reproject != null)
+					wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
+//				    else
+//				        myAssistant.WKT2Geometry(wkt);                      //This is done only for updating the MBR of all geometries
+			}
+
+			String uri;
+			//Pass this tuple for conversion to RDF triples
+			if (currentConfig.attrCategory == null)
+				uri = myGenerator.transform(attrValues, wkt, targetSRID, null);         //There no category specified for this feature,...
+			else
+				uri = myGenerator.transform(attrValues, wkt, targetSRID, classific);	//..., otherwise utilize the user-specified classification hierarchy
+
+
+			//Get a record with basic attribute that will be used for the SLIPO Registry
+			if (myRegister != null)
+				myRegister.createTuple(uri, attrValues, wkt, targetSRID);
+
+			++numRec;
+
+			//Periodically, collect RDF triples resulting from this batch and dump results into output file
+			if (numRec % currentConfig.batch_size == 0)
+			{
+				collectTriples();
+				myAssistant.notifyProgress(numRec, partition_index);
+			}
+
+		} catch (Exception e) {
+			ExceptionHandler.warn(e, "An error occurred during transformation of an input record.");
+		}
+		finally {
+			collectTriples();     //Dump any pending results into output file
+		}
+	}
+
 	/**
 	 * Collects RDF triples generated from a batch of features (their thematic attributes and their geometries) and streamlines them to output file.
 	 */
@@ -564,9 +631,32 @@ public class StreamConverter implements Converter {
 		
 	    //Measure execution time and issue statistics on the entire process
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
 	}
 
+	/**
+	 * Finalizes storage of resulting tuples into a file. This method is used when running over Spark/GeoSpark.
+	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
+	 * @param outputFile  Path to the output file that collects RDF triples.
+	 * @param partition_index  The index of the partition.
+	 */
+	public void store(Assistant myAssistant, String outputFile, int partition_index)
+	{
+		stream.finish();               //Finished issuing triples
+
+		//******************************************************************
+		//Close the file that will collect all tuples for the SLIPO Registry
+		try {
+			if (registryWriter != null)
+				registryWriter.close();
+		} catch (IOException e) {
+			ExceptionHandler.abort(e, "An error occurred during creation of the file for Registry.");
+		}
+		//******************************************************************
+		//Measure execution time and issue statistics on the entire process
+		dt = System.currentTimeMillis() - t_start;
+		myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, partition_index);
+	}
 	
 	/**
 	 * Retains the header (column names) of an input CSV file.

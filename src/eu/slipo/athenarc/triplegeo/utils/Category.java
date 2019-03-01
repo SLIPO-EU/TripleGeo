@@ -1,7 +1,7 @@
 /*
- * @(#) Category.java 	 version 1.6   24/2/2018
+ * @(#) Category.java 	 version 1.7   14/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,12 +24,13 @@ package eu.slipo.athenarc.triplegeo.utils;
  * A category item in the classification scheme utilized in a dataset.
  *
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
- * Created by: Kostas Patroumpas, 7/11/2017
- * Last modified by: Kostas Patroumpas, 24/2/2018
+ * Created by: Kostas Patroumpas, 7/11/2018
+ * Modified: 11/12/2018; added mapping to default (embedded) categories
+ * Last modified: 14/2/2019
  */
 
 public class Category {
@@ -38,6 +39,7 @@ public class Category {
 	private String id;               //Original identifier of this category according to the classification scheme
 	private String name;             //Name of the category as specified in the classification scheme
 	private String parent;           //Original identifier of the parent of this category in the classification scheme
+	private String embedCategory;    //Mapping of this category to an embedded one according to a default classification scheme 
 	
 	/**
 	 * Constructor of a Category object.
@@ -45,12 +47,14 @@ public class Category {
 	 * @param id  Original identifier of this category according to the classification scheme
 	 * @param name  Name of the category as specified in the classification scheme
 	 * @param parent Original identifier of the parent of this category in the classification scheme
+	 * @param embedCategory  Name of its corresponding embedded category in the default (internal) classification scheme
 	 */
-	public Category(String UUID, String id, String name, String parent) {
+	public Category(String UUID, String id, String name, String parent, String embedCategory) {
 		this.UUID = UUID.isEmpty() ? null : UUID;
 		this.id = id.isEmpty() ? null : id;
 		this.name = name.isEmpty() ? null : name;
 		this.parent = parent.isEmpty() ? null : parent;
+		this.embedCategory = ((embedCategory == null) || embedCategory.isEmpty()) ? null : embedCategory;
 	}
 
 	/**
@@ -93,6 +97,22 @@ public class Category {
 		return name;
 	}
 
+	/**
+	 * Sets or updates the name of the embedded category according to the default classification scheme
+	 * @param uuid   The name of the embedded category according to the default classification scheme
+	 */
+	public void setEmbedCategory(String cat) {
+		this.embedCategory = cat;
+	}
+	
+	/**
+	 * Provides the name of the embedded category according to the default classification scheme
+	 * @return  The name of the embedded category
+	 */
+	public String getEmbedCategory() {
+		return embedCategory;
+	}
+	
 	/**
 	 * Indicates whether a UUID has been assigned to this category
 	 * @return  True if a UUID has been assigned to this category

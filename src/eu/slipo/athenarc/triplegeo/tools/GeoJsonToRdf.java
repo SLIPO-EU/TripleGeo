@@ -1,7 +1,7 @@
 /*
- * @(#) GeoJsonToRdf.java	version 1.6   19/7/2018
+ * @(#) GeoJsonToRdf.java	version 1.7   19/7/2018
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: - Nested properties (non-spatial) in GeoJSON are considered as carrying NULL values by GeoTools.
  *              - Each feature must have the same properties, i.e., all features must comply with the same attribute schema. 
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY

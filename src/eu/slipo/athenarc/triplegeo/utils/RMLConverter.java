@@ -1,7 +1,7 @@
 /*
- * @(#) RMLDatasetConverter.java 	 version 1.6   25/10/2018
+ * @(#) RMLDatasetConverter.java 	 version 1.7   28/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ import org.apache.commons.lang.StringEscapeUtils;
 /**
  * Creates and populates a RML dataset so that data can be serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
@@ -71,7 +71,7 @@ import org.apache.commons.lang.StringEscapeUtils;
  * Modified: 3/11/2017, added support for system exit codes on abnormal termination
  * Modified: 18/2/2018; Included attribute statistics calculated during transformation
  * TODO: This mode does NOT currently include support for the SLIPO Registry.
- * Last modified by: Kostas Patroumpas, 25/10/2018
+ * Last modified by: Kostas Patroumpas, 28/2/2019
  */
 public class RMLConverter implements Converter {
 
@@ -292,7 +292,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile);		    
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);		    
 		  
 	}
 
@@ -398,7 +398,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile);  
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);  
 	}
 
 
@@ -497,7 +497,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile); 
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0); 
 	}
 	
 
@@ -518,6 +518,15 @@ public class RMLConverter implements Converter {
 	public void parse(Assistant myAssistant, String wkt, Map<String, String> attrValues, Classification classific, int targetSRID, String geomType) {
 		
 	}
+
+	/**
+	 * Parses a Map structure of (key, value) pairs and streamlines the resulting triples (including geometric and non-spatial attributes).
+	 * Input provided as an individual record. This method may be used when running over Spark/GeoSpark.
+	 * TODO: Implement for RML transformation mode.
+	 */
+	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile) {
+
+	}
 	
 	/**
 	 * Stores resulting tuples into a file.	
@@ -527,7 +536,14 @@ public class RMLConverter implements Converter {
   
 	}
 			
+	/**
+	 * Finalizes storage of resulting tuples into a file. This method is used when running over Spark/GeoSpark.
+	 * Not applicable in RML transformation mode.
+	 */
+	public void store(Assistant myAssistant, String outputFile, int partition_index) {
 
+	}
+	
 	/**
 	 * Retains the header (column names) of an input CSV file.
 	 * @param header  A array of attribute (column) names.

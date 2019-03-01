@@ -1,7 +1,7 @@
 /*
- * @(#) Configuration.java 	 version 1.6   2/3/2018
+ * @(#) Configuration.java 	 version 1.7   28/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,17 +30,23 @@ import java.util.logging.Level;
  * Parser of user-specified configuration files to be used during transformation of geospatial features into RDF triples.
  *
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
  * Initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
  * Modified by: Kostas Patroumpas, 8/2/2013; adjusted to TripleGeo functionality
- * Last modified: 2/3/2018
+ * Modified by: Georgios Mandilaras, 28/12/2018; added parameterization for executions over Spark
+ * Last modified: 28/2/2019
  */
 public final class Configuration {
 
   Assistant myAssistant;
+  
+  /**
+   * Execution platform at runtime: either JVM (default) or SPARK. JVM also supports multi-threaded (concurrent) execution.
+   */
+  public String runtime = "JVM";
   
   /**
    * Transformation mode: (disk-based) GRAPH, (in-memory) STREAM, (in-memory) XSLT, or RML.
@@ -263,6 +269,17 @@ public final class Configuration {
    */
   public int dbPort;
 
+
+  /**
+   * Spark parameter for the number of partitions.
+   */
+  public int partitions;
+
+  /**
+    * Spark parameter specifying the logging level. Values INFO, WARN, and ERROR are allowed.
+    */
+  public String spark_logger_level;
+
  
   /**
    * Constructor of a Configuration object.
@@ -297,7 +314,12 @@ public final class Configuration {
    * @param properties    All properties as specified in the configuration file.
    */
   private void initializeParameters(Properties properties) {
-	 
+
+	 //Execution environment at runtime: either JVM or SPARK
+	 if (!myAssistant.isNullOrEmpty(properties.getProperty("runtime"))) {
+		 runtime = properties.getProperty("runtime").trim();
+	 }
+		 
 	 //Conversion mode: (disk-based) GRAPH, (in-memory) STREAM, (in-memory) XSLT, or RML
 	 if (!myAssistant.isNullOrEmpty(properties.getProperty("mode"))) {
 		 mode = properties.getProperty("mode").trim();
@@ -481,7 +503,20 @@ public final class Configuration {
     if (!myAssistant.isNullOrEmpty(properties.getProperty("defaultLang"))) {
         defaultLang = properties.getProperty("defaultLang").trim();
       }
-    
+
+    //Number of partitions to be used for splitting input data; used either in multi-threaded execution or execution over Spark
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("partitions"))) {
+        partitions = Integer.parseInt(properties.getProperty("partitions"));
+    }
+    else 
+    	partitions = 1;         //Default: A single input file (i.e., no partitioning)
+
+    //Level of Spark logging for performance; only used when executing transformations over Spark
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("spark_logger_level"))) {  
+    	spark_logger_level = properties.getProperty("spark_logger_level").trim();
+    }
+    else     
+    	spark_logger_level = "WARN";
   }
 
 }

@@ -1,7 +1,7 @@
 /*
- * @(#) GraphConverter.java 	 version 1.6   25/10/2018
+ * @(#) GraphConverter.java 	 version 1.7   28/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Creates and populates a Jena model stored on disk so that data can be serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
@@ -67,7 +67,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 14/2/2018; integrated handling of OSM records
  * Modified: 9/5/2018; integrated handling of GPX data 
  * Modified: 31/5/2018; integrated handling of classifications for OSM data
- * Last modified: 25/10/2018
+ * Last modified: 28/2/2019
  */
 public class GraphConverter implements Converter {
 
@@ -510,7 +510,16 @@ public class GraphConverter implements Converter {
 		
 		
 	}
-			
+
+	/**
+	 * Parses a Map structure of (key, value) pairs and streamlines the resulting triples (including geometric and non-spatial attributes).
+	 * Input provided as an individual record. This method may be used when running over Spark/GeoSpark.
+	 * TODO: Implement for GRAPH transformation mode.
+	 */
+	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile) {
+
+	}
+	
 
 	/**
 	 * Stores resulting tuples into a file.	
@@ -553,11 +562,18 @@ public class GraphConverter implements Converter {
 		
 		//Measure execution time and issue statistics on the entire process
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numStmt, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numStmt, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
 	    myGenerator.getStatistics();
 	}
 			
+	/**
+	 * Finalizes storage of resulting tuples into a file. This method may be used when running over Spark/GeoSpark.
+	 * Not applicable in GRAPH transformation mode.
+	 */
+	public void store(Assistant myAssistant, String outputFile, int partition_index) {
 
+	}
+	
 	/**
 	 * Retains the header (column names) of an input CSV file.
 	 * Not applicable in GRAPH transformation mode.		

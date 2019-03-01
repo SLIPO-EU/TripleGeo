@@ -1,7 +1,7 @@
 /*
- * @(#) Assistant.java 	 version 1.6  24/10/2018
+ * @(#) Assistant.java 	 version 1.7  28/2/2019
  *
- * Copyright (C) 2013-2018 Information Management Systems Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@ import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ibm.icu.text.Transliterator;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
@@ -82,7 +83,7 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
 /**
  * Assistance class with various helper methods used in transformation or reverse transformation.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
@@ -94,7 +95,9 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
  * Modified: 27/7/2018; auto-generation of intermediate identifiers if missing in the original data
  * Modified: 27/7/2018; added function to validate ISO 639-1 language codes
  * Modified: 9/10/2018; added built-in function to generate URIs based either on UUIDs or original feature IDs
- * Last modified by: Kostas Patroumpas, 24/10/2018
+ * Modified: 7/11/2018; added built-in function to support transliteration of string literals into Latin
+ * Modified: 26/11/2018; added built-in function for formatting phone numbers
+ * Last modified by: Kostas Patroumpas, 28/2/2019
  */
 
 public class Assistant {
@@ -291,6 +294,16 @@ public class Assistant {
 		    System.out.print(this.getGMTime() + " " + Thread.currentThread().getName() + " Processed " +  numRec + " records..." + "\r");
 	}
 
+    /**
+     * Notifies the user about progress in parsing input records. This method is used when running over Spark/GeoSpark.
+     * @param numRec  The number of records processed so far.
+     * @param partition_index  The index of the partition.
+     */
+	public void notifyProgress(int numRec, int partition_index) {
+
+		if (numRec % 1000 == 0)
+			System.out.print(this.getGMTime() + " Worker " + partition_index + " Processed " +  numRec + " records..." + "\r");
+	}
 	
 	/**
 	 * Report statistics upon termination of the transformation process.
@@ -302,11 +315,17 @@ public class Assistant {
 	 * @param mode  Transformation mode, as specified in the configuration.
 	 * @param targetSRID  Output spatial reference system (CRS).
 	 * @param outputFile  Path to the output file containing the RDF triples.
+	 * @param partition_index  The identifier (index) of the partition in case of Spark execution.
 	 */
-	public void reportStatistics(long dt, int numRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile) {
-		
-		 System.out.println(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + numRec + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
-		 
+	public void reportStatistics(long dt, int numRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile, int partition_index) {
+
+		if (currentConfig.runtime.equalsIgnoreCase("JVM")) {
+			System.out.println(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + numRec + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
+		}
+		else if (currentConfig.runtime.equalsIgnoreCase("SPARK"))  {
+			System.out.println(this.getGMTime() + " Worker " + partition_index + " completed successfully in " + dt + " ms. " + numRec + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
+		}
+			
 		 if (mbr != null)
 			 System.out.println("MBR of transformed geometries: X_min=" + mbr.getMinX() + ", Y_min=" + mbr.getMinY() + ", X_max=" + mbr.getMaxX() + ", Y_max=" + mbr.getMaxY());
 		 
@@ -550,8 +569,8 @@ public class Assistant {
 		Point centroid = g.getCentroid();
 	    try {	    	
 	      //Convert geometry to a flat Cartesian plane using GeoTools auto projection (assuming the shape is small enough to minimize error)
-	      String code = "AUTO:42001," + centroid.getX() + "," + centroid.getY();
-	      CoordinateReferenceSystem auto = CRS.decode(code);
+	      String code = "AUTO2:42001," + centroid.getX() + "," + centroid.getY();
+	      CoordinateReferenceSystem auto = CRS.decode(code, true);
 //	      System.out.println("Coordinate system units: " + auto.getCoordinateSystem().getAxis(0).getUnit().toString());
 	  	
 	      CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:" + srid);  
@@ -729,7 +748,7 @@ public class Assistant {
 	 * @param wkt  WKT of the geometry
 	 * @return  A geometry object
 	 */
-	public static Geometry WKT2Geometry(String wkt) {  
+	public Geometry WKT2Geometry(String wkt) {  
 	  	    
 		WKTReader wktReader = new WKTReader();
 		Geometry g = null;
@@ -750,7 +769,7 @@ public class Assistant {
 	 * @param polygonWKT  WKT of the polygon
 	 * @return  calculated area (in the same units as the CRS of the geometry)
 	 */
-	public static double getArea(String polygonWKT) {
+	public double getArea(String polygonWKT) {
 			
 		Geometry g = WKT2Geometry(polygonWKT);
 		return g.getArea();		                //Calculate the area of the given (multi)polygon 	
@@ -777,7 +796,7 @@ public class Assistant {
 	 * @param wkt WKT of the linestring or polygon
 	 * @return  calculated length/perimeter (in the same units as the CRS of the geometry)
 	 */	
-	public static double getLength(String wkt) {
+	public double getLength(String wkt) {
 		
 		Geometry g = WKT2Geometry(wkt);
 		return g.getLength();		                //Calculate the length of the given (multi)linestring or the perimeter of the given (multi)polygon	
@@ -886,6 +905,41 @@ public class Assistant {
 			ExceptionHandler.abort(e, "Output files were not merged.");
 		}
 	}
+
+	/**
+	 * Built-in function that provides a transliteration into phonetically equivalent Latin characters of a string literal written in a non-Latin alphabet.
+	 * @param val  The original string literal (may contain Latin characters).
+	 * @return  The transliterated sting.
+	 */
+	public String getTransliteration(String val) {
+		
+		String LANG = "Any-Latin";    //"el-el_Latn/BGN";          //Convert from any language/alphabet (Greek, Cyrillic, Arab, etc.) into Latin
+		String NORMALIZE = "NFD; [:Nonspacing Mark:] Remove; NFC";  //Used to remove accents from original strings before transliteration
+		
+		return Transliterator.getInstance(LANG + ";" + NORMALIZE).transform(val);
+	}
+
+	/**
+	 * Built-in function that brings phone numbers into a consistent format.
+	 * @param phone  The original string literal representing a phone number
+	 * @param country_code  The international country code of this phone number (e.g., 49 for Germany, 30 for Greece, etc.)
+	 * @return The formatted phone number, stripped from non-numeric characters.
+	 */
+	public String standardizePhoneNumber(String phone, String country_code) {
+
+		if ((phone == null) || (phone.trim().isEmpty()))
+			return null;
+		
+		phone = phone.replaceAll("[^+0-9]", "");   //Remove all weird characters such as /, -, (, ), ...
+
+	    if (phone.substring(0, 1).compareTo("0") == 0 && phone.substring(1, 2).compareTo("0") != 0) {
+	    		phone = "+" + country_code + phone.substring(1); // e.g. 0172 12 34 567 -> + (country_code) 172 12 34 567
+	    }
+
+	    phone = phone.replaceAll("^[0]{1,4}", "+"); // e.g. 004912345678 -> +4912345678
+
+	    return phone;
+	}
 	
 	/**
 	 * Provides the next serial number (long) to be used as an intermediate identifier
@@ -900,7 +954,7 @@ public class Assistant {
      * Also known as GUID (Globally Unique Identifier).
      * @param featureSource  The name of the feature source, to be used as suffix of the identifier.
 	 * @param id  A unique identifier of the feature.
-	 * @return The auto-generated UUID based on the concatenation of the feature source and the identifier..
+	 * @return The auto-generated UUID based on the concatenation of the feature source and the identifier.
 	 */
 	public String getUUID(String featureSource, String id) {
 			
@@ -1079,5 +1133,93 @@ public class Assistant {
 		 return res; 
 	}
 	
+
+	/**
+	 * Checks if the the input is correct.
+	 * The  input must be a directory that contains all the necessary shapefiles.
+	 * @param inputFolder the path to the input folder.
+	 * @return true or false if the input is correct.
+	 */
+	public boolean check_ShapefileFolder(String inputFolder) {
+		File dir = new File(inputFolder);
+
+		if (!dir.exists()) {
+			System.out.println("Error: Folder does not exist.");
+			return false;
+		}
+		boolean isDirectory = dir.isDirectory();
+		if (isDirectory) {
+			return check_ShapeFiles(inputFolder);
+		} else {
+			System.out.println("Error: The input must be a folder that will contain the shapefile.");
+			return false;
+		}
+	}
+
+	/**
+	 * Checks if folder contains the necessary files of Shapefile.
+	 * The files must have the same name with the folder.
+	 * @param inputFolder the path to the input folder.
+	 * @return true or false if the folder contains the necessary files.
+	 */
+	private boolean check_ShapeFiles(String inputFolder) {
+		File dir = new File(inputFolder);
+		File[] directoryListing = dir.listFiles();
+		String filename = inputFolder.substring(inputFolder.lastIndexOf("/")+1, inputFolder.length());
+		if (directoryListing != null) {
+			boolean shp_flag = false;
+			boolean dbf_flag = false;
+			boolean shx_flag = false;
+			for (File child : directoryListing) {
+				String childName = child.getName().substring(0, child.getName().lastIndexOf("."));
+				if (!childName.equals(filename))
+					continue;
+				String extension = FilenameUtils.getExtension(child.getAbsolutePath());
+				switch (extension) {
+					case "shp":
+						shp_flag = true;
+						break;
+					case "dbf":
+						dbf_flag = true;
+						break;
+					case "shx":
+						shx_flag = true;
+						break;
+				}
+			}
+			if (shp_flag && dbf_flag && shx_flag)
+				return true;
+			else {
+				System.out.println("Error: Necessary files are missing.");
+				return false;
+			}
+		} else {
+			System.out.println("Error: Necessary files are missing.");
+			return false;
+		}
+	}
+
+	/**
+	 * Returns the absolute path of the requested file.
+	 * @param extension: the extension of the file that will search for.
+	 * @param inputFolder the path to the input folder.
+	 * @return the absolute path of the requested file
+	 */
+	public String get_ShapeFile(String extension, String inputFolder) {
+		File dir = new File(inputFolder);
+		File[] directoryListing = dir.listFiles();
+		if (directoryListing != null) {
+			for (File child : directoryListing) {
+				String child_extension = FilenameUtils.getExtension(child.getAbsolutePath());
+				if (extension.equals("dbf") && child_extension.equals("dbf"))
+					return child.getAbsolutePath();
+				if (extension.equals("shp") && child_extension.equals("shp"))
+					return child.getAbsolutePath();
+				if (extension.equals("shx") && child_extension.equals("shx"))
+					return child.getAbsolutePath();
+			}
+		}
+		return null;
+	}
 	
 }

@@ -1,7 +1,7 @@
 /*
- * @(#) RdfToCsv.java 	 version 1.6   26/2/2018
+ * @(#) RdfToCsv.java 	 version 1.7   14/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,14 +53,14 @@ import eu.slipo.athenarc.triplegeo.utils.BatchReverseConverter;
  *              - Apart from a delimiter, configuration files for CSV records may also specify whether there is a quote character in string values
  *              - Reverse transformation discards attribute values that contain the quote or delimiter characters; otherwise, the CSV file may be malformed.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 6/12/2017
  * Modified: 8/12/2017, added support for reprojection in another georeference system
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
- * Last modified: 26/2/2018
+ * Last modified: 14/2/2019
  */
 public class RdfToCsv implements ReverseConverter {
 
@@ -215,6 +215,7 @@ public class RdfToCsv implements ReverseConverter {
 			if ((epsg != "") && (sourceSRID != Integer.parseInt(epsg)))
 			{
 				try {
+					System.err.println("ERROR: Input geometries are not georeferenced in the CRS specified in the configuration!");
 					throw new IllegalArgumentException(Constants.INCORRECT_SETTING);
 				} catch (Exception e) {
 					ExceptionHandler.abort(e, "ERROR: Input geometries are not georeferenced in the CRS specified in the configuration!");

@@ -1,7 +1,7 @@
 /*
- * @(#) Executor.java	version 1.6   25/10/2018
+ * @(#) Task.java	version 1.7   28/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Running a transformation task as a separate thread under the given configuration settings.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
@@ -44,7 +44,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified: 8/11/2017, added support for system exit codes on abnormal termination
  * Modified: 21/11/2017, added support for user-specified classification schemes for shapefiles, CSV, and DBMS data sources 
  * Modified: 19/7/2018, added support for JSON and OSM PBF data sources 
- * Last modified by: Kostas Patroumpas, 25/10/2018
+ * Last modified by: Kostas Patroumpas, 28/2/2019
  */
 public class Task {
 

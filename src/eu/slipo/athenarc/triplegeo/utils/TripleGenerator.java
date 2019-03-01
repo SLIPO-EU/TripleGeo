@@ -1,7 +1,7 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.6   26/10/2018
+ * @(#) TripleGenerator.java 	 version 1.7   20/12/2018
  *
- * Copyright (C) 2013-2018 Information Management Systems Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ package eu.slipo.athenarc.triplegeo.utils;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,7 +41,7 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
 /**
  * Generates a collection of RDF triples from the (spatial & thematic) attributes of a given feature.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
@@ -57,7 +58,8 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
  * Modified: 27/7/2018; values in thematic (non-spatial) attributes get cleaned from special characters (e.g., newline, quotes, etc.) that may be problematic in the resulting triples
  * Modified: 27/7/2018; improved handling of URLs and language tags
  * Modified: 9/10/2018; allowing generation of URIs either using built-in functions or by retaining original IDs
- * Last modified: 26/10/2018
+ * Modified: 11/12/2018; added support for default classification scheme; user-defined categories are mapped to a simplified scheme based on textual similarity
+ * Last modified: 20/12/2018
  */
 
 public class TripleGenerator {
@@ -73,8 +75,11 @@ public class TripleGenerator {
 	String attrURI = null;                 //Attribute used for the URI of features, as specified in the mapping of thematic attributes
 	String attrCategoryURI = null;         //Attribute used for the URI of categories, as specified in the mapping of thematic attributes
 	String attrDataSource = null;          //Attribute used for the name of data source, as specified in the mapping of thematic attributes
+	String attrAssignedCategory = null;    //Attribute used to denote an embedded category, after mapping of user-defined category to the default classification scheme
 	
 	Map<String, Integer> attrStatistics;   //Statistics for each attribute
+	
+	List<String> attrCategories = null;    //List of attribute names in the dataset that may refer to classification items listed from finest to coarser (e.g., subcategory, category, etc.)
 	
     /**
      * Constructs a TripleGenerator for transforming a feature (as a record of attributes) into RDF triples
@@ -90,6 +95,10 @@ public class TripleGenerator {
 	    results = new ArrayList<>();          //Holds a collection of RDF triples resulting from transformation
   
 	    attrStatistics = new HashMap<String, Integer>();
+	    
+	    //Keep the attribute names that may contain values from a multi-tier classification scheme
+	    if (currentConfig.attrCategory != null)
+	    	attrCategories = Arrays.asList(currentConfig.attrCategory.split("\\s*,\\s*"));    //Attribute names specified with a comma delimiter in the configuration; in addition, trim the resulting values    
 	    
 	    //Keep prefixes as specified in the configuration
 	    prefixes = new HashMap<String, String>();
@@ -113,6 +122,8 @@ public class TripleGenerator {
 		    		attrCategoryURI = key;
 		    	if ((attrMappings.find(key).predicate != null) && (attrMappings.find(key).predicate.contains("sourceRef")))
 		    		attrDataSource = key;
+		    	if ((attrMappings.find(key).entityType != null) && (attrMappings.find(key).entityType.contains("assignedCategory")))
+		    		attrAssignedCategory = key;
 		    }
 	    }
 	    //Otherwise, give default names to these extra attributes
@@ -122,6 +133,8 @@ public class TripleGenerator {
 	    	attrCategoryURI = "CATEGORY_URI";
 	    if (attrDataSource == null)
 	    	attrDataSource = "DATA_SOURCE";
+	    if (attrAssignedCategory == null)
+	    	attrAssignedCategory = "ASSIGNED_CATEGORY";
 	 }
 
 
@@ -414,6 +427,32 @@ public class TripleGenerator {
 			
 			return argv;
 	}
+
+	/**
+	 * Assigns a suitable URI for the category of this feature according to the classification scheme pertinent to the dataset
+	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute of the feature
+	 * @param classific  The classification scheme used in the category assigned to the feature
+	 * @return  True if a URI has been assigned for the category; otherwise, False.
+	 */
+	private boolean assignClassificationURI(Map<String, String> attrValues, Classification classific) {
+		
+		String valCategory = null;
+		if (classific != null)
+			for (String cat : attrCategories)  //Iterate through all attributes representing classification items, from finest to coarser
+			{
+				valCategory = attrValues.get(cat);
+				//The first NOT NULL classification value will be used to assign a category to this feature
+				if ((valCategory != null) && (classific.getUUID(valCategory) != null))
+				{
+					attrValues.put(attrCategoryURI, currentConfig.featureClassNS + classific.getUUID(valCategory));     //The URI corresponding to this category
+					attrValues.put(attrAssignedCategory, classific.getEmbedCategory(valCategory));                      //The name of the embedded category assigned in the default classification scheme
+					return true;              
+				}
+//				else
+//					System.out.println("Category " + valCategory + " not assigned!");				
+			}
+		return false;
+	}
 	
 	/**
 	 * Transforms all thematic (i.e., non-spatial) attributes according to a custom ontology specified in a YML format
@@ -430,8 +469,9 @@ public class TripleGenerator {
   	    	Set<String> indexCompAttrs = new HashSet<String>();      //Retains an index for all composite entities consisting of multiple attributes (e.g., address)
   	        	    	
   	        //Include a category identifier, as found in the classification scheme and suffixed with the user-specified namespace
-	      	if ((classific != null) && (classific.getUUID(attrValues.get(currentConfig.attrCategory))) != null)
-	      		attrValues.put(attrCategoryURI, currentConfig.featureClassNS + classific.getUUID(attrValues.get(currentConfig.attrCategory)));
+  	    	assignClassificationURI(attrValues, classific);
+//	      	if ((classific != null) && (classific.getUUID(attrValues.get(currentConfig.attrCategory))) != null)
+//	      		attrValues.put(attrCategoryURI, currentConfig.featureClassNS + classific.getUUID(attrValues.get(currentConfig.attrCategory)));
 //	      	else
 //	      		System.out.println("CATEGORY NOT FOUND:" + attrValues.get(currentConfig.attrCategory));
 	      	

@@ -1,7 +1,29 @@
 ##############################
-## Template for configuring TripleGeo ver.1.6 in order to transform data from geographical files into RDF triples.
+## Template for configuring TripleGeo ver.1.7 in order to transform data from geographical files into RDF triples.
 ## Specify parameters according to the examples for your specific input file(s).
 ##############################
+
+##############################
+# Execution environment parameters
+##############################
+
+##Specify one of the following execution platforms:
+##     JVM (for single- or multi-threaded execution; this is the DEFAULT value);
+##     SPARK .
+#runtime = JVM
+runtime = ${runtime}
+
+##Number of data partitions. The input data file will be split into this number of partitions; each will be transformed separately.
+#partitions = 3
+partitions = ${partitions}
+
+##Only when running over SPARK, optionally specify the level of logging:
+##     ERROR ;
+##     INFO ;
+##     WARN .
+#spark_logger_level = WARN
+spark_logger_level = ${spark_logger_level}
+
 
 ##############################
 ## Input and output parameters 

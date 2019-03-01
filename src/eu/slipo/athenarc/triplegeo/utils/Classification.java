@@ -1,7 +1,7 @@
 /*
- * @(#) Classification.java 	 version 1.6   4/10/2018
+ * @(#) Classification.java 	 version 1.7  28/2/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Parser for a (possibly multi-tier, hierarchical) classification scheme (category/subcategory/...). 
  * ASSUMPTION: Each category (at any level) must have a unique name, which is being used as its key the derived dictionary.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
@@ -58,13 +58,15 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Modified: 7/2/2018, supported export of classification scheme into RDF triples (modes: GRAPH, RML)
  * Modified: 15/2/2018; distinguishing whether the classification scheme is based on identifiers or names of categories
  * Modified: 2/5/2018; supported export of classification scheme into RDF triples in STREAM mode
- * Last modified by: Kostas Patroumpas, 4/10/2018
+ * Modified: 11/12/2018; added mapping to an embedded category using a default classification scheme
+ * Last modified by: Kostas Patroumpas, 28/2/2019
  */
 
 public class Classification {
 	
 	Converter myConverter;                        //Instantiation of Converter class used in the transformation of a classification scheme to RDF
 	Assistant myAssistant;
+	EmbeddedClassifier myEmbeddedClassifier;
 	private String outputFile;                    //Output RDF file
 	private Configuration currentConfig;          //User-specified configuration settings
 	
@@ -92,6 +94,7 @@ public class Classification {
 	public Classification(Configuration config, String classFile, String outFile) {
 		
 		myAssistant = new Assistant();
+		myEmbeddedClassifier = new EmbeddedClassifier();
 		currentConfig = config;
 		outputFile = outFile;     //Path to the (YML or CSV) file where classification hierarchy is stored; this path must be included in the configuration settings
 		
@@ -179,17 +182,20 @@ public class Classification {
 				String id = parts[1].replace(splitter.charAt(0),' ').trim();
 				String name = parts[0].replace(indent, ' ').trim();
 				
+				//Determine its most similar category according to the embedded (default) classification scheme
+				String embeddedCategory = myEmbeddedClassifier.assignCategory(name);
+				
 				//CAUTION! On-the-fly generation of a UUID for this category
 				String uuid = myAssistant.getUUID(id+name).toString();
 				
-//				System.out.print("KEY:" +  id + " CATEGORY: *" + name + "*");
+//				System.out.println("KEY:" +  id + " CATEGORY: *" + name + "*" + " -> " + embeddedCategory);
 				
 				// Add to top tier
 				if (level == 0) {
 					//Create a new category
-					Category category = new Category(uuid, id, name, "");      //No parent category
-					categories.put(name, category);                            //Use name of category as key when searching
-					categoryUUIDs.put(id, uuid);                               //Use original identifier as key for searching 
+					Category category = new Category(uuid, id, name, "", embeddedCategory);      //No parent category
+					categories.put(name, category);                                              //Use name of category as key when searching
+					categoryUUIDs.put(id, uuid);                                                 //Use original identifier as key for searching 
 					
 					// Check for identifier
 					if(id.isEmpty()) {
@@ -213,7 +219,7 @@ public class Classification {
 //				System.out.println(" PARENT KEY:" + parent.getId() + " -> " + parent.getName());
 								
 				//Create a new category
-				Category category = new Category(uuid, id, name, parent.getId());
+				Category category = new Category(uuid, id, name, parent.getId(), embeddedCategory);
 				
 				// Check if valid
 				if (!category.hasId() && !category.hasName()) {
@@ -279,31 +285,41 @@ public class Classification {
 			{
 				numRecs++;
 				String parent = "";
+				String embeddedCategory = "";
 				level = 0;
 				for (int i=0; i < rec.size(); i+=2)
 				{
-					if (rec.get(i+1).trim() != "")
+					if (rec.get(i+1).trim().length() > 0)
 					{
 						level++;
 						
 						//Get pairs of attribute values (ID, NAME) from the input record
+						//Also determine its most similar category according to the embedded (default) classification scheme
 						if (!currentConfig.classifyByName)
 						{
 							name = rec.get(i).trim();
 							id = rec.get(i+1).trim();	    //The description of the category is used as join attribute in the data records
+							embeddedCategory = myEmbeddedClassifier.assignCategory(id);   
+							//Alternatively, assignment based on top-tier category
+							//embeddedCategory = myEmbeddedClassifier.assignCategory(rec.get(1).trim());
 						}
 						else
 						{
 							id = rec.get(i).trim();         //The identifier of the category is used as join attribute in the data records
 							name = rec.get(i+1).trim();	
+							embeddedCategory = myEmbeddedClassifier.assignCategory(name);
+							//Alternatively, assignment based on top-tier category
+							//embeddedCategory = myEmbeddedClassifier.assignCategory(rec.get(1).trim());
 						}
 						
 						//CAUTION! On-the-fly generation of a UUID for this category
 						String uuid = myAssistant.getUUID(id+name).toString();
+
+						//System.out.println("KEY:" +  id + " CATEGORY: *" + name + "*" + " -> " + embeddedCategory);
 						
 						//Create a new category
-						Category category = new Category(uuid, id, name, parent);
-						
+						Category category = new Category(uuid, id, name, parent, embeddedCategory);
+
 						// Check if valid
 						if (!category.hasId() || !category.hasName()) {
 //							System.err.println("ERROR: Line " +  numRecs + ": Classification must have both a key and a category.");
@@ -346,6 +362,7 @@ public class Classification {
 			}
 		}
 		catch(Exception e) {
+			e.printStackTrace();
 			System.err.println("ERROR: Reading classification file failed!");
 			System.exit(1);                              //Issue signal to the operation system that execution terminated abnormally
 		}
@@ -392,6 +409,18 @@ public class Classification {
 	}
 	
 
+	/**
+	 * For a given category name, identifies its respective category in the embedded (default) classification scheme
+	 * @param categoryName  The category name to search in the user-defined classification hierarchy. Category names must be unique amongst all levels.
+	 * @return  The embedded category corresponding to that category in the user-defined classification scheme
+	 */
+	public String getEmbedCategory(String categoryName) {
+		if (categories.containsKey(categoryName))
+        	return categories.get(categoryName).getEmbedCategory();           //A category may be found at any level in this scheme
+
+		return null;
+	}
+	
 	/**
 	 * Returns the number of categories in the dictionary representation of the classification scheme
 	 * @return  Total number of categories at all levels
@@ -511,7 +540,7 @@ public class Classification {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, null, currentConfig.mode, null, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, null, currentConfig.mode, null, outputFile, 0);
 	  }
 
 
@@ -576,7 +605,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
 	  }
 
 
@@ -644,7 +673,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile);
+	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
 	  }
 
 }

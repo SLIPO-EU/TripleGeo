@@ -1,7 +1,7 @@
 /*
- * @(#) RdfToShp.java 	 version 1.6   8/3/2018
+ * @(#) RdfToShp.java 	 version 1.7   1/3/2019
  *
- * Copyright (C) 2013-2018 Information Systems Management Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ package eu.slipo.athenarc.triplegeo.tools;
 
 import java.io.File;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,6 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.factory.Hints;
-import org.geotools.feature.FeatureCollections;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
@@ -67,14 +67,16 @@ import eu.slipo.athenarc.triplegeo.utils.BatchReverseConverter;;
  *              - Attribute names are limited in length (max 10 characters); otherwise, they get truncated;
  *              - Not all data types can be supported (e.g., Timestamp values must be represented as Strings).
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.7
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 7/12/2017
  * Modified: 8/12/2017, added support for geometry types and reprojection using GeoTools instead of string manipulation of WKT literals
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
- * Last modified: 8/3/2018
+ * Modified: 8/11/2018, included support for also exporting URI resources in attribute values
+ * Modified: 1/3/2019, changed method for writing to the shapefile by removing deprecated dependencies
+ * Last modified: 1/3/2019
  */
 public class RdfToShp implements ReverseConverter {
 
@@ -90,7 +92,6 @@ public class RdfToShp implements ReverseConverter {
 	  
 	  ShapefileDataStore newDataStore;
 	  SimpleFeatureBuilder featureBuilder;
-	  SimpleFeatureCollection collection;
 	  String geomType;
 	  String typeName;
 	  String attrGeom;                                 //Name of the geometry attribute in the resulting file
@@ -130,9 +131,6 @@ public class RdfToShp implements ReverseConverter {
 	          params.put("create spatial index", Boolean.FALSE);
 	          params.put("charset", encoding);
 	          newDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
-      
-	          //This collection will hold the batch of results that will be written into the shapefile
-	          collection = FeatureCollections.newCollection();
 	          numRecs = 0;
 	          
 	      } catch (Exception e) {
@@ -195,7 +193,13 @@ public class RdfToShp implements ReverseConverter {
 	      try {
 		        for (int i=0; i < attrList.size(); i++)
 		        {
-		        	Literal r = sol.getLiteral(attrList.get(i));	
+		        	Literal r;
+		        	if (sol.get(attrList.get(i)) == null) 
+		        		r = null;
+		        	else if (!sol.get(attrList.get(i)).isLiteral())             //Non-literal values are converted to string literals
+		        		r = sol.get(attrList.get(i)).getModel().createLiteral(sol.get(attrList.get(i)).toString());
+		        	else
+		        		r = sol.getLiteral(attrList.get(i));	
 		        	if (r != null)
 		        	{   //Designating typical data types for attributes
 		        		String d = r.getDatatypeURI().toLowerCase();
@@ -293,7 +297,9 @@ public class RdfToShp implements ReverseConverter {
 		  			geomType = "MultiPolygon";
 		  		else if ((geomType.toUpperCase().equals("LINESTRING")) || (geomType.toUpperCase().equals("MULTILINESTRING")))
 		  			geomType = "MultiLineString";
-		  		else if ((!geomType.toUpperCase().equals("POINT")) && (!geomType.toUpperCase().equals("MULTIPOINT")))
+		  		else if (geomType.toUpperCase().equals("MULTIPOINT"))
+		  			geomType = "MultiPoint";
+		  		else if (!geomType.toUpperCase().equals("POINT"))
 		  			throw new UnsupportedOperationException("Input geometries are of type " + geomType);
 	  		} catch (Exception e) {
             	ExceptionHandler.abort(e, "ERROR: Geometry type " + geomType + " is not supported in shapefiles.");
@@ -311,9 +317,9 @@ public class RdfToShp implements ReverseConverter {
 	 * @param results  Collection of records in the current batch.
 	 * @return  The number of records resulted in the current batch.  
 	 */
-	@SuppressWarnings("static-access")
 	public Integer store(List<String> attrList, List<List<String>> results) {
 
+		List<SimpleFeature> listFeatures = new ArrayList<SimpleFeature>();
 		boolean valid;
 	      try {
 			    //Iterate through all results in this batch in order to create the collection
@@ -331,7 +337,7 @@ public class RdfToShp implements ReverseConverter {
 			    				g = myAssistant.WKT2Geometry(rec.get(i).substring(rec.get(i).indexOf('>')+1).trim());
 			    			if (!g.isValid() || (!geomType.contains(g.getGeometryType())))
 			    			{
-			    				System.out.println("Geometry is not valid or has a different type with the rest in the shapefile.");
+			    				System.err.println(g.toText() + " is not valid or has a different geometry type. This feature will not be included in the shapefile.");
 			    				featureBuilder.reset();
 			    				valid = false;    //Mark this geometry as invalid; Also applies to a valid WKT, but incompatible with the geometry type specified for the shapefile
 			    				break;
@@ -346,19 +352,18 @@ public class RdfToShp implements ReverseConverter {
 			    	if (valid)                 //Only valid geometries should be included in the shapefile
 			    	{
 			    		SimpleFeature feature = featureBuilder.buildFeature(null);
-			    		collection.add(feature);	
+			    		listFeatures.add(feature);
 			    		numRecs++;
 			    	}
 			    }
-			    
-//			    System.out.println("Collection with " + collection.size() + " features created!");
-			    		
+			    		    		
                 //Write the collected features into the shapefile
                 try {
                     if (featureSource instanceof SimpleFeatureStore) {
                         featureStore.setTransaction(transaction);
-                        featureStore.addFeatures(collection);
-                        collection = FeatureCollections.newCollection();      //Create a new collection for the next batch
+                        SimpleFeatureCollection collection = DataUtilities.collection(listFeatures);
+                        featureStore.addFeatures(collection);    //Store collected features
+                        listFeatures.clear();                    //Clear list to hold features for the next batch
                     } 
                 } catch (Exception e) {
                 	ExceptionHandler.abort(e, "ERROR: This " + typeName + " does not support read/write access.");
