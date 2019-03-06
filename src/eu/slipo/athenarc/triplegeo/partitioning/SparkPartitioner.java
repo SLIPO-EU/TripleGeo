@@ -1,5 +1,5 @@
 /*
- * @(#) SparkPartitioner.java	version 1.7   28/2/2019
+ * @(#) SparkPartitioner.java	version 1.7   6/3/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -57,7 +57,7 @@ import org.apache.log4j.Logger;
 
 /* DEVELOPMENT HISTORY
  * Created by: Georgios Mandilaras, 20/12/2018
- * Last modified: 28/2/2019
+ * Last modified: 6/3/2019
  */
 public class SparkPartitioner {
 
@@ -169,11 +169,14 @@ public class SparkPartitioner {
                 }
 
                 df_rdd
-                        .map((Function<Row, Map>) row -> {
-                            Map<String,String> map = new HashMap<>();
-                            for(int i=0; i<columns.length; i++)
-                                map.put(columns[i], row.get(i).toString());
-                            return map;
+                .map((Function<Row, Map>) row -> {
+	                    Map<String,String> map = new HashMap<>();
+	                    for(int i=0; i<columns.length; i++)
+	                        try{
+	                              map.put(columns[i], row.get(i).toString());
+	                        }
+	                        catch (NullPointerException e){}
+	                    return map;
                         })
                         .foreachPartition((VoidFunction<Iterator<Map<String, String>>>) map_iter -> {
                             int partition_index = TaskContext.getPartitionId();
