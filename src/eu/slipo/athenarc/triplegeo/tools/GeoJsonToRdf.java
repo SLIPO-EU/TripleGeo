@@ -1,5 +1,5 @@
 /*
- * @(#) GeoJsonToRdf.java	version 1.7   19/7/2018
+ * @(#) GeoJsonToRdf.java	version 1.8   19/7/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -43,7 +43,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: - Nested properties (non-spatial) in GeoJSON are considered as carrying NULL values by GeoTools.
  *              - Each feature must have the same properties, i.e., all features must comply with the same attribute schema. 
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -51,6 +51,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 3/11/2017, added support for system exit codes on abnormal termination
  * Modified: 7/11/2017, fixed issue with multiple instances of CRS factory
  * Modified: 13/12/2017, utilizing a streaming iterator in order to avoid loading the entire feature collection into memory
+ * TODO: Upgrade to newer GeoTools library for GeoJSON.
  * Last modified by: Kostas Patroumpas, 19/7/2018
  */
 public class GeoJsonToRdf {
@@ -171,7 +172,7 @@ public class GeoJsonToRdf {
     		System.out.println(Constants.WGS84_PROJECTION);
     	}
     	
-        iterator = fJSON.streamFeatureCollection(jsonPath);
+        iterator = fJSON.streamFeatureCollection(jsonPath);        
 	  }
 	  catch (Exception e) {
 			ExceptionHandler.abort(e, "Cannot access input file.");      //Execution terminated abnormally

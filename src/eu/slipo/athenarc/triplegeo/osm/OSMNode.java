@@ -1,5 +1,5 @@
 /*
- * @(#) OSMNode.java 	 version 1.7   24/2/2018
+ * @(#) OSMNode.java 	 version 1.8   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -43,7 +43,7 @@ public class OSMNode implements Serializable{
     private String changeset;
     private final Map<String, String> tags = new HashMap<>(); 
     
-    //attribute getters
+    //Attribute getters
     public String getID(){
         return id;
     }
@@ -88,7 +88,7 @@ public class OSMNode implements Serializable{
         return tags;
     }      
     
-    //attributes setters
+    //Attribute setters
     public void setID(String id){
         this.id = id;
     }

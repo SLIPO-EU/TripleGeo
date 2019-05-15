@@ -1,5 +1,5 @@
 /*
- * @(#) Configuration.java 	 version 1.7   28/2/2019
+ * @(#) Configuration.java 	 version 1.8   24/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -30,14 +30,14 @@ import java.util.logging.Level;
  * Parser of user-specified configuration files to be used during transformation of geospatial features into RDF triples.
  *
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
  * Modified by: Kostas Patroumpas, 8/2/2013; adjusted to TripleGeo functionality
  * Modified by: Georgios Mandilaras, 28/12/2018; added parameterization for executions over Spark
- * Last modified: 28/2/2019
+ * Last modified: 24/4/2019
  */
 public final class Configuration {
 
@@ -169,7 +169,12 @@ public final class Configuration {
   /**
    * SQL filter to be applied on the database table.
    */
-  public String filterSQLCondition;
+  public String filterSQLCondition = null;
+  
+  /**
+   * Spatial filter to be applied on the input dataset.
+   */
+  public String spatialExtent = null;
   
   /**
    * Name of the input attribute containing a unique identifier of each feature.
@@ -444,7 +449,12 @@ public final class Configuration {
 	if (!myAssistant.isNullOrEmpty(properties.getProperty("attrY"))) {
         attrY = properties.getProperty("attrY").trim();
       }
-	
+
+	//Topological filter applied over input dataset (except for database tables)
+    if (!myAssistant.isNullOrEmpty(properties.getProperty("spatialExtent"))) {
+    	spatialExtent = properties.getProperty("spatialExtent").trim();
+      }
+    
     //CUSTOM: Indicates whether to export a CSV file with records for the SLIPO Registry
     if ((properties.containsKey("registerFeatures")) && (!myAssistant.isNullOrEmpty(properties.getProperty("registerFeatures").trim()))) {
     	registerFeatures = Boolean.parseBoolean(properties.getProperty("registerFeatures").trim());

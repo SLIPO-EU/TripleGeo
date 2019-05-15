@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseExtractor.java	version 1.7   28/2/2018
+ * @(#) ReverseExtractor.java	version 1.8   28/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -37,7 +37,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  * LIMITATIONS: Currently only supporting CSV (delimited) files and ESRI Shapefiles.
  * TODO: Include support for GEOJSON?
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -49,8 +49,7 @@ public class ReverseExtractor {
 
 	static Assistant myAssistant;
 	private static ReverseConfiguration currentConfig;
-	static String[] inputFiles;
-//	static String dir; 	                                //Path to a graph model that will be created on disk
+	static String[] inputFiles;                         //Path to a graph model that will be created on disk
 	static BatchReverseConverter myReverseConverter;
 	static String sparqlFile;                           //Path to file containing a SPARQL SELECT query over this graph
 	static String outFile;                              //Path to the file where the reconverted data will be written
@@ -66,12 +65,12 @@ public class ReverseExtractor {
 
 	    System.out.println(Constants.COPYRIGHT);
 	   
-	    if (args.length >= 0)  {  //Takes two arguments: 1) configuration file and 2) file containing a SELECT query in SPARQL
+	    if (args.length >= 0)  {  //Takes as argument a configuration file for the reverse transformation (which also points to a file containing a SELECT query in SPARQL)
 
 	    	myAssistant = new Assistant();
 	    	
 	    	//Specify a configuration file with properties used in the conversion
-	    	currentConfig = new ReverseConfiguration(args[0]);          //First argument like "./test/shp_options.conf"	
+	    	currentConfig = new ReverseConfiguration(args[0]);          //Argument like "./test/shp_reverse_options.conf"	
 	    	
 	        try { 	
 				//Check how many input files have been specified
@@ -139,7 +138,7 @@ public class ReverseExtractor {
 				}
 				
 				try {
-					//Remove intermediate files created in the temporary directory in previous executions
+					//Remove any intermediate files possibly remained in the temporary directory after previous executions
 					myAssistant.removeDirectory(currentConfig.tmpDir);
 					  
 		    	  	//Call reverse converter
@@ -159,7 +158,7 @@ public class ReverseExtractor {
 					  
 					//Finally, close the graph model
 					myReverseConverter.closeModel();	
-					  
+				  
 					//... and the output file
 					conv.close();
 					
@@ -173,10 +172,8 @@ public class ReverseExtractor {
 	         ExceptionHandler.abort(e, "Reverse transformation from RDF graph failed.");  
 	      } 
 		  finally {
-//			  dir = myAssistant.removeDirectory(currentConfig.tmpDir);
 			  System.out.println(myAssistant.getGMTime() + " Reverse transformation process terminated successfully!");
 			  System.out.println("Records were written into output file:" + outFile.toString());
-			  System.exit(0);          //Execution completed successfully
 		  }
 	    }
 	    else {

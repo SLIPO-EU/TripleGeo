@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.7   10/10/2018
+ * @(#) TripleGenerator.java 	 version 1.8   10/5/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -33,18 +33,19 @@ import org.yaml.snakeyaml.Yaml;
 /**
  * Retains mappings of feature attributes (input) to RDF predicates (output) that will be used in generation of triples.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 21/12/2017
  * Modified: 21/12/2017, added reverse dictionary for each RDF predicate
  * Modified: 23/12/2017, added support for reading mappings from YML file
- * Modified: 25/4/2018; included specification for multi-faceted attributes with wild char '%'
+ * Modified: 25/4/2018; included specification for multi-faceted (mainly multi-lingual) attributes with wild char '%LANG'
  * Modified: 30/4/2018; included specification for geometry-based, built-in functions
  * Modified: 11/5/2018; included specification for literals with language tags; built-in functions with arguments 
  * Modified: 9/10/2018; included specification for custom URIs
- * Last modified: 10/10/2018
+ * Modified: 10/5/2019; extended support for multi-faceted properties with wild char '*'
+ * Last modified: 10/5/2019
  */
 
 public class Mapping {
@@ -388,11 +389,15 @@ public class Mapping {
 		if (props.getMappingProfile().equals(MappingProfile.IS_URI))
 			this.extraThematicAttrs.remove(key);
 		
-		//Check whether the key (i.e., attribute name) contains the wild char '%' that is being used to distinguish multi-faceted attributes
-		if (key.contains("%"))
+		//Check whether the key (i.e., attribute name) contains wildcards '%' or '*' used to distinguish multi-faceted attributes
+		if (key.endsWith("%LANG"))                            //Specification for multi-lingual properties
 		{
 			key = key.substring(0, key.indexOf('%'));         //Keep this attribute name after stripping off the suffix
 			this.multiFacetedAttrs.add(key);   
+		}
+		else if (key.contains("*"))                           //Other multi-item properties
+		{     
+			this.multiFacetedAttrs.add(key);                  //Keep this attribute name as is, including the wildcard character
 		}
 		
 		//Hold these properties using the attribute name as key
@@ -469,11 +474,15 @@ public class Mapping {
 					if (props.getMappingProfile().equals(MappingProfile.IS_URI))
 						this.extraThematicAttrs.remove(key);
 						
-					//Check whether the key (i.e., attribute name) contains the wild char '%' that is being used to distinguish multi-faceted attributes
-					if (key.contains("%"))
+					//Check whether the key (i.e., attribute name) contains wildcards '%' or '*' used to distinguish multi-faceted attributes
+					if (key.endsWith("%LANG"))                            //Specification for multi-lingual properties
 					{
 						key = key.substring(0, key.indexOf('%'));         //Keep this attribute name after stripping off the suffix
 						this.multiFacetedAttrs.add(key);   
+					}
+					else if (key.contains("*"))                           //Other multi-item properties
+					{     
+						this.multiFacetedAttrs.add(key);                  //Keep this attribute name as is, including the wildcard character
 					}
 					
 					//Hold these properties using the attribute name as key
@@ -528,8 +537,17 @@ public class Mapping {
 	public String findMultiFaceted(String key) {
 		
 		for (String item : this.multiFacetedAttrs)
-			if (key.startsWith(item))              //Multi-faceted attribute exists
+		{
+			//Check whether multi-faceted attribute exists
+			if (key.startsWith(item))        //Wildcard with language specs at the end of attribute name in the mapping      
 				return item;
+			else if (item.contains("*"))     //Wildcard inside the attribute name in the mapping; used for multi-item properties
+			{
+				String[] parts = item.split("\\*");
+				if  ((key.startsWith(parts[0]) && (key.endsWith(parts[parts.length-1]))))
+					return item;					
+			}
+		}
 		
 		return null;   
 	}

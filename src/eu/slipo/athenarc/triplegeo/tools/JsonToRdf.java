@@ -1,5 +1,5 @@
 /*
- * @(#) JsonToRdf.java 	 version 1.7   25/10/2018
+ * @(#) JsonToRdf.java 	 version 1.8   18/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -55,14 +55,14 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Main entry point of the utility for extracting RDF triples from JSON documents.
  * LIMITATIONS: The entire JSON document is read in memory before parsing, so large files require suitable configuration of the JVM heap size. 
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 19/7/2018
  * Modified: 20/7/2018, added support for exporting all available non-spatial attributes as properties
  * Modified: 25/10/2018; integrate handling of a user-specified classification scheme for features.
- * Last modified by: Kostas Patroumpas, 25/10/2018
+ * Last modified by: Kostas Patroumpas, 18/4/2019
 */
 
 public class JsonToRdf {  
@@ -99,7 +99,7 @@ public class JsonToRdf {
 		  outputFile = outFile;
 		  this.sourceSRID = sourceSRID;
 	      this.targetSRID = targetSRID;
-	      myAssistant = new Assistant();
+	      myAssistant = new Assistant(config);
 	      
 	      //Check if a coordinate transform is required for geometries
 	      if (currentConfig.targetCRS != null) {

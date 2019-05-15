@@ -1,5 +1,5 @@
 /*
- * @(#) CsvToRdf.java 	 version 1.7   5/10/2018
+ * @(#) CsvToRdf.java 	 version 1.8   5/10/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -59,7 +59,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: Currently, only supporting CSV files with header (i.e., named attributes).
  *              Apart from a delimiter, configuration files for CSV records must also specify whether there is a quote character in string values.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY

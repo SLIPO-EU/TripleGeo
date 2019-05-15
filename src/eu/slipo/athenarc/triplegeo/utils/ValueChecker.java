@@ -1,5 +1,5 @@
 /*
- * @(#) ValueChecker.java 	 version 1.7   25/10/2018
+ * @(#) ValueChecker.java 	 version 1.8   25/10/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -56,7 +56,7 @@ class Pattern {
  * Removes or replaces illegal characters from a literal value.
  * LIMITATIONS: Currently handling only some basic cases that may cause trouble (e.g., line breaks) in literals included in RDF triples.
  * @author Kostas Patroumpas
- * @version 1.6
+ * @version 1.8
  */
 public class ValueChecker {
 

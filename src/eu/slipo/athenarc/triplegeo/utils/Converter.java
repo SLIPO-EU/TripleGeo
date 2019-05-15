@@ -1,5 +1,5 @@
 /*
- * @(#) Converter.java 	 version 1.7   28/2/2019
+ * @(#) Converter.java 	 version 1.8   28/2/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -39,7 +39,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Conversion Interface for TripleGeo used in transformation of spatial features (including their non-spatial attributes) into RDF triples with various serializations.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY

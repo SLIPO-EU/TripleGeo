@@ -1,5 +1,5 @@
 /*
- * @(#) ShpToRdf.java	version 1.7   5/10/2018
+ * @(#) ShpToRdf.java	version 1.8   19/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -48,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Entry point to convert ESRI shapefiles into RDF triples.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -59,7 +59,8 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
  * Modified: 13/12/2017, utilizing a streaming iterator in order to avoid loading the entire feature collection into memory
  * Modified: 12/7/2018, checking availability of basic shapefile components before starting any processing
- * Last modified by: Kostas Patroumpas, 5/10/2018
+ * Modified: 19/4/2019, included support for spatial filtering over the input shapefile
+ * Last modified by: Kostas Patroumpas, 19/4/2019
  */
 public class ShpToRdf {
 	
@@ -196,7 +197,7 @@ public class ShpToRdf {
 		    	
 		    	//Create a feature source over this shapefile
 		    	FeatureSource<?, ?> featureSource = dataStore.getFeatureSource(dataStore.getTypeNames()[0]);
-		    	
+		    		    	
 		    	//In case no CRS transformation has been specified, keep resulting geometries in their original georeferencing
 		    	if (targetSRID == 0)
 		    	{   
@@ -207,8 +208,8 @@ public class ShpToRdf {
 		    			ExceptionHandler.abort(e, "Cannot recognize the coordinate reference system used for the input data. Please specify this in the configuration settings.");
 		    		}
 		    	} 
-		    	
-		    	return featureSource.getFeatures().features();               //Actually returning an iterator over the feature collection
+	    	
+		    	return featureSource.getFeatures().features();    //Actually returning an iterator over the feature collection
 		    }
 	    } catch (Exception e) {
 	    	ExceptionHandler.abort(e, "Cannot access input file.");      //Execution terminated abnormally

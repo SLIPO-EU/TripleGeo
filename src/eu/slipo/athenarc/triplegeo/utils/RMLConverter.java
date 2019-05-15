@@ -1,5 +1,5 @@
 /*
- * @(#) RMLDatasetConverter.java 	 version 1.7   28/2/2019
+ * @(#) RMLDatasetConverter.java 	 version 1.8   22/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -63,15 +63,16 @@ import org.apache.commons.lang.StringEscapeUtils;
 /**
  * Creates and populates a RML dataset so that data can be serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 27/9/2013
  * Modified: 3/11/2017, added support for system exit codes on abnormal termination
- * Modified: 18/2/2018; Included attribute statistics calculated during transformation
+ * Modified: 18/2/2018; included attribute statistics calculated during transformation
+ * Modified: 22/4/2019; included support for spatial filtering over input datasets
  * TODO: This mode does NOT currently include support for the SLIPO Registry.
- * Last modified by: Kostas Patroumpas, 28/2/2019
+ * Last modified by: Kostas Patroumpas, 22/4/2019
  */
 public class RMLConverter implements Converter {
 
@@ -91,7 +92,8 @@ public class RMLConverter implements Converter {
 	//Used in performance metrics
 	private long t_start;
 	private long dt;
-	private int numRec;
+	private int numRec;            //Number of entities (records) in input dataset
+	private int rejectedRec;       //Number of rejected entities (records) from input dataset after filtering
 	private int numTriples;
 	
 	/**
@@ -148,6 +150,7 @@ public class RMLConverter implements Converter {
 	      dt = 0;
 	      numRec = 0;
 	      numTriples = 0;  
+	      rejectedRec = 0;
 	}
 
 	  
@@ -217,6 +220,7 @@ public class RMLConverter implements Converter {
 			while(iterator.hasNext()) {
 	  
 				feature = (SimpleFeatureImpl) iterator.next();
+				++numRec;
 				
 				//Determine the attribute schema according to the first one of these features 
 				if (!schemaFixed)
@@ -234,7 +238,14 @@ public class RMLConverter implements Converter {
 				
 				//Handle geometry
 				geometry = (Geometry) feature.getDefaultGeometry();
-				  
+
+				//Apply spatial filtering (if specified by user)
+				if (!myAssistant.filterContains(geometry.toText()))
+				{
+					rejectedRec++;
+					continue;
+				}
+				
 				//CRS transformation
 		      	if (reproject != null)
 		      		geometry = myAssistant.geomTransform(geometry, reproject);     
@@ -258,15 +269,13 @@ public class RMLConverter implements Converter {
 		      	//Include a category identifier, as found in the classification scheme
 		      	if (classific != null)
 		      		row.put("CATEGORY_URI", classific.getUUID(feature.getAttribute(currentConfig.attrCategory).toString()));
-		      	System.out.println(feature.getAttribute(currentConfig.attrCategory).toString() + " " + classific.findUUID(feature.getAttribute(currentConfig.attrCategory).toString()));
+//		      	System.out.println(feature.getAttribute(currentConfig.attrCategory).toString() + " " + classific.findUUID(feature.getAttribute(currentConfig.attrCategory).toString()));
 		      	
 		      	//CAUTION! Also include a UUID as a 128-bit string that will become the basis for the URI assigned to the resulting triples
 		      	row.put("UUID", myAssistant.getUUID(feature.getAttribute(currentConfig.attrKey).toString()).toString());
 		      	
 		        //Apply the transformation according to the given RML mapping		      
 		        this.parseWithRML(row, dataset);
-		       
-		        ++numRec;
 			  
 			    //Periodically, dump results into output file
 				if (numRec % currentConfig.batch_size == 0) 
@@ -292,7 +301,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);		    
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);		    
 		  
 	}
 
@@ -398,7 +407,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);  
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);  
 	}
 
 
@@ -428,6 +437,7 @@ public class RMLConverter implements Converter {
 			for (Iterator<CSVRecord> iterator = records; iterator.hasNext();) {
 				
 	            CSVRecord rs = (CSVRecord) iterator.next();
+		        ++numRec;
 	            
 		      	//Pass all attribute values into a hash map in order to apply RML mapping(s) directly
 		      	HashMap<String, String> row = new HashMap<>();	
@@ -453,7 +463,13 @@ public class RMLConverter implements Converter {
 					wkt = rs.get(currentConfig.attrGeometry);  //ASSUMPTION: Geometry values are given as WKT
 				
 		      	if (wkt != null)
-		      	{							
+		      	{		
+		      		//Apply spatial filtering (if specified by user)
+					if (!myAssistant.filterContains(wkt))
+					{
+						rejectedRec++;
+						continue;
+					}
 					//CRS transformation
 			      	if (reproject != null)
 			      		wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
@@ -473,8 +489,6 @@ public class RMLConverter implements Converter {
 		      	
 		        //Apply the transformation according to the given RML mapping		      
 		        this.parseWithRML(row, dataset);
-		       
-		        ++numRec;
 			  
 			    //Periodically, dump results into output file
 				if (numRec % currentConfig.batch_size == 0) 
@@ -497,7 +511,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0); 
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0); 
 	}
 	
 

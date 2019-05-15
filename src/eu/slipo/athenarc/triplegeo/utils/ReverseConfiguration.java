@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseConfiguration.java 	 version 1.7   2/3/2018
+ * @(#) ReverseConfiguration.java 	 version 1.8   2/3/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -29,7 +29,7 @@ import java.util.logging.Level;
  * Parser of user-specified configuration files for reconstructing records from an RDF graph (Reverse Transformation).
  * 
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -146,7 +146,7 @@ public final class ReverseConfiguration {
   /**
    * Initializes all the parameters for the reverse transformation.
    *
-   * @param   All properties as specified in the configuration file.
+   * @param  properties All properties as specified in the configuration file.
    */
   private void initializeParameters(Properties properties) {
 	  

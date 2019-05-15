@@ -1,5 +1,5 @@
 /*
- * @(#) OSMRelation.java 	 version 1.7   27/6/2018
+ * @(#) OSMRelation.java 	 version 1.8   27/6/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *

@@ -1,5 +1,5 @@
 /*
- * @(#) OsmPbfToRdf.java	version 1.7   24/10/2018
+ * @(#) OsmPbfToRdf.java	version 1.8   24/10/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -79,7 +79,7 @@ import eu.slipo.athenarc.triplegeo.utils.ValueChecker;
  * LIMITATIONS: - Depending on system and JVM resources, transformation can handle only a moderate amount of OSM features.
  *              - RML transformation mode not currently supported. 
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY

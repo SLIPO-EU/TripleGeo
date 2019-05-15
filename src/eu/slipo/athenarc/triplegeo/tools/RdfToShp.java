@@ -1,5 +1,5 @@
 /*
- * @(#) RdfToShp.java 	 version 1.7   1/3/2019
+ * @(#) RdfToShp.java 	 version 1.8   24/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -57,17 +57,17 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
 import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
-import eu.slipo.athenarc.triplegeo.utils.BatchReverseConverter;;
+
 
 /**
  * Main entry point of the utility for reconverting triples from a RDF graph into an ESRI Shapefile.
  * LIMITATIONS: The Shapefile format has several limitations:
  *              - The GEOMETRY attribute is always declared first, and can only store geometries of a single type;
- *              - Geometries must be of type Point, MultiPoint, MuiltiLineString, MultiPolygon;
+ *              - Geometries must be of one of the following types: Point, MultiPoint, MuiltiLineString, MultiPolygon;
  *              - Attribute names are limited in length (max 10 characters); otherwise, they get truncated;
  *              - Not all data types can be supported (e.g., Timestamp values must be represented as Strings).
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -76,11 +76,10 @@ import eu.slipo.athenarc.triplegeo.utils.BatchReverseConverter;;
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
  * Modified: 8/11/2018, included support for also exporting URI resources in attribute values
  * Modified: 1/3/2019, changed method for writing to the shapefile by removing deprecated dependencies
- * Last modified: 1/3/2019
+ * Last modified: 24/4/2019
  */
 public class RdfToShp implements ReverseConverter {
 
-	  BatchReverseConverter myReverseConverter;
 	  Assistant myAssistant;
 	  private MathTransform reproject = null;
 	  WKTReader reader;
@@ -343,7 +342,10 @@ public class RdfToShp implements ReverseConverter {
 			    				break;
 			    			}
 			    			else
+			    			{
 			    				featureBuilder.add(g);    //Valid geometry, also compatible with the geometry type in the shapefile
+			    				myAssistant.updateMBR(g);
+			    			}
 			    		}
 			    		else 
 			    			featureBuilder.add(rec.get(i));

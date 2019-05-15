@@ -1,5 +1,5 @@
 /*
- * @(#) MapToRdf.java 	 version 1.7   28/2/2019
+ * @(#) MapToRdf.java 	 version 1.8   7/3/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -19,6 +19,8 @@
 package eu.slipo.athenarc.triplegeo.tools;
 
 import eu.slipo.athenarc.triplegeo.utils.*;
+
+import org.apache.commons.io.FilenameUtils;
 import org.geotools.factory.Hints;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
@@ -31,12 +33,12 @@ import java.util.Map;
 /**
  * Main entry point of the utility for extracting RDF triples from a Map.
  * @author Georgios Mandilaras
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Georgios Mandilaras, 20/12/2018
- * Last modified: 28/2/2019
+ * Last modified: 7/3/2019
 */
 public class MapToRdf {
 
@@ -59,12 +61,31 @@ public class MapToRdf {
 
     public MapToRdf(Configuration config, Classification classific, String outFile, int sourceSRID, int targetSRID, Iterator<Map<String,String>> input, int index) throws ClassNotFoundException {
 
-        this.currentConfig = config;
-        this.classification = classific;
+        this.currentConfig = config;      
+        myAssistant = new Assistant();
+        
+		//Check whether a classification hierarchy is specified in a separate file and apply transformation accordingly
+        try { 			  
+			if ((currentConfig.classificationSpec != null) && (!currentConfig.inputFormat.contains("OSM")))    //Classification for OSM XML data is handled by the OSM converter
+			{
+				String outClassificationFile = currentConfig.outputDir + FilenameUtils.getBaseName(currentConfig.classificationSpec) + "_" + index + myAssistant.getOutputExtension(currentConfig.serialization);
+				this.classification = new Classification(currentConfig, currentConfig.classificationSpec, outClassificationFile);  
+			} 
+        }  
+     	//Handle any errors that may have occurred during reading of classification hierarchy  
+        catch (Exception e) {  
+        	ExceptionHandler.abort(e, "Failed to read classification hierarchy.");  
+     	} 
+        finally {
+        	if (this.classification != null)
+        		System.out.println(myAssistant.getGMTime() + " Classification hierarchy read successfully!");
+        	else if (!currentConfig.inputFormat.contains("OSM"))
+        		System.out.println("No classification hierarchy specified for features to be extracted.");
+        }
+        
         this.outputFile = outFile;
         this.sourceSRID = sourceSRID;
-        this.targetSRID = targetSRID;
-        myAssistant = new Assistant();
+        this.targetSRID = targetSRID;        
         this.data = input;
         this.partition_index = index;
         //Check if a coordinate transform is required for geometries

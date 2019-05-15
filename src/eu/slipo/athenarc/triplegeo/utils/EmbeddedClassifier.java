@@ -1,5 +1,5 @@
 /*
- * @(#) EmbeddedClassifier.java	version 1.7  12/12/2018
+ * @(#) EmbeddedClassifier.java	version 1.8  12/12/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -32,7 +32,7 @@ import org.apache.commons.lang3.StringUtils;
  * Assigns a category based on the textual similarity of a given description to a collection of tags characterizing the category.
  * Correspondence between default (embedded) categories and tags is stored in a resource YML file (dictionary).
  * @author Kostas Patroumpas
- * @version 1.7 
+ * @version 1.8 
  */
 
 /* DEVELOPMENT HISTORY

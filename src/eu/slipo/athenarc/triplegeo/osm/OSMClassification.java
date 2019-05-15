@@ -1,5 +1,5 @@
 /*
- * @(#) OsmClassification.java	version 1.7   24/10/2018
+ * @(#) OsmClassification.java	version 1.8   24/10/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -33,7 +33,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Given a YAML file with OSM tags and their correspondence to categories/subcategories, it creates a representation of a hierarchical classification scheme.
  * LIMITATION: The resulting classification scheme is stored in an intermediate CSV file. 
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY

@@ -1,5 +1,5 @@
 /*
- * @(#) Classification.java 	 version 1.7  28/2/2019
+ * @(#) Classification.java 	 version 1.8  18/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -49,7 +49,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Parser for a (possibly multi-tier, hierarchical) classification scheme (category/subcategory/...). 
  * ASSUMPTION: Each category (at any level) must have a unique name, which is being used as its key the derived dictionary.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -59,7 +59,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Modified: 15/2/2018; distinguishing whether the classification scheme is based on identifiers or names of categories
  * Modified: 2/5/2018; supported export of classification scheme into RDF triples in STREAM mode
  * Modified: 11/12/2018; added mapping to an embedded category using a default classification scheme
- * Last modified by: Kostas Patroumpas, 28/2/2019
+ * Last modified by: Kostas Patroumpas, 18/4/2019
  */
 
 public class Classification {
@@ -540,7 +540,7 @@ public class Classification {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, null, currentConfig.mode, null, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, null, currentConfig.mode, null, outputFile, 0);
 	  }
 
 
@@ -605,7 +605,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
 	  }
 
 
@@ -673,7 +673,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
 	  }
 
 }

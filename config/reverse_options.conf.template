@@ -1,5 +1,5 @@
 ##############################
-## Template for configuring TripleGeo ver.1.7 in order to transform data from RDF triples into geographical files (Reverse Transformation).
+## Template for configuring TripleGeo ver.1.8 in order to transform data from RDF triples into geographical files (Reverse Transformation).
 ## Specify parameters according to the examples for your specific output file(s).
 ##############################
 

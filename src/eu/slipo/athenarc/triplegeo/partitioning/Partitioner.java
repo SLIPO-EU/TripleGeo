@@ -1,5 +1,5 @@
 /*
- * @(#) Partitioner.java 	 version 1.7   28/2/2019
+ * @(#) Partitioner.java 	 version 1.8   28/2/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -23,7 +23,7 @@ import java.io.IOException;
 /**
  * Partitioning Interface for TripleGeo used in splitting input files into several equi-sized pieces for applying concurrent transformation to RDF.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY

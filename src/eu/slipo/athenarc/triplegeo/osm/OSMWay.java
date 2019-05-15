@@ -1,5 +1,5 @@
 /*
- * @(#) OSMWay.java 	 version 1.7   24/2/2018
+ * @(#) OSMWay.java 	 version 1.8   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -34,6 +34,7 @@ import java.util.TreeMap;
  * Class containing information about the OSM ways.
  * 
  * @author Nikos Karagiannakis
+ * Modified by: Kostas Patroumpas 24/2/2018; changed indexVector representation
  */
 
 public class OSMWay implements Serializable{
@@ -42,15 +43,14 @@ public class OSMWay implements Serializable{
     private String id;   
     private int classID;
     private Set<Integer> classIDs;   
-    private final List<String> nodeReferences = new ArrayList<String>(); //node references  //made final
+    private final List<String> nodeReferences = new ArrayList<String>();     //node references  //made final
     private final List<Geometry> nodeGeometries = new ArrayList<Geometry>(); //nodeGeometries   //made final
     private Coordinate[] coordinateList;    
     private final Map<String, String> tags = new HashMap<>();      
     private Geometry geometry;
-    private TreeMap<Integer,Double> indexVector = new TreeMap<>();   
- //   private ArrayList<FeatureNode> featureNodeList = new ArrayList<>();
+    private TreeMap<Integer,Double> indexVector = new TreeMap<>(); 
     
-    //way attributes getters 
+    //Attribute getters 
     public String getID(){
         return id;
     } 
@@ -92,11 +92,7 @@ public class OSMWay implements Serializable{
         return indexVector;
     }
     
-    public void setIndexVector(TreeMap<Integer, Double> indexVector){
-        this.indexVector = indexVector;
-    }
-    
-    //way attributes setters
+    //Attribute setters
     public void setID(String id){
         this.id = id;
     }
@@ -124,13 +120,9 @@ public class OSMWay implements Serializable{
     public void setClassIDs(Set<Integer> classIDs){
         this.classIDs = classIDs;
     }  
- /*   
-    public void setFeature(FeatureNode featureNode){
-        this.featureNodeList.add(featureNode);
+    
+    public void setIndexVector(TreeMap<Integer, Double> indexVector){
+        this.indexVector = indexVector;
     }
     
-    public List<FeatureNode> getFeatureNodeList(){
-        return featureNodeList;
-    }
-    */
 }

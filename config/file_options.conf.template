@@ -1,5 +1,5 @@
 ##############################
-## Template for configuring TripleGeo ver.1.7 in order to transform data from geographical files into RDF triples.
+## Template for configuring TripleGeo ver.1.8 in order to transform data from geographical files into RDF triples.
 ## Specify parameters according to the examples for your specific input file(s).
 ##############################
 
@@ -172,6 +172,12 @@ attrName = ${resourceNameAttribute}
 ## OPTIONAL field name containing literals regarding classification into categories (e.g., type of points, road classes etc.) for each feature. Applicable when such values are used for registering features in the SLIPO Registry. Leave blank if non applicable.
 #attrCategory = type
 attrCategory = ${resourceCategoryAttribute}
+
+
+##OPTIONAL spatial filter to select for transformation only input geometries contained within the specified region
+##Region must be a valid WKT closed geometry (polygon or multipolygon)
+#spatialExtent=POLYGON((-5.71 50.037, -5.48 50.037, -5.48 50.19, -5.71 50.19, -5.71 50.037))
+spatialExtent= ${spatialExtent}
 
 
 ## OPTIONAL boolean parameter denoting whether a .CSV file will be also extracted specifically for registering features in the SLIPO Registry. Omit if non applicable.

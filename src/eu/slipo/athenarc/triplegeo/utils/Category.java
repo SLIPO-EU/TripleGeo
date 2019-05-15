@@ -99,7 +99,7 @@ public class Category {
 
 	/**
 	 * Sets or updates the name of the embedded category according to the default classification scheme
-	 * @param uuid   The name of the embedded category according to the default classification scheme
+	 * @param cat The name of the embedded category according to the default classification scheme
 	 */
 	public void setEmbedCategory(String cat) {
 		this.embedCategory = cat;

@@ -1,5 +1,5 @@
 /*
- * @(#) GraphConverter.java 	 version 1.7   28/2/2019
+ * @(#) GraphConverter.java 	 version 1.8  22/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -54,7 +54,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Creates and populates a Jena model stored on disk so that data can be serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -67,7 +67,8 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 14/2/2018; integrated handling of OSM records
  * Modified: 9/5/2018; integrated handling of GPX data 
  * Modified: 31/5/2018; integrated handling of classifications for OSM data
- * Last modified: 28/2/2019
+ * Modified: 22/4/2019; included support for spatial filtering over input datasets
+ * Last modified: 22/4/2019
  */
 public class GraphConverter implements Converter {
 
@@ -85,7 +86,8 @@ public class GraphConverter implements Converter {
 	private FeatureRegister myRegister = null;              //Used in registering features in the SLIPO Registry
 	
 	//Used in performance metrics
-	private int numRec;
+	private int numRec;            //Number of entities (records) in input dataset
+	private int rejectedRec;       //Number of rejected entities (records) from input dataset after filtering
 	private long t_start;
 	private long dt;
 
@@ -145,6 +147,7 @@ public class GraphConverter implements Converter {
 		t_start = System.currentTimeMillis();
 	    dt = 0;
 	    numRec = 0;
+	    rejectedRec = 0;
 	}
 
 	
@@ -170,9 +173,18 @@ public class GraphConverter implements Converter {
 	    {
 	      while(iterator.hasNext()) {
 				
+	    	++numRec;
+	    	  
 	        feature = (SimpleFeatureImpl) iterator.next();
 	        geometry = (Geometry) feature.getDefaultGeometry();
 
+			//Apply spatial filtering (if specified by user)
+			if (!myAssistant.filterContains(geometry.toText()))
+			{
+				rejectedRec++;
+				continue;
+			}
+			
 		    //Determine attribute names for each feature
 	        //CAUTION! This is only called for the first feature, as the structure of the rest is considered identical
 		    if (columns == null)
@@ -211,7 +223,7 @@ public class GraphConverter implements Converter {
 	      	//Collect RDF triples resulting from this tuple into the graph
 	      	collectTriples();
 	      	
-	        myAssistant.notifyProgress(++numRec);
+	        myAssistant.notifyProgress(numRec);
 	      }
 	    }
 	    catch(Exception e) { 
@@ -320,6 +332,7 @@ public class GraphConverter implements Converter {
 			for (Iterator<CSVRecord> iterator = records; iterator.hasNext();) {
 				
 	            CSVRecord rs = (CSVRecord) iterator.next();
+	            ++numRec;
 	          
 				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
 				//String uuid = myAssistant.getUUID(currentConfig.featureSource, (rs.isSet(currentConfig.attrKey) ? rs.get(currentConfig.attrKey) : null)).toString();
@@ -337,7 +350,13 @@ public class GraphConverter implements Converter {
 					wkt = rs.get(currentConfig.attrGeometry);  //ASSUMPTION: Geometry values are given as WKT
 				
 		      	if (wkt != null)
-		      	{							
+		      	{	
+		      		//Apply spatial filtering (if specified by user)
+					if (!myAssistant.filterContains(wkt))
+					{
+						rejectedRec++;
+						continue;
+					}
 					//CRS transformation
 			      	if (reproject != null)
 			      		wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
@@ -355,7 +374,7 @@ public class GraphConverter implements Converter {
 		      	//Collect RDF triples resulting from this tuple into the graph
 		      	collectTriples();
 		      	
-				myAssistant.notifyProgress(++numRec);		
+				myAssistant.notifyProgress(numRec);		
 			}
 	    }
 		catch(Exception e) { 
@@ -378,7 +397,9 @@ public class GraphConverter implements Converter {
 	 */		
 	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) 
 	{	
-		try {		
+		try {	
+			++numRec;
+			
 			//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
 			//String uuid = myAssistant.getUUID(currentConfig.featureSource + rs.getID()).toString();
 			
@@ -388,7 +409,13 @@ public class GraphConverter implements Converter {
 			{
 				wkt = rs.getGeometry().toText();       //Get WKT representation	
 				if (wkt != null)
-				{							
+				{		
+					//Apply spatial filtering (if specified by user)
+					if (!myAssistant.filterContains(wkt))
+					{
+						rejectedRec++;
+						return;
+					}
 					//CRS transformation
 			      	if (reproject != null)
 			      		wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
@@ -427,7 +454,7 @@ public class GraphConverter implements Converter {
 	      	//Collect RDF triples resulting from this tuple into the graph
 	      	collectTriples();
 	      	
-			myAssistant.notifyProgress(++numRec);
+			myAssistant.notifyProgress(numRec);
 				
 		} catch (Exception e) {
 			System.out.println("Problem at element with OSM id: " + rs.getID() + ". Excluded from transformation.");
@@ -450,6 +477,15 @@ public class GraphConverter implements Converter {
 	public void parse(Assistant myAssistant, String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType) 
 	{	
 		try {	
+			++numRec;
+			
+			//Apply spatial filtering (if specified by user)
+			if (!myAssistant.filterContains(wkt))
+			{
+				rejectedRec++;
+				return;
+			}
+			
 			String uri;
 			
 			//Pass this tuple for conversion to RDF triples 
@@ -465,7 +501,7 @@ public class GraphConverter implements Converter {
 			//Collect RDF triples resulting from this tuple into the graph
 	      	collectTriples();
 	      	
-			myAssistant.notifyProgress(++numRec);
+			myAssistant.notifyProgress(numRec);
 				
 		} catch (Exception e) {
 			ExceptionHandler.warn(e, "An error occurred during transformation of an input record.");
@@ -562,7 +598,7 @@ public class GraphConverter implements Converter {
 		
 		//Measure execution time and issue statistics on the entire process
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numStmt, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numStmt, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
 	    myGenerator.getStatistics();
 	}
 			

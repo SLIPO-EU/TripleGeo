@@ -1,5 +1,5 @@
 /*
- * @(#) Extractor.java	version 1.7  28/2/2019
+ * @(#) Extractor.java	version 1.8  24/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -43,10 +43,10 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Entry point to TripleGeo for converting from various input formats (optionally enabling MULTI-THREADED execution or execution on top of Spark/GeoSpark )
  * Execution command over JVM or SPARK:
- *         JVM:   java -cp target/triplegeo-1.7-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor  <path-to-configuration-file> 
- *         SPARK: spark-submit --class eu.slipo.athenarc.triplegeo.Extractor --master local[*] target/triplegeo-1.7-SNAPSHOT.jar  <path-to-configuration-file> 
+ *         JVM:   java -cp target/triplegeo-1.7-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor  path-to-configuration-file 
+ *         SPARK: spark-submit --class eu.slipo.athenarc.triplegeo.Extractor --master local[*] target/triplegeo-1.7-SNAPSHOT.jar  path-to-configuration-file
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -58,7 +58,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified: 13/7/2018; advanced handling of interrupted or aborted tasks
  * Modified: 5/10/2018; included optional partitioning of .CSV  and .SHP input files to enable concurrent transformation
  * Modified: 15/1/2019 by Georgios Mandilaras; support for execution over Spark/GeoSpark for specific data formats (.CSV, .SHP, GeoJSON)
- * Last modified: 28/2/2019
+ * Last modified: 24/4/2019
  */
 public class Extractor {
 
@@ -87,10 +87,10 @@ public class Extractor {
 	    
 	    if (args.length >= 0)  {
 
-	    	myAssistant =  new Assistant();
-	    	
 	    	//Specify a configuration file with properties used in the conversion
 	    	currentConfig = new Configuration(args[0]);          //Argument like "./bin/shp_options.conf"
+	    	
+	    	myAssistant =  new Assistant(currentConfig);
 	    	
 	    	//Conversion mode: (in-memory) STREAM or (disk-based) GRAPH or through RML mappings or via XSLT transformation
 			System.out.println("Conversion mode: " + currentConfig.mode);
@@ -113,6 +113,10 @@ public class Extractor {
 				
 			System.out.println("Output serialization: " + currentConfig.serialization);
 			
+	    	//Notify whether a spatial filter will be applied
+	    	if (myAssistant.hasSpatialExtent())
+	    		System.out.println("Spatial filter will be applied. Input geometries contained in user-specified region will only be processed.");
+	    	
 			System.setProperty("org.geotools.referencing.forceXY", "true");
 			
 			//Check whether partitioning of the original input data has been requested

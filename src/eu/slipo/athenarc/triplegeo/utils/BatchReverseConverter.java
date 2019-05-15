@@ -1,5 +1,5 @@
 /*
- * @(#) BatchReverseConverter.java	version 1.7   28/2/2018
+ * @(#) BatchReverseConverter.java	version 1.8   24/4/2019
  *
  * Copyright (C) 2013-2019 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -19,7 +19,9 @@
 package eu.slipo.athenarc.triplegeo.utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.Query;
@@ -43,13 +45,14 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
  * Results can be written to a typical geographical files (currently supported: CSV and ESRI Shapefiles). 
  * Attribute names in the SELECT query will become the column names in the resulting files. 
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 27/9/2017
  * Modified: 10/1/2018; exporting resulting records in batches
- * Last modified: 28/2/2018
+ * Modified: 24/4/2019; issuing statistics after processing
+ * Last modified: 24/4/2019
  */
 public class BatchReverseConverter {  
 
@@ -61,9 +64,15 @@ public class BatchReverseConverter {
 	Model model;                                     //Jena model that contains all RDF triples
 	List<List<String>> results;                      //Collection of resulting records
 	List<String> attrList;                           //Attribute names in the resulting records
+	Map<String, Integer> attrStatistics;             //Statistics for each attribute
 	
 	private ReverseConfiguration currentConfig;      //Reverse configuration parameters
 	
+	//Used in performance metrics
+	public int numRecs;                              //Counter for reconstructed entities
+	public int numValues;                            //Counter for reconstructed attribute values
+	public int numTriples;                           //Counter of triple statements in the input RDF graph
+	private long t_start;
 
 	/**
 	 * Constructs a ReverseConverter object.
@@ -73,7 +82,13 @@ public class BatchReverseConverter {
 	public BatchReverseConverter(ReverseConfiguration config, String[] inFiles) {
 		    
 		    currentConfig = config;       //Configuration parameters as set up by the various reverse conversion utilities (CSV, SHP) 
-		    inputFiles = inFiles;         //Array of input file names
+		    inputFiles = inFiles;         //Array of input file names		    
+		    numRecs = 0;
+		    numValues = 0;
+		    numTriples = 0;
+		    t_start = System.currentTimeMillis();
+		    
+		    attrStatistics = new HashMap<String, Integer>();
 		    
 		    myAssistant = new Assistant();    
 	}
@@ -106,10 +121,11 @@ public class BatchReverseConverter {
 			System.out.print(myAssistant.getGMTime() + " Reading triples from file " + inFile + "...");
 			RDFDataMgr.read(model, inFile, myAssistant.getRDFLang(currentConfig.serialization));	
 //			TDBLoader.load( ((DatasetGraphTransaction)dataset.asDatasetGraph()).getBaseDatasetGraph() , outFile, true);
+			numTriples = model.getGraph().size();
 			System.out.println(" Done!");
 		  }
 		  
-		  System.out.println(myAssistant.getGMTime() + " RDF graph loaded successfully and contains " + model.getGraph().size() + " statements in total.");		  
+		  System.out.println(myAssistant.getGMTime() + " RDF graph loaded successfully and contains " + numTriples + " statements in total.");		  
 	}
 	
 	
@@ -120,6 +136,9 @@ public class BatchReverseConverter {
 		  //Close the graph model
 		  model.close();
 		  TDBFactory.release(dataset);
+		  //Report statistics from the reverse transformation process
+		  myAssistant.reportStatistics(System.currentTimeMillis()-t_start, numRecs, 0, numTriples, currentConfig.serialization, attrStatistics, "REVERSE", currentConfig.targetCRS, currentConfig.outputFile);
+
 	}
 	
 	
@@ -134,7 +153,6 @@ public class BatchReverseConverter {
 	    QueryExecution qe = QueryExecutionFactory.create(qry, model);
 	    ResultSet rs = qe.execSelect();
 	    int n = 0;
-	    int numRecs = 0;
 	    
 	    //Simple container of all resulting records (each one represented as a list of string values)
 	    results =  new ArrayList<List<String>>();
@@ -168,6 +186,8 @@ public class BatchReverseConverter {
 		        	else
 		        		val = r.toString();
 	        		valueList.add(i, val);
+	        		updateStatistics(attrList.get(i));               //Update count of NOT NULL values transformed for this attribute
+	        		numValues++;
 	        	}
 	        	else
 	        		valueList.add(i, "");     //Substituting NULL values with a blank string     		
@@ -192,7 +212,18 @@ public class BatchReverseConverter {
     	results.clear();
 	    qe.close();
 	    
-	    System.out.println(myAssistant.getGMTime() + " " + n + " results retrieved from the RDF graph. " + numRecs + " features created.");
+	    System.out.println(myAssistant.getGMTime() + " " + n + " results with " + numValues + " values retrieved from the RDF graph. " + numRecs + " features created.");
 	}
 	
+	  /**
+	   * Update statistics (currently only a counter) of values transformed for a particular attribute
+	   * @param attrKey  The name of the attribute
+	   */
+	  private void updateStatistics(String attrKey) {
+		  
+			if ((attrStatistics.get(attrKey)) == null)
+				attrStatistics.put(attrKey, 1);                                  //First occurrence of this attribute
+			else
+				attrStatistics.replace(attrKey, attrStatistics.get(attrKey)+1);  //Update count of NOT NULL values for this attribute
+	  }
 }  

@@ -1,5 +1,5 @@
 /*
- * @(#) ShpPartitioner.java	version 1.7  28/2/2019
+ * @(#) ShpPartitioner.java	version 1.8  22/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -46,12 +46,12 @@ import eu.slipo.athenarc.triplegeo.utils.Assistant;
 /**
  * Partitions a ESRI shapefile into several (equi-sized) parts in order to be concurrently transformed into RDF.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 4/10/2018
- * Last modified: 28/2/2019
+ * Last modified: 22/4/2019
  */
 
 public class ShpPartitioner implements Partitioner {
@@ -74,6 +74,7 @@ public class ShpPartitioner implements Partitioner {
 	 * @return  Array holding the absolute path to each of the resulting partitions
 	 * @throws IOException
 	 */
+	@SuppressWarnings("resource")
 	public String[] split(String filePath, String tmpDir, int numParts, String encoding) throws IOException 
 	{  
 		System.out.println("Splitting " + filePath + " into " + numParts + " partitions...");

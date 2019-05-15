@@ -1,5 +1,5 @@
 /*
- * @(#) Assistant.java 	 version 1.7  28/2/2019
+ * @(#) Assistant.java 	 version 1.8  24/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -58,6 +58,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import org.apache.commons.io.FilenameUtils;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.referencing.CRS;
 import org.opengis.geometry.MismatchedDimensionException;
 import org.opengis.referencing.FactoryException;
@@ -75,6 +76,7 @@ import com.vividsolutions.jts.geom.LinearRing;
 import com.vividsolutions.jts.geom.MultiPolygon;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.Polygon;
+import com.vividsolutions.jts.io.ParseException;
 import com.vividsolutions.jts.io.WKTReader;
 import com.vividsolutions.jts.io.WKTWriter;
 import com.vividsolutions.jts.operation.polygonize.Polygonizer;
@@ -83,7 +85,7 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
 /**
  * Assistance class with various helper methods used in transformation or reverse transformation.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -97,7 +99,8 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
  * Modified: 9/10/2018; added built-in function to generate URIs based either on UUIDs or original feature IDs
  * Modified: 7/11/2018; added built-in function to support transliteration of string literals into Latin
  * Modified: 26/11/2018; added built-in function for formatting phone numbers
- * Last modified by: Kostas Patroumpas, 28/2/2019
+ * Modified: 18/4/2019; added support for topological filtering of geometries; currently based on spatial containment in a user-specified geometry
+ * Last modified by: Kostas Patroumpas, 24/4/2019
  */
 
 public class Assistant {
@@ -105,7 +108,8 @@ public class Assistant {
 	public PGDBDecoder pgdbDecoder = null;         //Decoder of geometries read from a personal ESRI geodatabase (.mdb)
 	public WKTReader wktReader = null;             //Parses a geometry in Well-Known Text format to a Geometry representation.
 	
-	private static Envelope mbr = null;            //Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
+	private static Envelope mbr;                   //Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
+	private static Geometry extent = null;         //User-specified polygon to filter out input geometries outside of its extent
 	private static Configuration currentConfig;
 
 	private static Set<String> ISO_LANGUAGES = new HashSet<String> (Arrays.asList(Locale.getISOLanguages()));   //List of ISO 639-1 language codes
@@ -115,8 +119,7 @@ public class Assistant {
 	/**
 	 * Constructor of the class without explicit declaration of configuration settings.
 	 */
-	public Assistant() {
-		
+	public Assistant() {		
 	}
 	
 	/**
@@ -125,6 +128,18 @@ public class Assistant {
 	public Assistant(Configuration config) {
 		
 		currentConfig = config;
+
+		//Specify a spatial filter
+		if (currentConfig.spatialExtent != null)
+		{
+			GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory( null );
+			WKTReader reader = new WKTReader( geometryFactory );
+			try {
+				extent = reader.read(currentConfig.spatialExtent);       //E.g. a bounding box for Austria: "POLYGON((9.530749 46.3724535, 17.1607975 46.3724535, 17.1607975 49.0205255, 9.530749 49.0205255, 9.530749 46.3724535))");
+			} catch (ParseException e) {
+				ExceptionHandler.abort(e, "Spatial extent of filter specification is not a valid WKT geometry. Please check your configuration settings.");
+			}
+		}
 	}
 	
 	/**
@@ -230,6 +245,15 @@ public class Assistant {
 
 
 	/**
+	 * Check whether there is a user-specified spatial filter (CONTAINS) against input data.
+	 * @return True, if spatial filter has been specified; False, otherwise.
+	 */
+	public boolean hasSpatialExtent() {
+		return (extent != null);
+		
+	}
+	
+	/**
 	 * Returns a String with the content of the InputStream	
 	 * @param is  the InputStream.
 	 * @return  A string with the content of the InputStream.
@@ -305,10 +329,12 @@ public class Assistant {
 			System.out.print(this.getGMTime() + " Worker " + partition_index + " Processed " +  numRec + " records..." + "\r");
 	}
 	
+	
 	/**
 	 * Report statistics upon termination of the transformation process.
 	 * @param dt  The clock time (in milliseconds) elapsed since the start of transformation process.
-	 * @param numRec  The total number of records that have been processed.
+	 * @param numRec  The total number of input records that have been processed.
+	 * @param rejectedRec  The total number of input records that were rejected during processing.
 	 * @param numTriples  The number of RDF triples resulted from transformation.
 	 * @param serialization  A string with the user-specified serialization of output triples.
 	 * @param attrStatistics  Statistics collected per attribute during transformation.
@@ -317,15 +343,19 @@ public class Assistant {
 	 * @param outputFile  Path to the output file containing the RDF triples.
 	 * @param partition_index  The identifier (index) of the partition in case of Spark execution.
 	 */
-	public void reportStatistics(long dt, int numRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile, int partition_index) {
+	public void reportStatistics(long dt, int numRec, int rejectedRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile, int partition_index) {
 
 		if (currentConfig.runtime.equalsIgnoreCase("JVM")) {
-			System.out.println(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + numRec + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
+			System.out.print(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
 		}
 		else if (currentConfig.runtime.equalsIgnoreCase("SPARK"))  {
-			System.out.println(this.getGMTime() + " Worker " + partition_index + " completed successfully in " + dt + " ms. " + numRec + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
+			System.out.print(this.getGMTime() + " Worker " + partition_index + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
 		}
-			
+	
+		if (rejectedRec > 0)
+			System.out.print(" " + rejectedRec + " input records were excluded from transformation.");
+		System.out.println();
+		
 		 if (mbr != null)
 			 System.out.println("MBR of transformed geometries: X_min=" + mbr.getMinX() + ", Y_min=" + mbr.getMinY() + ", X_max=" + mbr.getMaxX() + ", Y_max=" + mbr.getMaxY());
 		 
@@ -333,6 +363,8 @@ public class Assistant {
 		 Map<String, Object> execStatistics = new HashMap<String, Object>();
 		 execStatistics.put("Execution time (ms)", dt);
 		 execStatistics.put("Input record count", numRec);
+		 execStatistics.put("Input records transformed", numRec-rejectedRec);
+		 execStatistics.put("Input records excluded", rejectedRec);
 		 execStatistics.put("Output triple count", numTriples);
 		 execStatistics.put("Output serialization", serialization);
 		 if (targetSRID != null)
@@ -366,13 +398,72 @@ public class Assistant {
 	    }	
 	}
 
+	/**
+	 * Report statistics upon termination of the reverse transformation process.
+	 * @param dt  The clock time (in milliseconds) elapsed since the start of transformation process.
+	 * @param numRec  The total number of input records that have been processed.
+	 * @param rejectedRec  The total number of input records that were rejected during processing.
+	 * @param numTriples  The number of RDF triples resulted from transformation.
+	 * @param serialization  A string with the user-specified serialization of output triples.
+	 * @param attrStatistics  Statistics collected per attribute during transformation.
+	 * @param mode  Transformation mode, as specified in the configuration.
+	 * @param targetSRID  Output spatial reference system (CRS).
+	 * @param outputFile  Path to the output file containing the RDF triples.
+	 */
+	public void reportStatistics(long dt, int numRec, int rejectedRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile) {
 
+		System.out.print(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records reconstructed from " + numTriples + " triples serialized in " + serialization + " and exported to file: " + outputFile + ".");
+				
+		if (rejectedRec > 0)
+			System.out.print(" " + rejectedRec + " records were excluded from reverse transformation.");
+		System.out.println();
+		
+		 if (mbr != null)
+			 System.out.println("MBR of transformed geometries: X_min=" + mbr.getMinX() + ", Y_min=" + mbr.getMinY() + ", X_max=" + mbr.getMaxX() + ", Y_max=" + mbr.getMaxY());
+		 
+		 //Metadata regarding execution of this process
+		 Map<String, Object> execStatistics = new HashMap<String, Object>();
+		 execStatistics.put("Execution time (ms)", dt);
+		 execStatistics.put("Output record count", numRec);
+		 execStatistics.put("Output records transformed", numRec-rejectedRec);
+		 execStatistics.put("Output records discarded", rejectedRec);
+		 execStatistics.put("Input triple count", numTriples);
+		 execStatistics.put("Input serialization", serialization);
+		 if (targetSRID != null)
+			 execStatistics.put("Output CRS", "EPSG:" + targetSRID);
+		 else
+			 execStatistics.put("Output CRS", "EPSG:4326");             //Assuming default CRS: WGS84
+		 execStatistics.put("Output file", outputFile);
+		 execStatistics.put("Transformation mode", mode);
 	
+		 //MBR of transformed geometries
+		 Map<String, Object> mapMBR = new HashMap<String, Object>();
+		 if (mbr != null) {
+			 mapMBR.put("X_min", mbr.getMinX());
+			 mapMBR.put("Y_min", mbr.getMinY());
+			 mapMBR.put("X_max", mbr.getMaxX());
+			 mapMBR.put("Y_max", mbr.getMaxY());
+		 }
+		
+		 //Compile all metadata together
+		 Map<String, Object> allStats = new HashMap<String, Object>();
+		 allStats.put("Execution Metadata", execStatistics);
+		 allStats.put("MBR of transformed geometries (WGS84)", mapMBR);
+		 allStats.put("Attribute Statistics", new TreeMap<String, Integer>(attrStatistics));     //Sort collection by attribute name
+		 
+	    //Convert metadata to JSON and write to a file
+	    try {
+	    	ObjectMapper mapper = new ObjectMapper();
+	        mapper.writeValue(new File(FilenameUtils.removeExtension(outputFile) + "_metadata.json"), allStats);
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }	
+	}
+
 	/**
 	 * Removes a given directory and all its contents. Used for removing intermediate files created during transformation.	
 	 * @param path The path to the directory.
 	 * @return  The path to a temporary directory that holds intermediate files.
-	 * @throws IOException 
 	 */
 	public String removeDirectory(String path){
 
@@ -400,7 +491,6 @@ public class Assistant {
 	/**
 	 * Removes all files from a given directory. Used for removing intermediate files created during transformation.	
 	 * @param path The path to the directory.
-	 * @throws IOException 
 	 */
 	public void cleanupFilesInDir(String path){
 		 
@@ -479,7 +569,7 @@ public class Assistant {
 	 * Updates the MBR of the geographic dataset as this is being transformed. 	
 	 * @param g  Geometry that will be checked for possible expansion of the MBR of all features processed thus far
 	 */
-	private static void updateMBR(Geometry g) {
+	public void updateMBR(Geometry g) {
 			
 		Envelope env = g.getEnvelopeInternal();          //MBR of the given geometry
 		if (mbr == null)
@@ -586,6 +676,7 @@ public class Assistant {
 	
 	/**
 	 * Instantiates a new PGDBDecoder for geometries from a Personal ESRI geodatabase (MS Access format).
+	 * @return  True, if a PGDBDecoder instance was created; otherwise, False.
 	 */
 	public boolean initPGDBDecoder() {
 		
@@ -635,8 +726,8 @@ public class Assistant {
 	 * Get / create a valid version of the geometry given. If the geometry is a polygon or multi polygon, self intersections /
 	 * inconsistencies are fixed. Otherwise the geometry is returned.
 	 * 
-	 * @param geom
-	 * @return a geometry 
+	 * @param geom  Input geometry
+	 * @return A valid, corrected geometry
 	 */
 	@SuppressWarnings("unchecked")
 	public Geometry geomValidate(Geometry geom){
@@ -664,10 +755,10 @@ public class Assistant {
 	}
 
 	/**
-	 * Add all line strings from the polygon given to the polygonizer given
+	 * Add all line strings from the polygon given to the polygonizer
 	 * 
-	 * @param polygon polygon from which to extract line strings
-	 * @param polygonizer polygonizer
+	 * @param polygon Polygon from which to extract line strings
+	 * @param polygonizer Polygonizer object
 	 */
 	public void addPolygon(Polygon polygon, Polygonizer polygonizer){
 	    addLineString(polygon.getExteriorRing(), polygonizer);
@@ -679,8 +770,8 @@ public class Assistant {
 	/**
 	 * Add the linestring given to the polygonizer
 	 * 
-	 * @param linestring line string
-	 * @param polygonizer polygonizer
+	 * @param lineString Line string
+	 * @param polygonizer Polygonizer object
 	 */
 	public void addLineString(LineString lineString, Polygonizer polygonizer){
 
@@ -699,8 +790,8 @@ public class Assistant {
 	/**
 	 * Get a geometry from a collection of polygons.
 	 * 
-	 * @param polygons collection
-	 * @param factory factory to generate MultiPolygon if required
+	 * @param polygons Collection of polygons
+	 * @param factory Factory to generate MultiPolygon if required
 	 * @return null if there were no polygons, the polygon if there was only one, or a MultiPolygon containing all polygons otherwise
 	 */
 	public Geometry toPolygonGeometry(Collection<Polygon> polygons, GeometryFactory factory){
@@ -879,7 +970,29 @@ public class Assistant {
         
   	        return g;     //Return geometry
 	}
-		
+
+	/**
+	 * Specify a topological filter (CONTAINS) against input geometries in order to exclude transformation of those outside a user-specified spatial extent.
+	 * @param wkt  Input geometry as WKT
+	 * @return True if geometry qualifies; False if geometry should be excluded from transformation.
+	 */
+	public boolean filterContains(String wkt) {
+
+		//Apply topological filter and skip transformation of non-qualifying objects			
+		if ((extent != null) && (!extent.contains(this.WKT2Geometry(wkt))))    //Polygonal extent must have been specified as a valid WKT in user configuration
+		    return false;
+
+		return true;	
+	}
+	
+	/**
+	 * Returns the geometry that represents the spatial filter that is being applied to select features from the input dataset.
+	 * @return Geometry representing the spatial filter.
+	 */
+	public Geometry getFilterExtent() {
+		return extent;
+	}
+	
 	/** 
 	 * Merges several input files into a single output file.
 	 * @param inputFiles  List of the paths to the input files

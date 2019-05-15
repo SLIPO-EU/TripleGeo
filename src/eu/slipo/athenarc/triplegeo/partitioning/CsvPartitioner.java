@@ -1,5 +1,5 @@
 /*
- * @(#) CsvPartitioner.java	version 1.7  28/2/2019
+ * @(#) CsvPartitioner.java	version 1.8  28/2/2019
  *
  * Copyright (C) 2013-2018 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -42,7 +42,7 @@ import eu.slipo.athenarc.triplegeo.utils.Assistant;
  * Splits a CSV text file into several parts in order to be concurrently transformed into RDF.
  * LIMITATIONS: Currently handling only .CSV files with a header.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY

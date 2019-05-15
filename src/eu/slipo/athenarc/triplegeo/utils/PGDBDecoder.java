@@ -38,8 +38,7 @@ import com.vividsolutions.jts.geom.GeometryFactory;
  * 
  * @author MapPlus, mapplus@gmail.com, http://onspatial.com
  * @since 2012-10-30
- * @see
- * Modified by: Kostas Patroumpas, 28/2/2019; removed logging for efficiency
+ * Modified by: Kostas Patroumpas, 28/2/2018; removed logging for efficiency
  */
 public class PGDBDecoder {
 //    protected static final Logger LOGGER = Logging.getLogger(PGDBDecoder.class);

@@ -4,7 +4,7 @@
   <groupId>eu.slipo.athenarc</groupId>
   <artifactId>triplegeo</artifactId>
   <packaging>jar</packaging>
-  <version>1.7-SNAPSHOT</version>
+  <version>1.8-SNAPSHOT</version>
   <name>TripleGeo</name>
   <description>An open-source ETL tool for extracting geospatial features into RDF triples</description>
   <url>https://github.com/slipo-eu/TripleGeo</url>
@@ -49,13 +49,6 @@
           <scope>test</scope>
     </dependency>  
 
-<!--
-	<dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-text</artifactId>
-      <version>1.6</version>
-    </dependency>
--->
 
     <!-- Support for transliteration of string from several languages / alphabets to Latin -->
 	<dependency>
@@ -171,7 +164,7 @@
    <dependency>
    	  <groupId>org.geotools</groupId>
    	  <artifactId>gt-geojson</artifactId>
-   	  <version>${geotools.version}</version>
+   	  <version>2.7-M0</version>
    </dependency>
 
    <dependency>

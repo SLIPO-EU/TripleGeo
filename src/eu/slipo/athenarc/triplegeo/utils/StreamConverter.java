@@ -1,5 +1,5 @@
 /*
- * @(#) StreamConverter.java 	 version 1.7   27/2/2019
+ * @(#) StreamConverter.java 	 version 1.8   22/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -55,7 +55,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Provides a set of a streaming RDF triples in memory that can be readily serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -68,8 +68,9 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 14/2/2018; integrated handling of OSM records
  * Modified: 9/5/2018; integrated handling of GPX data 
  * Modified: 31/5/2018; integrated handling of classifications for OSM data
+ * Modified: 18/4/2019; included support for spatial filtering over input datasets
  * TODO: Determine data types for attributes in the resultset retrieved from DBMS and utilize them in transformation.
- * Last modified: 27/2/2019
+ * Last modified: 22/4/2019
  */
 
 public class StreamConverter implements Converter {
@@ -84,7 +85,8 @@ public class StreamConverter implements Converter {
 	//Used in performance metrics
 	private long t_start;
 	private long dt;
-	private int numRec;
+	private int numRec;            //Number of entities (records) in input dataset
+	private int rejectedRec;       //Number of rejected entities (records) from input dataset after filtering
 	private int numTriples;
 	    
 	private BufferedWriter registryWriter = null;
@@ -109,6 +111,7 @@ public class StreamConverter implements Converter {
 	    t_start = System.currentTimeMillis();
 	    dt = 0;
 	    numRec = 0;
+	    rejectedRec = 0;
 		numTriples = 0;
 		
 		try {
@@ -178,9 +181,25 @@ public class StreamConverter implements Converter {
 			//Iterate through all features	  
 			while(iterator.hasNext()) 
 			{
+				++numRec;
+			
 		        feature = (SimpleFeatureImpl) iterator.next();
 		        geometry = (Geometry) feature.getDefaultGeometry();
+
+				//Apply spatial filtering (if specified by user)
+				if (!myAssistant.filterContains(geometry.toText()))
+				{
+					rejectedRec++;
+					continue;
+				}
 				
+				//CRS transformation
+		      	if (reproject != null)
+		      		geometry = myAssistant.geomTransform(geometry, reproject);     
+		        
+		        //Get WKT representation of the transformed geometry
+		      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetGeoOntology.trim());
+		      					
 				//Determine attribute names for each feature
 				//CAUTION! This is only called for the first feature, as the structure of the rest is considered identical
 			    if (columns == null)
@@ -198,22 +217,13 @@ public class StreamConverter implements Converter {
 		        	if (feature.getAttribute(col) != null)         //Exclude NULL values
 		        		row.put(col, feature.getAttribute(col).toString());
 		        }
-				
-				//CRS transformation
-		      	if (reproject != null)
-		      		geometry = myAssistant.geomTransform(geometry, reproject);     
-		        
-		        //Get WKT representation of the transformed geometry
-		      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetGeoOntology.trim());
-		      	
+							
 		      	//Pass this tuple for conversion to RDF triples 
 		      	String uri = myGenerator.transform(row, wkt, targetSRID, classific);
 				
 				//Get a record with basic attribute that will be used for the SLIPO Registry
 				if (myRegister != null)
 					myRegister.createTuple(uri, row, wkt, targetSRID);
-				
-				++numRec;
 			  
 			    //Periodically, collect RDF triples resulting from this batch and dump results into output file
 				if (numRec % currentConfig.batch_size == 0) 
@@ -334,6 +344,7 @@ public class StreamConverter implements Converter {
 			for (Iterator<CSVRecord> iterator = records; iterator.hasNext();) {
 				
 	            CSVRecord rs = (CSVRecord) iterator.next();
+	            ++numRec;
 
 				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
 				//String uuid = myAssistant.getUUID(currentConfig.featureSource, (rs.isSet(currentConfig.attrKey) ? rs.get(currentConfig.attrKey) : null)).toString();
@@ -351,7 +362,14 @@ public class StreamConverter implements Converter {
 					wkt = rs.get(currentConfig.attrGeometry);  //ASSUMPTION: Geometry values are given as WKT
 				
 		      	if (wkt != null)
-		      	{							
+		      	{		
+					//Apply spatial filtering (if specified by user)
+					if (!myAssistant.filterContains(wkt))
+					{
+						rejectedRec++;
+						continue;
+					}
+					
 					//CRS transformation
 			      	if (reproject != null)
 			      		wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
@@ -365,9 +383,7 @@ public class StreamConverter implements Converter {
 				//Get a record with basic attribute that will be used for the SLIPO Registry
 				if (myRegister != null)
 					myRegister.createTuple(uri, rs.toMap(), wkt, targetSRID);
-				
-				++numRec;
-				  
+							  
 			    //Periodically, collect RDF triples resulting from this batch and dump results into output file
 				if (numRec % currentConfig.batch_size == 0) 
 				{
@@ -401,6 +417,8 @@ public class StreamConverter implements Converter {
 	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) 
 	{	
 		try {
+			++numRec;
+			
 			//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
 			//String uuid = myAssistant.getUUID(currentConfig.featureSource, rs.getID()).toString();
 			
@@ -410,7 +428,14 @@ public class StreamConverter implements Converter {
 			{
 				wkt = rs.getGeometry().toText();       //Get WKT representation	
 				if (wkt != null)
-				{							
+				{	
+					//Apply spatial filtering (if specified by user)
+					if (!myAssistant.filterContains(wkt))
+					{
+						rejectedRec++;
+						return;
+					}
+					
 					//CRS transformation
 			      	if (reproject != null)
 			      		wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
@@ -445,9 +470,7 @@ public class StreamConverter implements Converter {
 			//Get a record with basic attribute that will be used for the SLIPO Registry
 			if (myRegister != null)
 				myRegister.createTuple(uri, attrValues, wkt, targetSRID);
-			
-			++numRec;
-			  
+				  
 		    //Periodically, collect RDF triples resulting from this batch and dump results into output file
 			if (numRec % currentConfig.batch_size == 0) 
 			{
@@ -477,21 +500,27 @@ public class StreamConverter implements Converter {
 	public void parse(Assistant myAssistant, String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType) 
 	{	
 		try {	
-			String uri;
+			++numRec;
 			
+			//Apply spatial filtering (if specified by user)
+			if (!myAssistant.filterContains(wkt))
+			{
+				rejectedRec++;
+				return;
+			}
+			
+			String uri;
+	
 			//Pass this tuple for conversion to RDF triples 
 			if (currentConfig.attrCategory == null)
 				uri = myGenerator.transform(attrValues, wkt, targetSRID, null);         //There no category specified for this feature,...
 			else
-				uri = myGenerator.transform(attrValues, wkt, targetSRID, classific);	//..., otherwise utilize the user-specified classification hierarchy		
-
+				uri = myGenerator.transform(attrValues, wkt, targetSRID, classific);	//..., otherwise utilize the user-specified classification hierarchy
 			
 			//Get a record with basic attribute that will be used for the SLIPO Registry
 			if (myRegister != null)
 				myRegister.createTuple(uri, attrValues, wkt, targetSRID);
-			
-			++numRec;
-			  
+	
 		    //Periodically, collect RDF triples resulting from this batch and dump results into output file
 			if (numRec % currentConfig.batch_size == 0) 
 			{
@@ -526,6 +555,8 @@ public class StreamConverter implements Converter {
 	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile)
 	{
 		try {
+			++numRec;
+			
 			if (wkt == null) {
 				if ((currentConfig.attrGeometry == null) && (currentConfig.attrX != null) && (currentConfig.attrY != null)) {    //In case no single geometry attribute with WKT values is specified, compose WKT from a pair of coordinates
 					String x = attrValues.get(currentConfig.attrX);    //X-ordinate or longitude
@@ -538,11 +569,17 @@ public class StreamConverter implements Converter {
 
 			if (wkt != null)
 			{
+				//Apply spatial filtering (if specified by user)
+				if (!myAssistant.filterContains(wkt))
+				{
+					rejectedRec++;
+					return;
+				}
 				//CRS transformation
 				if (reproject != null)
 					wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
-//				    else
-//				        myAssistant.WKT2Geometry(wkt);                      //This is done only for updating the MBR of all geometries
+//				else
+//				    myAssistant.WKT2Geometry(wkt);                      //This is done only for updating the MBR of all geometries
 			}
 
 			String uri;
@@ -631,7 +668,7 @@ public class StreamConverter implements Converter {
 		
 	    //Measure execution time and issue statistics on the entire process
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
 	}
 
 	/**
@@ -655,7 +692,7 @@ public class StreamConverter implements Converter {
 		//******************************************************************
 		//Measure execution time and issue statistics on the entire process
 		dt = System.currentTimeMillis() - t_start;
-		myAssistant.reportStatistics(dt, numRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, partition_index);
+		myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, partition_index);
 	}
 	
 	/**

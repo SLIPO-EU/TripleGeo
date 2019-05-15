@@ -31,7 +31,7 @@ mvn install:install-file -Dfile=/<*YOUR_LOCAL_DIR*>/RML-Mapper.jar -DgroupId=be.
 <li>
 Building the application with maven:<br/>
 <code>mvn clean package</code><br/>
-results into a <code>triplegeo-1.7-SNAPSHOT.jar</code> under directory <code>target</code> according to what has been specified in the <code>pom.xml</code> file.
+results into a <code>triplegeo-1.8-SNAPSHOT.jar</code> under directory <code>target</code> according to what has been specified in the <code>pom.xml</code> file.
 </li>
 </ul>
 
@@ -49,13 +49,13 @@ TripleGeo supports <i>two-way</i> transformation of geospatial features:
 
 <p>Starting from ver. 1.7, TripleGeo also enables <i>distributed</i> transformation of geographical files (currently, CSV, GeoJSON, and ESRI shapefiles) into RDF on top of <a href="https://spark.apache.org/">Apache Spark</a> and its geospatial extension <a href="http://geospark.datasyslab.org/">GeoSpark</a>. Configuration settings for such transformations are exactly as in the case of standalone execution over JVM, with extra specifications for the number of worker nodes (i.e., data partitions).</p>
 
-<p>Explanation and usage tips for both transformation modules are given next. The current distribution (ver. 1.7) comes with dummy configuration templates <code>file_options.conf</code> for geographical files (ESRI shapefiles, CSV, GPX, KML, etc.) and <code>dbms_options.conf</code> for database contents (from PostGIS, Oracle Spatial, etc.). These files contain indicative values for the most important properties when accessing data from geographical files or a spatial DBMS. This release also includes a template <code>reverse_options.conf</code> for reconverting RDF data back into geospatial file formats. Self-contained brief instructions can guide you into the extraction and reverse transformation processes.</p>
+<p>Explanation and usage tips for both transformation modules are given next. The current distribution (ver. 1.8) comes with dummy configuration templates <code>file_options.conf</code> for geographical files (ESRI shapefiles, CSV, GPX, KML, etc.) and <code>dbms_options.conf</code> for database contents (from PostGIS, Oracle Spatial, etc.). These files contain indicative values for the most important properties when accessing data from geographical files or a spatial DBMS. This release also includes a template <code>reverse_options.conf</code> for reconverting RDF data back into geospatial file formats. Self-contained brief instructions can guide you into the extraction and reverse transformation processes.</p>
 
 <p>Indicative configuration files and mappings for several cases are available <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/conf/">here</a> in order to assist you when preparing your own.</p>
 
 <p>In addition, custom classification schemes for OpenStreetMap data are available <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/classification/">here</a> and can be readily used with the provided mappings against the <a href="https://github.com/SLIPO-EU/TripleGeo/tree/master/test/data/">sample datasets</a>. </p>
 
-<p><b> NOTE: </b> All execution commands and configurations refer to the current version (TripleGeo ver. 1.7).</p>
+<p><b> NOTE: </b> All execution commands and configurations refer to the current version (TripleGeo ver. 1.8).</p>
 
 
 <h4>
@@ -64,14 +64,14 @@ TripleGeo supports <i>two-way</i> transformation of geospatial features:
 How to use TripleGeo in order to transform geospatial data into RDF triples:
 
 <ul>
-<li>In case that triples will be extracted from a <i>geographical file</i> (e.g., ESRI shapefiles) as specified in the user-defined configuration file in <code>./test/conf/shp_options.conf</code>, and assuming that binaries are bundled together in <code>/target/triplegeo-1.7-SNAPSHOT.jar</code>, give a command like this:</br>
-<code>java -cp ./target/triplegeo-1.7-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor ./test/conf/shp_options.conf</code></li>
+<li>In case that triples will be extracted from a <i>geographical file</i> (e.g., ESRI shapefiles) as specified in the user-defined configuration file in <code>./test/conf/shp_options.conf</code>, and assuming that binaries are bundled together in <code>/target/triplegeo-1.8-SNAPSHOT.jar</code>, give a command like this:</br>
+<code>java -cp ./target/triplegeo-1.8-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor ./test/conf/shp_options.conf</code></li>
 <li>If triples will be extracted from a <i>geospatially-enabled DBMS</i> (e.g., PostGIS), the command is essentially the same, but it specifies a suitable configuration file <code>./test/conf/PostGIS_options.conf</code> with all information required to connect and extract data from the DBMS, as well as runtime linking to the JDBC driver for enabling connections to PostgreSQL (assuming that this JDBC driver is located at <code>./lib/postgresql-9.4-1206-jdbc4.jar</code>):</br>
-<code>java -cp ./lib/postgresql-9.4-1206-jdbc4.jar;./target/triplegeo-1.7-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor ./test/conf/PostGIS_options.conf</code></li>
+<code>java -cp ./lib/postgresql-9.4-1206-jdbc4.jar;./target/triplegeo-1.8-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor ./test/conf/PostGIS_options.conf</code></li>
 <li>TripleGeo supports data in GML (Geography Markup Language) and KML (Keyhole Markup Language). It can also handle INSPIRE-aligned GML data for seven Data Themes (<a href="https://inspire.ec.europa.eu/Themes/Data-Specifications/2892">Annex I</a>), as well as <a href="https://inspire.ec.europa.eu/metadata/6541">INSPIRE-aligned geospatial metadata</a>. Any such transformation is performed via XSLT, as specified in the respective configuration settings (e.g., <code>./test/conf/KML_options.conf</code>) as follows:</br>
-<code>java -cp ./target/triplegeo-1.7-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor ./test/conf/KML_options.conf</code></li>
+<code>java -cp ./target/triplegeo-1.8-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor ./test/conf/KML_options.conf</code></li>
 <li>TripleGeo can also run on top of Apache Spark/GeoSpark for selected geographical file formats (currently, CSV, GeoJSON, and ESRI shapefiles). Assuming a user-defined configuration file in <code>./test/conf/shp_spark_options.conf</code> that also specifies the number of partitions over the input data, transformation can be executed by sumbitting a Spark job like this:</br>
-<code>spark-submit --class eu.slipo.athenarc.triplegeo.Extractor --master local[*] target/triplegeo-1.7-SNAPSHOT.jar ./test/conf/shp_spark_options.conf</code></li>
+<code>spark-submit --class eu.slipo.athenarc.triplegeo.Extractor --master local[*] target/triplegeo-1.8-SNAPSHOT.jar ./test/conf/shp_spark_options.conf</code></li>
 </ul>
 
 <p>Wait until the process gets finished, and verify that the resulting output files are according to your specifications.</p>
@@ -84,10 +84,10 @@ How to use TripleGeo in order to transform RDF triples into a geospatial data fi
 <ul>
 <li>In the configuration file, specify one or multiple files that contain the RDF triples that will be given as input to the reverse transformation process. </li>
 <li>You must specify a valid SPARQL SELECT query that will be applied against the RDF graph and will fetch the resulting records. The path to the file containing this SPARQL command must be specified in the configuration. It is assumed that the user is aware of the underlying ontology of the RDF graph. If the SPARQL query is not valid, then no or partial results may be retrieved. By default, the names of the variables in the SELECT clause will be used as attribute names in the output file. </li>
-<li>The current release of TripleGeo (ver. 1.7) supports .CSV delimited files and ESRI shapefiles as output formats for reverse transformation.</li>
+<li>The current release of TripleGeo (ver. 1.8) supports .CSV delimited files and ESRI shapefiles as output formats for reverse transformation.</li>
 <li>In case of ESRI shapefile as output format, make sure that all input RDF geometries are of the same type (i.e., either points or lines or polygons), because shapefiles can only support a single geometry type in a given file. </li>
 <li>Once parameters have been specified in a suitable configuration file (e.g., like <code>./test/conf/shp_reverse.conf</code>), execute the following command to launch the reverse transformation process:</br>
-<code>java -cp ./target/triplegeo-1.7-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.ReverseExtractor ./test/conf/shp_reverse.conf</code></li>
+<code>java -cp ./target/triplegeo-1.8-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.ReverseExtractor ./test/conf/shp_reverse.conf</code></li>
 </ul>
 
 

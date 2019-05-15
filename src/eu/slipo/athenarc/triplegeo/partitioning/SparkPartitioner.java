@@ -1,5 +1,5 @@
 /*
- * @(#) SparkPartitioner.java	version 1.7   6/3/2019
+ * @(#) SparkPartitioner.java	version 1.8   10/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -51,13 +51,13 @@ import org.apache.log4j.Logger;
 /**
  * Performs a transformation task using Spark, under the given configuration settings
  * @author Georgios Mandilaras
- * @version 1.7
+ * @version 1.8
  *
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Georgios Mandilaras, 20/12/2018
- * Last modified: 6/3/2019
+ * Last modified: 10/4/2019
  */
 public class SparkPartitioner {
 
@@ -166,6 +166,7 @@ public class SparkPartitioner {
                 JavaRDD df_rdd = df.javaRDD();
                 if(num_partitions > 0 ) {
                     df_rdd = df_rdd.repartition(num_partitions);
+//                  df_rdd.persist(StorageLevel.MEMORY_AND_DISK());
                 }
 
                 df_rdd
@@ -188,7 +189,7 @@ public class SparkPartitioner {
                         });
             }
             else if (currentFormat.trim().contains("GEOJSON")) {
-                Dataset df = session.read()
+                Dataset<Row> df = session.read()
                         .option("multiLine", true)
                         .json(inFile.split(";"));
                 //Stores Geojson in a dataFrame and keeps only the necessary fields.
@@ -206,6 +207,7 @@ public class SparkPartitioner {
                 JavaRDD df_rdd = df.javaRDD();
                 if(num_partitions > 0 ) {
                     df_rdd = df_rdd.repartition(num_partitions);
+//                  df_rdd.persist(StorageLevel.MEMORY_AND_DISK());
                 }
 
                 df_rdd

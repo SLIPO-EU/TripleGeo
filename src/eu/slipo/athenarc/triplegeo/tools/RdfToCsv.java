@@ -1,5 +1,5 @@
 /*
- * @(#) RdfToCsv.java 	 version 1.7   14/2/2019
+ * @(#) RdfToCsv.java 	 version 1.8   24/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -43,7 +43,6 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
 import eu.slipo.athenarc.triplegeo.utils.Constants;
 import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
-import eu.slipo.athenarc.triplegeo.utils.BatchReverseConverter;
 
 
 /**
@@ -53,18 +52,17 @@ import eu.slipo.athenarc.triplegeo.utils.BatchReverseConverter;
  *              - Apart from a delimiter, configuration files for CSV records may also specify whether there is a quote character in string values
  *              - Reverse transformation discards attribute values that contain the quote or delimiter characters; otherwise, the CSV file may be malformed.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 6/12/2017
  * Modified: 8/12/2017, added support for reprojection in another georeference system
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
- * Last modified: 14/2/2019
+ * Last modified: 24/4/2019
  */
 public class RdfToCsv implements ReverseConverter {
 
-	  BatchReverseConverter myReverseConverter;
 	  Assistant myAssistant;
 	  private MathTransform reproject = null;
 	  private WKTReader reader = null;
@@ -232,11 +230,17 @@ public class RdfToCsv implements ReverseConverter {
 			String wkt = null;
 			try {
 				wkt = g.substring(g.indexOf('>')+1).trim();
+				Geometry geom = null;
 				if (reproject != null)         //Apply on-the-fly reprojection, if specified
 				{
-					Geometry geom = myAssistant.WKT2GeometryTransform(wkt, reproject, reader);
+					geom = myAssistant.WKT2GeometryTransform(wkt, reproject, reader);
 					wkt = geom.toText();
 				}
+				else
+					geom = myAssistant.WKT2Geometry(wkt);
+				
+				if (geom != null)
+					myAssistant.updateMBR(geom);
 			} catch (Exception e) {
 				ExceptionHandler.abort(e, "ERROR: Geometry cannot be reconstructed from WKT.");
 			}

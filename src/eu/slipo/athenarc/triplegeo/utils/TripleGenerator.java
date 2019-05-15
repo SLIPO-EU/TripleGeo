@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.7   20/12/2018
+ * @(#) TripleGenerator.java 	 version 1.8   10/5/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -41,7 +41,7 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
 /**
  * Generates a collection of RDF triples from the (spatial & thematic) attributes of a given feature.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
@@ -59,7 +59,8 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
  * Modified: 27/7/2018; improved handling of URLs and language tags
  * Modified: 9/10/2018; allowing generation of URIs either using built-in functions or by retaining original IDs
  * Modified: 11/12/2018; added support for default classification scheme; user-defined categories are mapped to a simplified scheme based on textual similarity
- * Last modified: 20/12/2018
+ * Modified: 10/5/2019; extended support for multi-faceted properties with wild char '*'
+ * Last modified: 10/5/2019
  */
 
 public class TripleGenerator {
@@ -204,8 +205,10 @@ public class TripleGenerator {
 	        	else   //No mapping specified for URIs, so generate a random UUID
 	        		uuid = myAssistant.getRandomUUID();   
 
-	        	//FIXME: Characters like "/" in URIs should not be encoded!
-	        	String encodingResource = myChecker.replaceWhiteSpace(uuid);	  	    //URLEncoder.encode(uuid, Constants.UTF_8)  
+	        	//Characters like "/" in URIs should not be encoded!
+	        	String encodingResource = myChecker.replaceWhiteSpace(uuid);	  	    
+	        	//ALTERNATIVE (NOT USED): using standard UTF-8 encoding
+	        	//String encodingResource = URLEncoder.encode(uuid, Constants.UTF_8);
 	  	        uri = currentConfig.featureNS + encodingResource;
 	        }
 	        else
@@ -504,11 +507,11 @@ public class TripleGenerator {
   	        	if (!key.equals(currentConfig.attrGeometry))    // (!key.equals(currentConfig.attrKey))
   	        	{
   	        		String val = attrValues.get(key);  	        		
-  	        		if ((val != null) && (!val.equals("")) && (!val.contains("Null")))       //Issue triples for NOT NULL/non-empty values only
+  	        		if ((val != null) && (!val.equals("")) && (!val.contains("Null")))       //Issue triples for NOT-NULL/non-empty values only
   	        		{
   	        			val = myChecker.removeIllegalChars(val);          //Replace special characters not allowed in literals 	        			
   	        			mapping = attrMappings.find(key);                 //Mapping associated with this attribute
-  	        			String lang;                                      //Language used in string literals 
+  	        			String lang = null;                               //Language used in string literals 
   	        			String entityType = null;                         //Entity type used as a suffix to the URI
   	        			
   	        			if (mapping == null)                              //Cannot find a mapping that exactly matches this attribute
@@ -529,11 +532,14 @@ public class TripleGenerator {
 		  	        				createTriple4PlainLiteral(uri + "/" + key, currentConfig.ontologyNS + "key", key);
 		  	        				createTriple4PlainLiteral(uri + "/" + key, currentConfig.ontologyNS + "value", val);
 		  	        				updateStatistics(key);               //Update count of NOT NULL values transformed for this attribute
-  	        					}
-  	        					
+  	        					}	        					
 	  	        				continue;
   	        				}
-  	        				else
+  	        				else if (attrBase.contains("*"))      //FIXME: Wildcard character * inside the mapping signifies a multi-item property  
+  	        				{
+  	        					entityType = key;                   //The original key (attribute name) is used in the URI specification
+  	        				}
+  	        				else                                    //FIXME: Plcaholder %LANG for language specifications is stripped off in the internal mapping representation 
   	        				{
   	        					//Apply a built-in function 
   	        					lang = (String) myAssistant.applyRuntimeMethod(mapping.getLanguage(), new Object[]{key, attrBase.length()}); //Language tag is dynamically inferred from the last part of the attribute name

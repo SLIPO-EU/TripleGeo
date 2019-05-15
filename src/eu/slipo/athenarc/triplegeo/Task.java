@@ -1,5 +1,5 @@
 /*
- * @(#) Task.java	version 1.7   28/2/2019
+ * @(#) Task.java	version 1.8   28/2/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -35,7 +35,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Running a transformation task as a separate thread under the given configuration settings.
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.8
  */
 
 /* DEVELOPMENT HISTORY
