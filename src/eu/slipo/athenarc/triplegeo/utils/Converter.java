@@ -1,5 +1,5 @@
 /*
- * @(#) Converter.java 	 version 1.8   28/2/2019
+ * @(#) Converter.java 	 version 1.9  11/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -39,79 +39,73 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Conversion Interface for TripleGeo used in transformation of spatial features (including their non-spatial attributes) into RDF triples with various serializations.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 16/2/2013
- * Last modified: 28/2/2019
+ * Last modified: 11/7/2019
  */
 public interface Converter {  
     
 	/**
 	 * Parses each record from a FeatureIterator and creates the resulting triples (including geometric and non-spatial attributes).
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param iterator  FeatureIterator over spatial features collected from an ESRI shapefile of a GeoJSON file.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, FeatureIterator<?> iterator, Classification classific, MathTransform reproject, int targetSRID, String outputFile);
+	public void parse(FeatureIterator<?> iterator, Classification classific, MathTransform reproject, int targetSRID, String outputFile);
 
 	
 	/**
 	 * Parses each record from a ResultSet and creates the resulting triples (including geometric and non-spatial attributes).
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param rs  ResultSet containing spatial features retrieved from a DBMS.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, ResultSet rs, Classification classific, MathTransform reproject, int targetSRID, String outputFile);
+	public void parse(ResultSet rs, Classification classific, MathTransform reproject, int targetSRID, String outputFile);
 
 
 	/**
 	 * Parses each record from a collection of CSV records and creates the resulting triples (including geometric and non-spatial attributes).
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param records  Iterator over CSV records collected from a CSV file.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, Iterator<CSVRecord> records, Classification classific, MathTransform reproject, int targetSRID, String outputFile);
+	public void parse(Iterator<CSVRecord> records, Classification classific, MathTransform reproject, int targetSRID, String outputFile);
     
 	
 	/**
 	 * Parses a single OSM record and creates the resulting triples (including geometric and non-spatial attributes)
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param rs  Representation of an OSM record with attributes extracted from an OSM element (node, way, or relation).
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 */
-	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID);
+	public void parse(OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID);
 	
 	
 	/**
 	 * Parses a single GPX waypoint or track and streamlines the resulting triples (including geometric and non-spatial attributes).
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param wkt  Well-Known Text representation of the geometry  
 	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
 	 */
-	public void parse(Assistant myAssistant, String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType);
+	public void parse(String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType);
 
 	
 	/**
 	 * Parses a Map structure of (key, value) pairs and streamlines the resulting triples (including geometric and non-spatial attributes).
 	 * Applicable in STREAM transformation mode.
 	 * Input provided as an individual record. This method is used when running over Spark/GeoSpark.
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param wkt  Well-Known Text representation of the geometry
 	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
@@ -121,24 +115,22 @@ public interface Converter {
 	 * @param partition_index  The index of the partition.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile);
+	public void parse(String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile);
 
 	
 	/**
 	 * Stores resulting tuples into a file.	
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void store(Assistant myAssistant, String outputFile);
+	public void store(String outputFile);
 
 	
 	/**
 	 * Finalizes storage of resulting tuples into a file. This method is used when running over Spark/GeoSpark.
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 * @param partition_index  The index of the partition.
 	 */
-	public void store(Assistant myAssistant, String outputFile, int partition_index) ;
+	public void store(String outputFile, int partition_index) ;
 	
 	/**
 	 * Retains the header (column names) of an input CSV file.

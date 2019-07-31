@@ -1,5 +1,5 @@
 /*
- * @(#) JsonToRdf.java 	 version 1.8   18/4/2019
+ * @(#) JsonToRdf.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -55,14 +55,14 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Main entry point of the utility for extracting RDF triples from JSON documents.
  * LIMITATIONS: The entire JSON document is read in memory before parsing, so large files require suitable configuration of the JVM heap size. 
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 19/7/2018
  * Modified: 20/7/2018, added support for exporting all available non-spatial attributes as properties
  * Modified: 25/10/2018; integrate handling of a user-specified classification scheme for features.
- * Last modified by: Kostas Patroumpas, 18/4/2019
+ * Last modified by: Kostas Patroumpas, 12/7/2019
 */
 
 public class JsonToRdf {  
@@ -145,13 +145,13 @@ public class JsonToRdf {
 				if (currentConfig.mode.contains("GRAPH"))
 				{
 				  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
-				  myConverter = new GraphConverter(currentConfig, outputFile);
+				  myConverter = new GraphConverter(currentConfig, myAssistant, outputFile);
 				  			
 				  //Parse each record in order to create the necessary triples on disk (including geometric and non-spatial attributes)
 				  parseDocument(json);
 				  
 				  //Export the RDF graph into a user-specified serialization
-				  myConverter.store(myAssistant, outputFile);
+				  myConverter.store(outputFile);
 				  
 				  //Remove all temporary files as soon as processing is finished
 				  myAssistant.removeDirectory(myConverter.getTDBDir());
@@ -159,13 +159,13 @@ public class JsonToRdf {
 				else if (currentConfig.mode.contains("STREAM"))
 				{
 				  //Mode STREAM: consume records and streamline them into a serialization file
-				  myConverter =  new StreamConverter(currentConfig, outputFile);
+				  myConverter =  new StreamConverter(currentConfig, myAssistant, outputFile);
 				
 				  //Parse each record and streamline the resulting triples (including geometric and non-spatial attributes)
 				  parseDocument(json);
 				  
 				  //Finalize the output RDF file
-				  myConverter.store(myAssistant, outputFile);
+				  myConverter.store(outputFile);
 				}
 				else    //TODO: Implement method for handling transformation using RML mappings
 				{
@@ -300,7 +300,7 @@ public class JsonToRdf {
 	    //Process all available attributes (including geometry)
 		//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
 		if (!record.isEmpty())
-			myConverter.parse(myAssistant, wkt, record, classification, targetSRID, "POINT");
+			myConverter.parse(wkt, record, classification, targetSRID, "POINT");
 	}
 
 	

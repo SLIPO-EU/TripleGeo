@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.8   10/5/2019
+ * @(#) TripleGenerator.java 	 version 1.9   5/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.yaml.snakeyaml.Yaml;
@@ -33,7 +34,7 @@ import org.yaml.snakeyaml.Yaml;
 /**
  * Retains mappings of feature attributes (input) to RDF predicates (output) that will be used in generation of triples.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -45,7 +46,8 @@ import org.yaml.snakeyaml.Yaml;
  * Modified: 11/5/2018; included specification for literals with language tags; built-in functions with arguments 
  * Modified: 9/10/2018; included specification for custom URIs
  * Modified: 10/5/2019; extended support for multi-faceted properties with wild char '*'
- * Last modified: 10/5/2019
+ * Modified: 4/7/2019; allowing literal values (quoted strings) to be given as arguments in built-in functions
+ * Last modified: 5/7/2019
  */
 
 public class Mapping {
@@ -158,7 +160,7 @@ public class Mapping {
 		 * @param a  The name of the argument to be used for the built-in function (this function declared in the Assistant class).
 		 */
 		public void setFunctionArgument(String a) {
-			functionArguments.add(a);
+			functionArguments.add(a.trim());
 		}
 		
 		/**
@@ -248,6 +250,21 @@ public class Mapping {
 				return predicate.substring(predicate.indexOf(':')+1);        //Resource type inferred from the predicate
 			
 			return resourceType;
+		}
+	
+		/**
+		 * Provides the built-in function and its arguments that will generate the type of the resource.
+		 * @return A string array with the function name and its arguments; function name is the LAST item in the array
+		 */
+		public String[] getResourceTypeFunction() {
+			if ((resourceType != null) && resourceType.startsWith("generateWith."))
+			{
+				String[] args = resourceType.substring(resourceType.indexOf('(')+1, resourceType.length()-1).split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+				String[] res = ArrayUtils.addAll(args, resourceType.substring(resourceType.indexOf('.')+1,resourceType.indexOf('(')));
+				return res;				
+			}
+
+			return null;
 		}
 		
 		/**
@@ -367,7 +384,7 @@ public class Mapping {
 			            	if (p >= 0)
 			            	{
 			            		props.setGeneratorFunction(mappings[i].substring(0, p));    //Keep only the name of the function
-			            		String[] args = mappings[i].substring(p+1, mappings[i].length()-1).split(",");
+			            		String[] args = mappings[i].substring(p+1, mappings[i].length()-1).split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 			            		for (String arg: args)
 			            			props.setFunctionArgument(arg.trim());                    //Specify the arguments
 			            	}
@@ -452,7 +469,7 @@ public class Mapping {
 					            	if (p >= 0)
 					            	{
 					            		props.setGeneratorFunction(map.get(key).get(subkey).substring(0, p));    //Keep only the name of the function
-					            		String[] args = map.get(key).get(subkey).substring(p+1, map.get(key).get(subkey).length()-1).split(",");
+					            		String[] args = map.get(key).get(subkey).substring(p+1, map.get(key).get(subkey).length()-1).split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 					            		for (String arg: args)
 					            			props.setFunctionArgument(arg);                           //Specify the arguments
 					            	}

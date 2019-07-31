@@ -1,5 +1,5 @@
 /*
- * @(#) GraphConverter.java 	 version 1.8  22/4/2019
+ * @(#) GraphConverter.java 	 version 1.9  12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -41,7 +41,9 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.tdb.TDBFactory;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureImpl;
+import org.geotools.filter.text.cql2.CQL;
 import org.opengis.feature.Property;
+import org.opengis.filter.Filter;
 import org.opengis.referencing.operation.MathTransform;
 import org.openrdf.rio.RDFFormat;
 
@@ -54,7 +56,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Creates and populates a Jena model stored on disk so that data can be serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -68,7 +70,9 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 9/5/2018; integrated handling of GPX data 
  * Modified: 31/5/2018; integrated handling of classifications for OSM data
  * Modified: 22/4/2019; included support for spatial filtering over input datasets
- * Last modified: 22/4/2019
+ * Modified: 30/5/2019; correct handling of NULL geometries in CSV input files
+ * Modified: 26/6/2019; added support for thematic filtering in geographical files
+ * Last modified: 12/7/2019
  */
 public class GraphConverter implements Converter {
 
@@ -83,6 +87,7 @@ public class GraphConverter implements Converter {
 	
 	private BufferedWriter registryWriter = null;           //Used for the SLIPO Registry
 	private TripleGenerator myGenerator;                    //Generator of triples 
+	private Assistant myAssistant;							//Performs auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	private FeatureRegister myRegister = null;              //Used in registering features in the SLIPO Registry
 	
 	//Used in performance metrics
@@ -94,15 +99,17 @@ public class GraphConverter implements Converter {
 	/**
 	 * Constructs a GraphConverter object that will conduct transformation at GRAPH mode.	  
 	 * @param config  User-specified configuration for the transformation process.
+	 * @param assist  Assistant to perform auxiliary operations.
 	 * @param outputFile  Output file that will collect resulting triples.
 	 */
-	public GraphConverter(Configuration config, String outputFile) {
+	public GraphConverter(Configuration config, Assistant assist, String outputFile) {
 		  
 	    super();
 	    
 	    currentConfig = config;       //Configuration parameters as set up by the various conversion utilities (CSV, SHP, DB, etc.)  
 	
-	    myGenerator = new TripleGenerator(config);     //Will be used to generate all triples per input feature (record)
+	    myAssistant = assist;
+	    myGenerator = new TripleGenerator(config, assist);     //Will be used to generate all triples per input feature (record)
 	      
 	    //Create a temporary directory to hold intermediate data for this graph
 	    Assistant tmpAssistant = new Assistant();
@@ -155,76 +162,82 @@ public class GraphConverter implements Converter {
 	 * Parses each record from a FeatureIterator and creates the resulting triples on a disk-based model (including geometric and non-spatial attributes).
 	 * Applicable in GRAPH transformation mode.
 	 * Input provided via a FeatureIterator. This method is used for input from: Shapefiles, GeoJSON.
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param iterator  FeatureIterator over spatial features collected from an ESRI shapefile of a GeoJSON file.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, FeatureIterator<?> iterator, Classification classific, MathTransform reproject, int targetSRID, String outputFile)	  
+	public void parse(FeatureIterator<?> iterator, Classification classific, MathTransform reproject, int targetSRID, String outputFile)	  
 	{
 	    SimpleFeatureImpl feature;
 	    Geometry geometry;
 		String wkt = "";                 //Will hold geometry value
 		List<String> columns = null;     //Non-spatial attribute names
+		Filter filter = null;            //Thematic filter
 	    			    
 	    try 
 	    {
-	      while(iterator.hasNext()) {
-				
-	    	++numRec;
-	    	  
-	        feature = (SimpleFeatureImpl) iterator.next();
-	        geometry = (Geometry) feature.getDefaultGeometry();
-
-			//Apply spatial filtering (if specified by user)
-			if (!myAssistant.filterContains(geometry.toText()))
+			//Examine whether a thematic filter has been specified
+			if (currentConfig.filterSQLCondition != null)
 			{
-				rejectedRec++;
-				continue;
+				filter = CQL.toFilter(currentConfig.filterSQLCondition);
 			}
-			
-		    //Determine attribute names for each feature
-	        //CAUTION! This is only called for the first feature, as the structure of the rest is considered identical
-		    if (columns == null)
-		    {
-		    	columns = new ArrayList<String>();
-		    	Collection<Property> props = feature.getProperties();
-		    	for (Property p: props)
-		    		if ( ! p.getName().equals(feature.getDefaultGeometryProperty().getName()))       //Exclude geometry attribute
-		    			columns.add(p.getName().toString());
-		    }
-		  
-		    //Convert feature into a temporary map for conversion of all non-spatial attributes
-	        Map<String,String> row = new HashMap<String, String>(columns.size());
-	        for (String col : columns) {
-	        	if (feature.getAttribute(col) != null)                    //Exclude NULL values
-	        		row.put(col, feature.getAttribute(col).toString());
-	        }
-			
-			//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
-			//String uuid = myAssistant.getUUID(currentConfig.featureSource, row.get(currentConfig.attrKey)).toString();
-			
-			//CRS transformation
-	      	if (reproject != null)
-	      		geometry = myAssistant.geomTransform(geometry, reproject);     
-	        
-	        //Get WKT representation of the transformed geometry
-	      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetGeoOntology.trim());
-	        
-	      	//Pass this tuple for conversion to RDF triples  
-	      	String uri = myGenerator.transform(row, wkt, targetSRID, classific);
-
-	        //Get a record with basic attribute that will be used for the SLIPO Registry
-			if (myRegister != null)
-				myRegister.createTuple(uri, row, wkt, targetSRID);
-			
-	      	//Collect RDF triples resulting from this tuple into the graph
-	      	collectTriples();
-	      	
-	        myAssistant.notifyProgress(numRec);
-	      }
+		    
+			while(iterator.hasNext()) 
+			{				
+		    	++numRec;
+		    	  
+		        feature = (SimpleFeatureImpl) iterator.next();
+		        geometry = (Geometry) feature.getDefaultGeometry();
+	
+		        //Apply spatial or thematic filtering (if specified by user)
+				if ((!myAssistant.filterContains(geometry.toText())) || ((filter != null) && (!filter.evaluate(feature))))
+				{
+					rejectedRec++;
+					continue;
+				}
+				
+			    //Determine attribute names for each feature
+		        //CAUTION! This is only called for the first feature, as the structure of the rest is considered identical
+			    if (columns == null)
+			    {
+			    	columns = new ArrayList<String>();
+			    	Collection<Property> props = feature.getProperties();
+			    	for (Property p: props)
+			    		if ( ! p.getName().equals(feature.getDefaultGeometryProperty().getName()))       //Exclude geometry attribute
+			    			columns.add(p.getName().toString());
+			    }
+			  
+			    //Convert feature into a temporary map for conversion of all non-spatial attributes
+		        Map<String,String> row = new HashMap<String, String>(columns.size());
+		        for (String col : columns) {
+		        	if (feature.getAttribute(col) != null)                    //Exclude NULL values
+		        		row.put(col, feature.getAttribute(col).toString());
+		        }
+				
+				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
+				//String uuid = myAssistant.getUUID(currentConfig.featureSource, row.get(currentConfig.attrKey)).toString();
+				
+				//CRS transformation
+		      	if (reproject != null)
+		      		geometry = myAssistant.geomTransform(geometry, reproject);     
+		        
+		        //Get WKT representation of the transformed geometry
+		      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetGeoOntology.trim());
+		        
+		      	//Pass this tuple for conversion to RDF triples  
+		      	String uri = myGenerator.transform(row, wkt, targetSRID, classific);
+	
+		        //Get a record with basic attribute that will be used for the SLIPO Registry
+				if (myRegister != null)
+					myRegister.createTuple(uri, row, wkt, targetSRID);
+				
+		      	//Collect RDF triples resulting from this tuple into the graph
+		      	collectTriples();
+		      	
+		        myAssistant.notifyProgress(numRec);
+		      }
 	    }
 	    catch(Exception e) { 
 			ExceptionHandler.warn(e, "An error occurred during transformation of an input record.");
@@ -234,7 +247,7 @@ public class GraphConverter implements Converter {
 	    }
 	    
 	    //Finally, store results collected in the disk-based RDF graph
-	    this.store(myAssistant, outputFile);
+	    this.store(outputFile);
 	}
 			
 
@@ -242,14 +255,13 @@ public class GraphConverter implements Converter {
 	 * Parses each record from a ResultSet and creates the resulting triples on a disk-based model (including geometric and non-spatial attributes).
 	 * Applicable in GRAPH transformation mode.
 	 * Input provided via a ResultSet. This method is used for input from a DMBS.
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param rs  ResultSet containing spatial features retrieved from a DBMS.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */	 
-	public void parse(Assistant myAssistant, ResultSet rs, Classification classific, MathTransform reproject, int targetSRID, String outputFile)
+	public void parse(ResultSet rs, Classification classific, MathTransform reproject, int targetSRID, String outputFile)
 	{ 
 		  try 
 		  {
@@ -309,7 +321,7 @@ public class GraphConverter implements Converter {
 		  }
 	
 		  //Finally, store results collected in the disk-based RDF graph
-		  this.store(myAssistant, outputFile);  
+		  this.store(outputFile);  
 	}
 		  
 
@@ -318,22 +330,28 @@ public class GraphConverter implements Converter {
 	 * Parses each record from a collection of CSV records and creates the resulting triples on a disk-based model (including geometric and non-spatial attributes).
 	 * Applicable in GRAPH transformation mode.
 	 * Input provided by iterating over a collection of CSV records. This method is used for input from CSV.
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param records  Iterator over CSV records collected from a CSV file.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, Iterator<CSVRecord> records, Classification classific, MathTransform reproject, int targetSRID, String outputFile)
+	public void parse(Iterator<CSVRecord> records, Classification classific, MathTransform reproject, int targetSRID, String outputFile)
 	{			    
 		try {   
 			//Iterate through all records
 			for (Iterator<CSVRecord> iterator = records; iterator.hasNext();) {
 				
-	            CSVRecord rs = (CSVRecord) iterator.next();
+				Map<String, String> rs = iterator.next().toMap();    //Convert CSV record to map for better manipulation
 	            ++numRec;
 	          
+	          //Skip transformation of any features filtered out by the logical expression over thematic attributes
+	            if (myAssistant.filterThematic(rs))
+	            {
+			    	rejectedRec++;         
+					continue;
+			    }
+	            
 				//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
 				//String uuid = myAssistant.getUUID(currentConfig.featureSource, (rs.isSet(currentConfig.attrKey) ? rs.get(currentConfig.attrKey) : null)).toString();
 				
@@ -363,13 +381,18 @@ public class GraphConverter implements Converter {
 //					else	
 //					    myAssistant.WKT2Geometry(wkt);                      //This is done only for updating the MBR of all geometries
 		      	}
+			    else 
+			    {
+			    	rejectedRec++;          //Skip transformation of any features with NULL geometries
+					continue;
+			    }
 
 		      	//Pass this tuple for conversion to RDF triples 
-		      	String uri = myGenerator.transform(rs.toMap(), wkt, targetSRID, classific);
+		      	String uri = myGenerator.transform(rs, wkt, targetSRID, classific);
 		      
 		        //Get a record with basic attribute that will be used for the SLIPO Registry
 				if (myRegister != null)
-					myRegister.createTuple(uri, rs.toMap(), wkt, targetSRID);
+					myRegister.createTuple(uri, rs, wkt, targetSRID);
 				
 		      	//Collect RDF triples resulting from this tuple into the graph
 		      	collectTriples();
@@ -382,20 +405,19 @@ public class GraphConverter implements Converter {
 		}
 
 		//Finally, store results collected in the disk-based RDF graph
-		this.store(myAssistant, outputFile);
+		this.store(outputFile);
 	}
 			
 	/**
 	 * Parses a single OSM record and creates the resulting triples on a disk-based model (including geometric and non-spatial attributes).
 	 * Applicable in GRAPH transformation mode.
 	 * Input provided as an individual record. This method is used for input from OpenStreetMap XML/PBF files.
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param rs  Representation of an OSM record with attributes extracted from an OSM element (node, way, or relation).
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 */		
-	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) 
+	public void parse(OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) 
 	{	
 		try {	
 			++numRec;
@@ -426,12 +448,19 @@ public class GraphConverter implements Converter {
 			
 			//Tags to be processed as attribute values
 			Map <String, String> attrValues = new HashMap<String, String>(rs.getTagKeyValue());
-			
+            
 	      	//Include attributes for OSM identifier, name, and type
 	      	attrValues.put("osm_id", rs.getID());
 	      	attrValues.put("name", rs.getName());
 	      	attrValues.put("type", rs.getType());
-	      	
+	 
+            //Skip transformation of any features filtered out by the logical expression over thematic attributes
+            if (myAssistant.filterThematic(attrValues))
+            {
+		    	rejectedRec++;         
+				return;
+		    }
+            
 		  	//Include identified category in these tags as an extra attribute
 	      	if (rs.getCategory() != null)
 	      	{
@@ -467,20 +496,20 @@ public class GraphConverter implements Converter {
 	 * Parses a single GPX waypoint/track or a single JSON node and streamlines the resulting triples (including geometric and non-spatial attributes).
 	 * Applicable in GRAPH transformation mode.
 	 * Input provided as an individual record. This method is used for input data from GPX or JSON files.  
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param wkt  Well-Known Text representation of the geometry  
 	 * @param attrValues  Attribute values for each thematic (non-spatial) attribute
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param geomType  The type of the geometry (e.g., POINT, POLYGON, etc.)
 	 */
-	public void parse(Assistant myAssistant, String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType) 
+	public void parse(String wkt, Map <String, String> attrValues, Classification classific, int targetSRID, String geomType) 
 	{	
 		try {	
 			++numRec;
 			
-			//Apply spatial filtering (if specified by user)
-			if (!myAssistant.filterContains(wkt))
+			//Apply spatial filtering (if specified by user) 
+			//Also skip transformation of any features filtered out by the logical expression over thematic attributes
+			if ((!myAssistant.filterContains(wkt)) || (myAssistant.filterThematic(attrValues)))
 			{
 				rejectedRec++;
 				return;
@@ -552,17 +581,16 @@ public class GraphConverter implements Converter {
 	 * Input provided as an individual record. This method may be used when running over Spark/GeoSpark.
 	 * TODO: Implement for GRAPH transformation mode.
 	 */
-	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile) {
+	public void parse(String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile) {
 
 	}
 	
 
 	/**
 	 * Stores resulting tuples into a file.	
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */		
-	public void store(Assistant myAssistant, String outputFile)
+	public void store(String outputFile)
 	{
 	    dt = System.currentTimeMillis() - t_start;
 	    System.out.println(myAssistant.getGMTime() + " Parsing completed for " + numRec + " records in " + dt + " ms.");
@@ -598,7 +626,7 @@ public class GraphConverter implements Converter {
 		
 		//Measure execution time and issue statistics on the entire process
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numStmt, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numStmt, currentConfig.serialization, myGenerator.getStatistics(), myGenerator.getMBR(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
 	    myGenerator.getStatistics();
 	}
 			
@@ -606,7 +634,7 @@ public class GraphConverter implements Converter {
 	 * Finalizes storage of resulting tuples into a file. This method may be used when running over Spark/GeoSpark.
 	 * Not applicable in GRAPH transformation mode.
 	 */
-	public void store(Assistant myAssistant, String outputFile, int partition_index) {
+	public void store(String outputFile, int partition_index) {
 
 	}
 	

@@ -1,5 +1,5 @@
 /*
- * @(#) OsmPbfToRdf.java	version 1.8   24/10/2018
+ * @(#) OsmPbfToRdf.java	version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -79,7 +79,7 @@ import eu.slipo.athenarc.triplegeo.utils.ValueChecker;
  * LIMITATIONS: - Depending on system and JVM resources, transformation can handle only a moderate amount of OSM features.
  *              - RML transformation mode not currently supported. 
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -88,7 +88,7 @@ import eu.slipo.athenarc.triplegeo.utils.ValueChecker;
  * Modified: 4/7/2018; reorganized identification of categories based on OSM tags
  * Modified: 27/9/2018; excluded creation of linear ring geometries for roads and barriers; polygons are created instead
  * Modified; 24/10/2018; allowing transformation to proceed even in case that no filters (using OSM tags) have been specified; no classification scheme will be used in this case.
- * Last modified by: Kostas Patroumpas, 24/10/2018
+ * Last modified by: Kostas Patroumpas, 12/7/2019
  */
 public class OsmPbfToRdf implements Sink {
 
@@ -149,7 +149,7 @@ public class OsmPbfToRdf implements Sink {
 		  outputFile = outFile;
 	      this.sourceSRID = sourceSRID;                      //Assume that OSM input is georeferenced in WGS84
 	      this.targetSRID = targetSRID;
-	      myAssistant = new Assistant();
+	      myAssistant = new Assistant(config);
 	      myChecker = new ValueChecker();
 	      
 	      //Get filter definitions over combinations of OSM tags in order to determine POI categories
@@ -264,7 +264,7 @@ public class OsmPbfToRdf implements Sink {
 	            	{
 	            		if (r.getTagKeyValue().containsKey("name"))
 	            		{
-	            			myConverter.parse(myAssistant, rec, classification, reproject, targetSRID);
+	            			myConverter.parse(rec, classification, reproject, targetSRID);
 	            			numNamedEntities++;
 	            		}
 	            		//Keep this relation geometry in the dictionary, just in case it might be referenced by other OSM relations
@@ -352,7 +352,7 @@ public class OsmPbfToRdf implements Sink {
 
 	            if ((keepIndexed) && (nodeTmp.getTagKeyValue().containsKey("name")))
 	            {
-	            	myConverter.parse(myAssistant, recBuilder.createOSMRecord(nodeTmp), classification, reproject, targetSRID);
+	            	myConverter.parse(recBuilder.createOSMRecord(nodeTmp), classification, reproject, targetSRID);
 	            	numNamedEntities++;
 	            }
 	            
@@ -453,7 +453,7 @@ public class OsmPbfToRdf implements Sink {
 		            //CAUTION! Only named entities will be transformed
 		            if ((keepIndexed) && (wayTmp.getTagKeyValue().containsKey("name")))  
 		            {
-		            	myConverter.parse(myAssistant, recBuilder.createOSMRecord(wayTmp), classification, reproject, targetSRID);
+		            	myConverter.parse(recBuilder.createOSMRecord(wayTmp), classification, reproject, targetSRID);
 		            	numNamedEntities++;
 		            }
 		            
@@ -522,7 +522,7 @@ public class OsmPbfToRdf implements Sink {
 	 	        		 //CAUTION! Only named entities will be transformed
 		         		 if ((keepIndexed) && (relationTmp.getTagKeyValue().containsKey("name")))
 		        		 {
-		        			 myConverter.parse(myAssistant, rec, classification, reproject, targetSRID);
+		        			 myConverter.parse(rec, classification, reproject, targetSRID);
 		        			 numNamedEntities++;
 		        		 }
 		        		
@@ -565,13 +565,13 @@ public class OsmPbfToRdf implements Sink {
 				if (currentConfig.mode.contains("GRAPH"))
 				{
 				  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
-				  myConverter = new GraphConverter(currentConfig, outputFile);
+				  myConverter = new GraphConverter(currentConfig, myAssistant, outputFile);
 				
 				  //Parse each record in order to create the necessary triples on disk (including geometric and non-spatial attributes)
 				  parseDocument();
 
 				  //Export the RDF graph into a user-specified serialization
-				  myConverter.store(myAssistant, outputFile);
+				  myConverter.store(outputFile);
 
 				  //Remove all temporary files as soon as processing is finished
 				  myAssistant.removeDirectory(myConverter.getTDBDir());
@@ -579,13 +579,13 @@ public class OsmPbfToRdf implements Sink {
 				else if (currentConfig.mode.contains("STREAM"))					
 				{					
 				  //Mode STREAM: consume records and streamline them into a serialization file
-				  myConverter =  new StreamConverter(currentConfig, outputFile);
+				  myConverter =  new StreamConverter(currentConfig, myAssistant, outputFile);
 			  
 				  //Parse each OSM entity and streamline the resulting triples (including geometric and non-spatial attributes)
 				  parseDocument();
 				  
 				  //Finalize the output RDF file
-				  myConverter.store(myAssistant, outputFile);
+				  myConverter.store(outputFile);
 				}
 				else    //TODO: Implement method for handling transformation using RML mappings
 				{

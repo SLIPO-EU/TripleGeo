@@ -1,5 +1,5 @@
 /*
- * @(#) Constants.java 	 version 1.8   15/5/2019
+ * @(#) Constants.java 	 version 1.9   26/6/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -22,13 +22,13 @@ package eu.slipo.athenarc.triplegeo.utils;
  * Constants utilized in the transformation and reverse transformation processes.
  *
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
  * Modified by: Kostas Patroumpas, 8/2/2013; adjusted to TripleGeo functionality
- * Last modified: 15/5/2019
+ * Last modified: 26/6/2019
  */
 public class Constants {
 
@@ -159,7 +159,7 @@ public class Constants {
   
   
   //Strings appearing in user notifications and warnings
-  public static final String COPYRIGHT = "*********************************************************************\n*                      TripleGeo version 1.8                        *\n* Developed by the Information Management Systems Institute.        *\n* Copyright (C) 2013-2019 Athena Research Center, Greece.           *\n* This program comes with ABSOLUTELY NO WARRANTY.                   *\n* This is FREE software, distributed under GPL license.             *\n* You are welcome to redistribute it under certain conditions       *\n* as mentioned in the accompanying LICENSE file.                    *\n*********************************************************************\n";
+  public static final String COPYRIGHT = "*********************************************************************\n*                      TripleGeo version 1.9                        *\n* Developed by the Information Management Systems Institute.        *\n* Copyright (C) 2013-2019 Athena Research Center, Greece.           *\n* This program comes with ABSOLUTELY NO WARRANTY.                   *\n* This is FREE software, distributed under GPL license.             *\n* You are welcome to redistribute it under certain conditions       *\n* as mentioned in the accompanying LICENSE file.                    *\n*********************************************************************\n";
   public static final String RML_COPYRIGHT = "NOTICE: TripleGeo makes use of RML processing modules (http://rml.io/) under MIT license; Copyright (c) 2013-2017, Ghent University-iMinds-Multimedia Lab.";
   public static final String INCORRECT_CONFIG = "Incorrect number of arguments. A properties file with proper configuration settings is required.";
   public static final String INCORRECT_SETTING = "Incorrect or no value set for at least one parameter. Please specify a correct value in the configuration settings.";

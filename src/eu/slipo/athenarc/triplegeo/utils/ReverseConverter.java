@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseConverter.java 	 version 1.8   24/2/2018
+ * @(#) ReverseConverter.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -23,16 +23,19 @@ import java.util.List;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.rdf.model.Literal;
 
+import com.vividsolutions.jts.geom.Geometry;
+
 /**
  * Reverse Conversion Interface for TripleGeo used in reconstructing (relational) records from an RDF graph.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 8/12/2017
  * Modified: 11/12/2017; support for auto-generation of attribute schema
- * Last modified: 24/2/2018
+ * Modified: 12/7/2019; added support for export to GeoJson file format
+ * Last modified: 12/7/2019
  */
 public interface ReverseConverter {  
 
@@ -64,6 +67,13 @@ public interface ReverseConverter {
 	 * @return  An extended WKT (EWKT) representation, which includes the SRID.
 	 */
 	public String getGeometrySpec(String g);
+	
+	/**
+	 * Identifies SRID (EPSG code) and geometry type from a WKT literal. Applicable in reverse transformation into GeoJson format.
+	 * @param g A geometry WKT literal.
+	 * @return
+	 */
+	public Geometry getGeometry(String g);
 	
 	/**
 	 * Creates a feature collection from current batch of records and writes them into the output file.

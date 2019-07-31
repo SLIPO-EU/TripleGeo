@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.8   10/5/2019
+ * @(#) TripleGenerator.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -28,12 +28,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.datatypes.TypeMapper;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.vocabulary.RDF;
 
+import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 
 import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
@@ -41,7 +43,7 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
 /**
  * Generates a collection of RDF triples from the (spatial & thematic) attributes of a given feature.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -60,12 +62,15 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
  * Modified: 9/10/2018; allowing generation of URIs either using built-in functions or by retaining original IDs
  * Modified: 11/12/2018; added support for default classification scheme; user-defined categories are mapped to a simplified scheme based on textual similarity
  * Modified: 10/5/2019; extended support for multi-faceted properties with wild char '*'
- * Last modified: 10/5/2019
+ * Modified: 14/6/2019; support for GeoHash strings encoding (centroids of) geometries
+ * Modified: 4/7/2019; allowing string literals as arguments in dynamically executed built-in functions
+ * Modified: 5/7/2019; allowing built-in functions to dynamically generate the resource type based on user mappings
+ * Last modified: 12/7/2019
  */
 
 public class TripleGenerator {
 
-	Assistant myAssistant;
+	public Assistant myAssistant;
 	ValueChecker myChecker;
 	private static Configuration currentConfig;
 
@@ -82,13 +87,20 @@ public class TripleGenerator {
 	
 	List<String> attrCategories = null;    //List of attribute names in the dataset that may refer to classification items listed from finest to coarser (e.g., subcategory, category, etc.)
 	
+	public Envelope mbr;          //Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
+	
     /**
      * Constructs a TripleGenerator for transforming a feature (as a record of attributes) into RDF triples
      * @param config  User-specified configuration for the transformation process.
      */
-	public TripleGenerator(Configuration config) {
+	public TripleGenerator(Configuration config, Assistant assist) {
 		    
-		myAssistant = new Assistant(config);
+		myAssistant = new Assistant(config); //assist;
+
+		//Initialize MBR of transformed geometries
+		mbr = new Envelope();
+		mbr.init();
+		
 		myChecker = new ValueChecker();
 		
 	    currentConfig = config;       //Configuration parameters as set up by the various conversion utilities (CSV, SHP, DBMS, etc.) 
@@ -138,7 +150,29 @@ public class TripleGenerator {
 	    	attrAssignedCategory = "ASSIGNED_CATEGORY";
 	 }
 
-
+	/**
+	 * Updates the MBR of the geographic dataset as this is being transformed. 	
+	 * @param g  Geometry that will be checked for possible expansion of the MBR of all features processed thus far
+	 */
+	public void updateMBR(Geometry g) {
+		
+		Envelope env = g.getEnvelopeInternal();          //MBR of the given geometry
+		if ((mbr== null) || (mbr.isNull()))
+			mbr = env;
+		else if (!mbr.contains(env))
+			mbr.expandToInclude(env);                    //Expand MBR is the given geometry does not fit in
+	}
+	
+	/**
+	 * Provides the MBR of the geographic dataset that has been transformed.
+	 * @return  The MBR of the transformed geometries.
+	 */
+	public Envelope getMBR() {
+		if ((mbr == null) || (mbr.isNull()))
+			return null;
+		return mbr;
+	}
+	
 	 /**
 	  * Provides a collection of triples resulting from conversion (usually from a single input feature)
 	  * @return  A list of RDF triples
@@ -253,12 +287,16 @@ public class TripleGenerator {
 			  	  	
 			  	  	//Insert extra attributes concerning lon/lat coordinates for the centroid 
 			  	  	Geometry geomProjected = myAssistant.geomTransformWGS84(wkt, targetSRID);
+			  	  	updateMBR(geomProjected);                 //Keep the MBR of transformed geometries up-to-date
 			  	  	g = attrMappings.findExtraGeometricAttr("getLongitude");
 			  	  	if (!g.isEmpty())  		
 			  	  	    row.put(g.get(0), myAssistant.applyRuntimeMethod("getLongitude", new Object[]{geomProjected}).toString());	  
 			  	  	g = attrMappings.findExtraGeometricAttr("getLatitude");
 			  	  	if (!g.isEmpty())
-			  	  	    row.put(g.get(0), myAssistant.applyRuntimeMethod("getLatitude", new Object[]{geomProjected}).toString());		  	  
+			  	  	    row.put(g.get(0), myAssistant.applyRuntimeMethod("getLatitude", new Object[]{geomProjected}).toString());	
+			  	  	g = attrMappings.findExtraGeometricAttr("getGeoHash");
+			  	  	if (!g.isEmpty())  		
+			  	  	    row.put(g.get(0), myAssistant.applyRuntimeMethod("getGeoHash", new Object[]{geomProjected.getCentroid().getX(),geomProjected.getCentroid().getY()}).toString());	
 /*		  	  	
 			  	    //ALTERNATIVE (NOT USED): Insert extra attributes concerning lon/lat coordinates for the centroid 
 			  	  	g = attrMappings.findExtraGeometricAttr("getLonLatCoords");
@@ -421,11 +459,17 @@ public class TripleGenerator {
 			List<String> argv = new ArrayList<String>();
 			for (String arg: args)
 			{
-			    //For each argument, get its actual value to be used by the built-in function
-				String val = attrValues.get(arg);
-				if (val == null)
-					val = "";	      				
-				argv.add(val);             			
+				if (attrValues.containsKey(arg))   //Argument is an attribute name, ...
+				{
+				    //...so, get its actual value to be used by the built-in function
+					String val = attrValues.get(arg);
+					if (val == null)
+						val = "";
+					argv.add(val);    
+				}
+				else {										//Otherwise, this must be a string literal, ...
+					argv.add(arg.replaceAll("\"", ""));   	//... so, keep it intact without the quotes
+				}
 			}
 			
 			return argv;
@@ -535,11 +579,11 @@ public class TripleGenerator {
   	        					}	        					
 	  	        				continue;
   	        				}
-  	        				else if (attrBase.contains("*"))      //FIXME: Wildcard character * inside the mapping signifies a multi-item property  
+  	        				else if (attrBase.contains("*"))      	//FIXME: Wildcard character * inside the mapping signifies a multi-item property  
   	        				{
   	        					entityType = key;                   //The original key (attribute name) is used in the URI specification
   	        				}
-  	        				else                                    //FIXME: Plcaholder %LANG for language specifications is stripped off in the internal mapping representation 
+  	        				else                                    //FIXME: Placeholder %LANG for language specifications is stripped off in the internal mapping representation 
   	        				{
   	        					//Apply a built-in function 
   	        					lang = (String) myAssistant.applyRuntimeMethod(mapping.getLanguage(), new Object[]{key, attrBase.length()}); //Language tag is dynamically inferred from the last part of the attribute name
@@ -551,8 +595,9 @@ public class TripleGenerator {
   	        			}
   	        			else
   	        			{
+  	        				//Determine language and entity type
   	        				lang = mapping.getLanguage();
-  	        				entityType = mapping.getEntityType();
+  	        				entityType = mapping.getEntityType();	
   	        			}
     			
   	        			updateStatistics(key);                          //Update count of NOT NULL values transformed for this attribute
@@ -560,9 +605,22 @@ public class TripleGenerator {
   	        			//User specifications for transforming this attribute
   	        			String resPart = mapping.getPart();             //This resource is part of another entity (e.g., streetname is part of address)
   	        			String resClass = mapping.getInstance();        //This resource instantiates a class (e.g., email instantiates a contact)	
-        				String predicate = mapping.getPredicate();      //Predicate according to the ontology
-        				String resType = mapping.getResourceType();     //Type of the resource                 
+        				String predicate = mapping.getPredicate();      //Predicate according to the ontology     				             
         				RDFDatatype dataType = mapping.getDataType();   //Data type for literals
+        				
+        				//Determine resource type
+        				String resType;  
+        				String[] t = mapping.getResourceTypeFunction();    //Array provides a built-in function to be called, along with its arguments
+        				if (t != null)                                     //e.g., "generateWith.getResourceType(TEL_TYPE)"
+        				{
+        					//Determine actual values for the arguments of the built-in function
+        					List<String> argv = ((t.length >= 1) ? getArgValues(Arrays.asList(ArrayUtils.subarray(t, 0, t.length-1)), attrValues) : null);
+
+        					//Resource type is dynamically inferred using a built-in function (function name is the LAST item in the array)
+        					resType = (String) myAssistant.applyRuntimeMethod(t[t.length-1], argv.toArray(new Object[argv.size()]));	        					
+        				}
+        				else
+        					resType = mapping.getResourceType();
         				
         				//Handle value for this attribute according to its designated mapping profile
         				switch (mapping.getMappingProfile()) {

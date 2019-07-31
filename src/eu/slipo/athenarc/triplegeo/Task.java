@@ -1,5 +1,5 @@
 /*
- * @(#) Task.java	version 1.8   28/2/2019
+ * @(#) Task.java	version 1.9   11/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -35,7 +35,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Running a transformation task as a separate thread under the given configuration settings.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -44,13 +44,12 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified: 8/11/2017, added support for system exit codes on abnormal termination
  * Modified: 21/11/2017, added support for user-specified classification schemes for shapefiles, CSV, and DBMS data sources 
  * Modified: 19/7/2018, added support for JSON and OSM PBF data sources 
- * Last modified by: Kostas Patroumpas, 28/2/2019
+ * Last modified by: Kostas Patroumpas, 11/7/2019
  */
 public class Task {
 
 	private String currentFormat;	
-	Assistant myAssistant;
-
+	
 	/**
 	 * Constructor for a transformation task that will be executed at a separate thread.
 	 * @param config  Parameters to configure the transformation.
@@ -102,7 +101,7 @@ public class Task {
 			}
 			else if (currentFormat.trim().contains("XML")) {   //This includes INSPIRE data (GML) and metadata (XML), as well as GML and KML files
 				String fileXSLT = config.mappingSpec;          //Predefined XSLT stylesheet must be available to be applied in transformation
-				myAssistant =  new Assistant();
+				Assistant myAssistant =  new Assistant();
 				myAssistant.saxonTransform(inFile, fileXSLT, outFile);
 			}	
 			else {

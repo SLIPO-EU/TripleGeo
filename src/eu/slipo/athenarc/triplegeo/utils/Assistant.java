@@ -1,5 +1,5 @@
 /*
- * @(#) Assistant.java 	 version 1.8  24/4/2019
+ * @(#) Assistant.java 	 version 1.9  31/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -32,6 +32,8 @@ import java.nio.charset.Charset;
 import java.sql.Blob;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -81,11 +83,15 @@ import com.vividsolutions.jts.io.WKTReader;
 import com.vividsolutions.jts.io.WKTWriter;
 import com.vividsolutions.jts.operation.polygonize.Polygonizer;
 
+import ch.hsr.geohash.GeoHash;
+import eu.slipo.athenarc.triplegeo.expression.Expr;
+import eu.slipo.athenarc.triplegeo.expression.ExprResolver;
+
 
 /**
  * Assistance class with various helper methods used in transformation or reverse transformation.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -100,7 +106,9 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
  * Modified: 7/11/2018; added built-in function to support transliteration of string literals into Latin
  * Modified: 26/11/2018; added built-in function for formatting phone numbers
  * Modified: 18/4/2019; added support for topological filtering of geometries; currently based on spatial containment in a user-specified geometry
- * Last modified by: Kostas Patroumpas, 24/4/2019
+ * Modified: 14/6/2019; support for GeoHash strings encoding (centroids of) geometries
+ * Modified: 4/7/2019; added built-in function to support date format conversions
+ * Last modified by: Kostas Patroumpas, 31/7/2019
  */
 
 public class Assistant {
@@ -108,27 +116,42 @@ public class Assistant {
 	public PGDBDecoder pgdbDecoder = null;         //Decoder of geometries read from a personal ESRI geodatabase (.mdb)
 	public WKTReader wktReader = null;             //Parses a geometry in Well-Known Text format to a Geometry representation.
 	
-	private static Envelope mbr;                   //Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
-	private static Geometry extent = null;         //User-specified polygon to filter out input geometries outside of its extent
+	private static Envelope mbr;                   	//Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
+	private static Geometry extent = null;         	//User-specified polygon to filter out input geometries outside of its extent
+	private static Expr logicalFilter = null;		//User-specified conditions (logical expressions) over thematic attributes
 	private static Configuration currentConfig;
 
 	private static Set<String> ISO_LANGUAGES = new HashSet<String> (Arrays.asList(Locale.getISOLanguages()));   //List of ISO 639-1 language codes
 	
 	private AtomicLong numberGenerator = new AtomicLong(1L);    //Used to generate serial numbers, i.e., consecutive positive integers starting from 1
-	 
+	
+	private SimpleDateFormat standardDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");    //standard formatting for date values in triples
+	
+	private SimpleDateFormat gmtDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");         //Used in time notifications
+	
+	private DecimalFormat decDateFormatter;
+	
 	/**
 	 * Constructor of the class without explicit declaration of configuration settings.
 	 */
-	public Assistant() {		
+	public Assistant() {	
 	}
-	
+
 	/**
 	 * Constructor of the class with explicit declaration of configuration settings.
 	 */
 	public Assistant(Configuration config) {
 		
 		currentConfig = config;
+				
+		//Specify time zone in time notifications
+		gmtDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
 
+		//Decimal format to be used in converting numbers to dates
+		NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
+		decDateFormatter = (DecimalFormat)nf;
+        decDateFormatter.applyPattern("#.000");
+        
 		//Specify a spatial filter
 		if (currentConfig.spatialExtent != null)
 		{
@@ -139,6 +162,13 @@ public class Assistant {
 			} catch (ParseException e) {
 				ExceptionHandler.abort(e, "Spatial extent of filter specification is not a valid WKT geometry. Please check your configuration settings.");
 			}
+		}
+		
+		//Specify a thematic filter for most geographical file formats (case for SHAPEFILE or GEOJSON is handled using native GeoTools filters)
+		if ((currentConfig.filterSQLCondition != null) && (!currentConfig.inputFormat.trim().contains("DBMS")) && (!currentConfig.inputFormat.trim().contains("SHAPEFILE")) && (!currentConfig.inputFormat.trim().contains("GEOJSON")))
+		{
+			//Prepare a logical expression for evaluation over the thematic attributes (if specified by user)
+			logicalFilter = getLogicalExpression(currentConfig.filterSQLCondition);
 		}
 	}
 	
@@ -199,7 +229,7 @@ public class Assistant {
         }  			
 	}
 	
-		//
+
 	/**
 	 * Determines the file extension of the output file(s), depending on the RDF serialization.
 	 * @param serialization  A string with the user-specified serialization.
@@ -254,6 +284,15 @@ public class Assistant {
 	}
 	
 	/**
+	 * Check whether there is a user-specified SQL filter against input data. This includes the option of thematic filter against geographical vector files.
+	 * @return True, if SQL filter has been specified; False, otherwise.
+	 */
+	public boolean hasSQLFilter() {
+		return (logicalFilter != null);
+		
+	}
+	
+	/**
 	 * Returns a String with the content of the InputStream	
 	 * @param is  the InputStream.
 	 * @return  A string with the content of the InputStream.
@@ -301,9 +340,6 @@ public class Assistant {
 	 */
 	public String getGMTime() {
 		
-		SimpleDateFormat gmtDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-		gmtDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-
 		//Current Date Time in GMT
 		return gmtDateFormat.format(new java.util.Date()) + " GMT";		
 	}
@@ -338,27 +374,28 @@ public class Assistant {
 	 * @param numTriples  The number of RDF triples resulted from transformation.
 	 * @param serialization  A string with the user-specified serialization of output triples.
 	 * @param attrStatistics  Statistics collected per attribute during transformation.
+	 * @param mbr  The MBR of transformed geometries (in WGS1984 georeference).
 	 * @param mode  Transformation mode, as specified in the configuration.
 	 * @param targetSRID  Output spatial reference system (CRS).
 	 * @param outputFile  Path to the output file containing the RDF triples.
 	 * @param partition_index  The identifier (index) of the partition in case of Spark execution.
 	 */
-	public void reportStatistics(long dt, int numRec, int rejectedRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile, int partition_index) {
+	public void reportStatistics(long dt, int numRec, int rejectedRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, Envelope mbr, String mode, String targetSRID, String outputFile, int partition_index) {
 
-		if (currentConfig.runtime.equalsIgnoreCase("JVM")) {
-			System.out.print(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
-		}
-		else if (currentConfig.runtime.equalsIgnoreCase("SPARK"))  {
-			System.out.print(this.getGMTime() + " Worker " + partition_index + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".");
-		}
+		 String msg = "";
+		 if (currentConfig.runtime.equalsIgnoreCase("JVM")) {
+			msg += this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".";
+		 }
+		 else if (currentConfig.runtime.equalsIgnoreCase("SPARK"))  {
+			msg += this.getGMTime() + " Worker " + partition_index + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records transformed into " + numTriples + " triples and exported to " + serialization + " file: " + outputFile + ".";
+		 }
 	
-		if (rejectedRec > 0)
-			System.out.print(" " + rejectedRec + " input records were excluded from transformation.");
-		System.out.println();
-		
-		 if (mbr != null)
-			 System.out.println("MBR of transformed geometries: X_min=" + mbr.getMinX() + ", Y_min=" + mbr.getMinY() + ", X_max=" + mbr.getMaxX() + ", Y_max=" + mbr.getMaxY());
-		 
+		 if (rejectedRec > 0)
+			msg += " " + rejectedRec + " input records were excluded from transformation.";
+
+		 msg += " " + printMBR(mbr);   //Include information on spatial extent (if available). 
+		 System.out.println(msg);
+
 		 //Metadata regarding execution of this process
 		 Map<String, Object> execStatistics = new HashMap<String, Object>();
 		 execStatistics.put("Execution time (ms)", dt);
@@ -406,20 +443,21 @@ public class Assistant {
 	 * @param numTriples  The number of RDF triples resulted from transformation.
 	 * @param serialization  A string with the user-specified serialization of output triples.
 	 * @param attrStatistics  Statistics collected per attribute during transformation.
+	 * @param mbr  The MBR of transformed geometries (in WGS1984 georeference).
 	 * @param mode  Transformation mode, as specified in the configuration.
 	 * @param targetSRID  Output spatial reference system (CRS).
 	 * @param outputFile  Path to the output file containing the RDF triples.
 	 */
-	public void reportStatistics(long dt, int numRec, int rejectedRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, String mode, String targetSRID, String outputFile) {
+	public void reportStatistics(long dt, int numRec, int rejectedRec, int numTriples, String serialization, Map<String, Integer> attrStatistics, Envelope mbr, String mode, String targetSRID, String outputFile) {
 
-		System.out.print(this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records reconstructed from " + numTriples + " triples serialized in " + serialization + " and exported to file: " + outputFile + ".");
+		 String msg = "";
+		 msg += this.getGMTime() + " Thread " + Thread.currentThread().getName() + " completed successfully in " + dt + " ms. " + (numRec-rejectedRec) + " records reconstructed from " + numTriples + " triples serialized in " + serialization + " and exported to file: " + outputFile + ".";
 				
-		if (rejectedRec > 0)
-			System.out.print(" " + rejectedRec + " records were excluded from reverse transformation.");
-		System.out.println();
+		 if (rejectedRec > 0)
+			 msg += " " + rejectedRec + " records were excluded from reverse transformation.";
 		
-		 if (mbr != null)
-			 System.out.println("MBR of transformed geometries: X_min=" + mbr.getMinX() + ", Y_min=" + mbr.getMinY() + ", X_max=" + mbr.getMaxX() + ", Y_max=" + mbr.getMaxY());
+		 msg += " " + printMBR(mbr);   //Include information on spatial extent (if available).
+		 System.out.println(msg);
 		 
 		 //Metadata regarding execution of this process
 		 Map<String, Object> execStatistics = new HashMap<String, Object>();
@@ -438,7 +476,7 @@ public class Assistant {
 	
 		 //MBR of transformed geometries
 		 Map<String, Object> mapMBR = new HashMap<String, Object>();
-		 if (mbr != null) {
+		 if (!mbr.isNull()) {
 			 mapMBR.put("X_min", mbr.getMinX());
 			 mapMBR.put("Y_min", mbr.getMinY());
 			 mapMBR.put("X_max", mbr.getMaxX());
@@ -572,13 +610,31 @@ public class Assistant {
 	public void updateMBR(Geometry g) {
 			
 		Envelope env = g.getEnvelopeInternal();          //MBR of the given geometry
-		if (mbr == null)
-			mbr = g.getEnvelopeInternal();
+		if ((mbr == null) || (mbr.isNull()))
+			mbr = env;
 		else if (!mbr.contains(env))
 			mbr.expandToInclude(env);                    //Expand MBR is the given geometry does not fit in
 	}
-		
+	
+	/**
+	 * Provides the MBR of the geographic dataset that has been transformed.
+	 * @return  The MBR of the transformed geometries.
+	 */
+	public Envelope getMBR() {
+		if ((mbr == null) || (mbr.isNull()))
+			return null;
+		return mbr;
+	}
 
+	/**
+	 * Prints the MBR of the transformed geometries.
+	 * @return A string with the coordinates of the two anti-diagonal points defining the MBR.
+	 */
+	private String printMBR(Envelope mbr) {
+		if ((mbr == null) || (mbr.isNull()))
+			return "";
+		return "MBR of transformed geometries: X_min=" + mbr.getMinX() + ", Y_min=" + mbr.getMinY() + ", X_max=" + mbr.getMaxX() + ", Y_max=" + mbr.getMaxY();
+	}
 	/**
 	 * Transforms a WKT representation of a geometry into another CRS (reprojection).	
 	 * @param wkt  Input geometry in Well-Known Text.
@@ -921,7 +977,7 @@ public class Assistant {
 	    if (g != null)
 	    {	
         	//Update the MBR of all geometries processed so far
-  	        updateMBR(g);
+  	        //updateMBR(g);
         	
         	//Calculate the coordinates of its centroid	        	
         	return new double[] {g.getCentroid().getX(), g.getCentroid().getY()};	
@@ -972,6 +1028,16 @@ public class Assistant {
 	}
 
 	/**
+	 * Encode a geographic location into a short string of letters and digits, according to http://geohash.org/ 
+	 * @param lon  Longitude of the location
+	 * @param lat  Latitude of the location
+	 * @return  A 12-character long string with the GeoHash encoding of the geometry.
+	 */
+	public String getGeoHash(double lon, double lat) {
+		return GeoHash.withCharacterPrecision(lat, lon, 12).toBase32();   //A string of 12 characters will be returned	
+	}
+	
+	/**
 	 * Specify a topological filter (CONTAINS) against input geometries in order to exclude transformation of those outside a user-specified spatial extent.
 	 * @param wkt  Input geometry as WKT
 	 * @return True if geometry qualifies; False if geometry should be excluded from transformation.
@@ -991,6 +1057,17 @@ public class Assistant {
 	 */
 	public Geometry getFilterExtent() {
 		return extent;
+	}
+
+	/**
+	 * Evaluates a thematic filter (logical expression) over an input data record.
+	 * @param record   Input data record (including all thematic attributes available in the original feature)
+	 * @return False if data record qualifies; True if record should be excluded from transformation.
+	 */
+	public boolean filterThematic(Map<String, String> record) {
+		if (logicalFilter != null) 
+			return !logicalFilter.evaluate(record);
+		return false;                  //No filter specified, so this record should not be excluded from transformation
 	}
 	
 	/** 
@@ -1032,6 +1109,26 @@ public class Assistant {
 		return Transliterator.getInstance(LANG + ";" + NORMALIZE).transform(val);
 	}
 
+	/**
+	 * Convert a date value from its original format into a standard timestamp value.
+	 * @param val  Input date value (given as a string)
+	 * @param format  Original format of date values as specified in the mappings.
+	 * @return  Standard formatted date value (as string)
+	 */
+	public String standardizeDate(String val, String format) {
+     
+		//Convert date value from its original format into the standard one (i.e., timestamp value)
+		try{
+			SimpleDateFormat origFormat = new SimpleDateFormat(format);   //original format, e.g., "yyyyMMddHHmmss.SSS" or "yyyyMM"
+			Date date = origFormat.parse(decDateFormatter.format(Double.parseDouble(val)));
+			return standardDateFormat.format(date);
+			
+		} catch(Exception e) {
+			ExceptionHandler.warn(e, "Malformed date or unsuitable date format. Skipped transformation of this attribute value.");
+		}
+		return null;
+	}
+	
 	/**
 	 * Built-in function that brings phone numbers into a consistent format.
 	 * @param phone  The original string literal representing a phone number
@@ -1167,6 +1264,16 @@ public class Assistant {
 	}
 	
 	/**
+	 * Built-in function that assigns a value as the type of a resource.
+	 * @param val  The value to be assigned as the type of the resource.
+	 * @return  The assigned value.
+	 */
+	public String getResourceType(String val) {
+
+		return val;
+	}
+	
+	/**
 	 * Built-in function that identifies the provider of the dataset as specified in the configuration settings.
 	 * @return  The name of the data provider.
 	 */
@@ -1200,6 +1307,24 @@ public class Assistant {
 			concat = new StringBuilder(concat).append(v).append(" ").toString();			
 		}
 		return concat.trim();
+	}
+
+	/**
+	 * Returns a logical expression to be evaluated against a record (represented as a Map with key-value pairs); evaluation returns a boolean value.
+	 * @param condition  An SQL condition involving equality, possibly combining several subexpressions with AND, OR
+	 * @return  A logical expression to be evaluated
+	 */
+	public Expr getLogicalExpression(String condition) {
+
+		Expr expr = null;     //Currently supporting =, <>, <, <=, >, >= against string and numeric literals; subexpressions can be combined with AND, OR operators; NOT is not supported
+		try {
+			ExprResolver exprResolver = new ExprResolver();
+			expr = exprResolver.parse(exprResolver.tokenize(condition));   //Example condition: "type = 'BUSSTOP' AND (name = 'Majelden' OR name = 'Kaserngatan')"
+		} catch (java.text.ParseException e) {
+			ExceptionHandler.abort(e, "Logical expression specified for thematic filtering is not valid. Please check your configuration settings.");
+		}
+		
+		return expr;
 	}
 	
 	/**

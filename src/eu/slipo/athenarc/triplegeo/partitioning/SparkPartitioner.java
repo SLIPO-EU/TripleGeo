@@ -1,5 +1,5 @@
 /*
- * @(#) SparkPartitioner.java	version 1.8   10/4/2019
+ * @(#) SparkPartitioner.java	version 1.9   10/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -51,7 +51,7 @@ import org.apache.log4j.Logger;
 /**
  * Performs a transformation task using Spark, under the given configuration settings
  * @author Georgios Mandilaras
- * @version 1.8
+ * @version 1.9
  *
  */
 

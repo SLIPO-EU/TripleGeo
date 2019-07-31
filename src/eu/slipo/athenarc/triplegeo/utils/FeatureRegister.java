@@ -1,5 +1,5 @@
 /*
- * @(#) FeatureRegister.java 	 version 1.8   27/7/2018
+ * @(#) FeatureRegister.java 	 version 1.9   27/7/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Creates a record of attribute values concerning a feature that should be registered in the SLIPO Registry.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY

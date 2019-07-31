@@ -1,5 +1,5 @@
 /*
- * @(#) RdbToRdf.java 	 version 1.8   27/2/2018
+ * @(#) RdbToRdf.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -49,7 +49,7 @@ import eu.slipo.athenarc.triplegeo.utils.Constants;
 /**
  * Entry point of the utility for extracting RDF triples from spatially-enabled DBMSs.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -69,7 +69,7 @@ import eu.slipo.athenarc.triplegeo.utils.Constants;
  * Modified: 24/11/2017, added support for recognizing character encoding for strings
  * Modified: 11/12/2017, added support on UTF-8 encoding in the result of RML conversion.
  * Modified: 14/12/2017, added support for ESRI personal geodatabases (Microsoft Access .mdb format). CAUTION: Include -Dfile.encoding=UTF-8 when applying against geodatabases with UTF-8 encoding.
- * Last modified by: Kostas Patroumpas, 27/2/3018
+ * Last modified by: Kostas Patroumpas, 12/7/2019
  */
 public class RdbToRdf {
 
@@ -103,7 +103,7 @@ public class RdbToRdf {
 	  outputFile = outFile;
       this.sourceSRID = sourceSRID;
       this.targetSRID = targetSRID;
-      myAssistant = new Assistant();
+      myAssistant = new Assistant(config);
 	  
       try
       {
@@ -175,10 +175,10 @@ public class RdbToRdf {
 			  if (currentConfig.mode.contains("GRAPH"))
 			  {
 			      //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
-				  myConverter = new GraphConverter(currentConfig, outputFile);
+				  myConverter = new GraphConverter(currentConfig, myAssistant, outputFile);
 			  
 				  //Export data after constructing a model on disk
-				  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+				  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 			  
 				  //Remove all temporary files as soon as processing is finished
 				  myAssistant.removeDirectory(myConverter.getTDBDir());
@@ -186,18 +186,18 @@ public class RdbToRdf {
 			  else if (currentConfig.mode.contains("STREAM"))
 				{
 				  //Mode STREAM: consume records and streamline them into a serialization file
-				  myConverter =  new StreamConverter(currentConfig, outputFile);
+				  myConverter =  new StreamConverter(currentConfig, myAssistant, outputFile);
 				  
 				  //Export data in a streaming fashion
-				  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+				  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 				}
 			  else if (currentConfig.mode.contains("RML"))
 				{
 				  //Mode RML: consume records and apply RML mappings in order to get triples
-				  myConverter =  new RMLConverter(currentConfig);
+				  myConverter =  new RMLConverter(currentConfig, myAssistant);
 				  
 				  //Export data in a streaming fashion according to RML mappings
-				  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+				  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 				}
 			} catch (Exception e) {
 				ExceptionHandler.abort(e, "");

@@ -1,5 +1,5 @@
 /*
- * @(#) GpxToRdf.java 	 version 1.8   25/10/2018
+ * @(#) GpxToRdf.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -53,7 +53,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: Currently supporting WAYPOINT and TRACK features only!
  * GPX manual available at: http://www.topografix.com/gpx_manual.asp
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -65,7 +65,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 9/5/2018, unified handling for GRAPH and STREAM transformation modes
  * Modified: 16/5/2018; handling of extra user-specified attributes in GPX extensions
  * Modified: 25/10/2018; integrate handling of a user-specified classification scheme for features.
- * Last modified by: Kostas Patroumpas, 25/10/2018
+ * Last modified by: Kostas Patroumpas, 12/7/2019
 */
 
 
@@ -98,7 +98,7 @@ public class GpxToRdf {
 		  outputFile = outFile;
 		  this.sourceSRID = 4326;            //ASSUMPTION: All geometries in GPX are always expected in WGS84 georeference
 	      this.targetSRID = 4326;
-	      myAssistant = new Assistant();
+	      myAssistant = new Assistant(config);
 	      
 	      // Other parameters
 	      if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {
@@ -120,13 +120,13 @@ public class GpxToRdf {
 				if (currentConfig.mode.contains("GRAPH"))
 				{
 				  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
-				  myConverter = new GraphConverter(currentConfig, outputFile);
+				  myConverter = new GraphConverter(currentConfig, myAssistant, outputFile);
 				  			
 				  //Parse each record in order to create the necessary triples on disk (including geometric and non-spatial attributes)
 				  parseDocument(gpx);
 				  
 				  //Export the RDF graph into a user-specified serialization
-				  myConverter.store(myAssistant, outputFile);
+				  myConverter.store(outputFile);
 				  
 				  //Remove all temporary files as soon as processing is finished
 				  myAssistant.removeDirectory(myConverter.getTDBDir());
@@ -134,13 +134,13 @@ public class GpxToRdf {
 				else if (currentConfig.mode.contains("STREAM"))
 				{
 				  //Mode STREAM: consume records and streamline them into a serialization file
-				  myConverter =  new StreamConverter(currentConfig, outputFile);
+				  myConverter =  new StreamConverter(currentConfig, myAssistant, outputFile);
 				
 				  //Parse each record and streamline the resulting triples (including geometric and non-spatial attributes)
 				  parseDocument(gpx);
 				  
 				  //Finalize the output RDF file
-				  myConverter.store(myAssistant, outputFile);
+				  myConverter.store(outputFile);
 				}
 				else   //TODO: Implement method for handling transformation using RML mappings
 				{
@@ -237,7 +237,7 @@ public class GpxToRdf {
 				//Process all available attributes (including geometry)
 				//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
 				if (!row.isEmpty())
-					myConverter.parse(myAssistant, wkt, row, classification, targetSRID, "LINESTRING");
+					myConverter.parse(wkt, row, classification, targetSRID, "LINESTRING");
 		    }	    
 		    
 		    //PHASE II: Iterate through all waypoints in the GPX file
@@ -280,7 +280,7 @@ public class GpxToRdf {
 				//Process all available attributes (including geometry)
 				//CAUTION! Currently, each non-spatial attribute name is used as the property in the resulting triple
 				if (!row.isEmpty())
-					myConverter.parse(myAssistant, wkt, row, classification, targetSRID, "POINT");
+					myConverter.parse(wkt, row, classification, targetSRID, "POINT");
 				
 		    }
 		}

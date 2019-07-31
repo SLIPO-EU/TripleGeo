@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseExtractor.java	version 1.8   28/2/2018
+ * @(#) ReverseExtractor.java	version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -23,6 +23,7 @@ import java.io.FileInputStream;
 import org.apache.commons.io.IOUtils;
 
 import eu.slipo.athenarc.triplegeo.tools.RdfToCsv;
+import eu.slipo.athenarc.triplegeo.tools.RdfToGeoJson;
 import eu.slipo.athenarc.triplegeo.tools.RdfToShp;
 import eu.slipo.athenarc.triplegeo.utils.Assistant;
 import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
@@ -34,16 +35,16 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
 
 /**
  * Utility for validating RDF datasets and reconverting them into geographical files (reverse transformation).
- * LIMITATIONS: Currently only supporting CSV (delimited) files and ESRI Shapefiles.
- * TODO: Include support for GEOJSON?
+ * LIMITATIONS: Currently supporting CSV (delimited) files, ESRI Shapefiles, and GeoJson files.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 27/9/2017
  * Modified: 12/2/2018; handling missing specifications on georeferencing (CRS: Coordinate Reference Systems) 
- * Last modified by: Kostas Patroumpas, 28/2/2018
+ * Modified: 12/7/2019; handling also export to GeoJson files
+ * Last modified by: Kostas Patroumpas, 12/7/2019
  */
 public class ReverseExtractor {  
 
@@ -125,6 +126,11 @@ public class ReverseExtractor {
 						{	
 							outFile = currentConfig.outputFile;
 							conv = new RdfToShp(currentConfig, outFile, sourceSRID, targetSRID);
+						}
+						else if (currentFormat.trim().contains("GEOJSON")) 
+						{	
+							outFile = currentConfig.outputFile;
+							conv = new RdfToGeoJson(currentConfig, outFile, sourceSRID, targetSRID);
 						}
 						else {
 							throw new IllegalArgumentException(Constants.INCORRECT_SETTING);

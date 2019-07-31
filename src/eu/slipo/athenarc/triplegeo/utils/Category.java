@@ -1,5 +1,5 @@
 /*
- * @(#) Category.java 	 version 1.7   14/2/2019
+ * @(#) Category.java 	 version 1.9   14/2/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -24,7 +24,7 @@ package eu.slipo.athenarc.triplegeo.utils;
  * A category item in the classification scheme utilized in a dataset.
  *
  * @author Kostas Patroumpas
- * @version 1.7
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY

@@ -1,5 +1,5 @@
 /*
- * @(#) RdfToCsv.java 	 version 1.8   24/4/2019
+ * @(#) RdfToCsv.java 	 version 1.9  12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -52,14 +52,14 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  *              - Apart from a delimiter, configuration files for CSV records may also specify whether there is a quote character in string values
  *              - Reverse transformation discards attribute values that contain the quote or delimiter characters; otherwise, the CSV file may be malformed.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 6/12/2017
  * Modified: 8/12/2017, added support for reprojection in another georeference system
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
- * Last modified: 24/4/2019
+ * Last modified: 12/7/2019
  */
 public class RdfToCsv implements ReverseConverter {
 
@@ -293,5 +293,9 @@ public class RdfToCsv implements ReverseConverter {
 	public String getGeometrySpec(Literal g) {
 		return null;
 	}
-	  
+	 
+	@Override
+	public Geometry getGeometry(String g) {
+		return null;
+	}
 }

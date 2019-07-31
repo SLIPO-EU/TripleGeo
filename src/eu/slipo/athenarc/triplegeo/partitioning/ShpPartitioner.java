@@ -1,5 +1,5 @@
 /*
- * @(#) ShpPartitioner.java	version 1.8  22/4/2019
+ * @(#) ShpPartitioner.java	version 1.9  22/4/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -46,7 +46,7 @@ import eu.slipo.athenarc.triplegeo.utils.Assistant;
 /**
  * Partitions a ESRI shapefile into several (equi-sized) parts in order to be concurrently transformed into RDF.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY

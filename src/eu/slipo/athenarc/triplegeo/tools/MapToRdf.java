@@ -1,5 +1,5 @@
 /*
- * @(#) MapToRdf.java 	 version 1.8   7/3/2019
+ * @(#) MapToRdf.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -33,12 +33,12 @@ import java.util.Map;
 /**
  * Main entry point of the utility for extracting RDF triples from a Map.
  * @author Georgios Mandilaras
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Georgios Mandilaras, 20/12/2018
- * Last modified: 7/3/2019
+ * Last modified: 12/7/2019
 */
 public class MapToRdf {
 
@@ -62,7 +62,7 @@ public class MapToRdf {
     public MapToRdf(Configuration config, Classification classific, String outFile, int sourceSRID, int targetSRID, Iterator<Map<String,String>> input, int index) throws ClassNotFoundException {
 
         this.currentConfig = config;      
-        myAssistant = new Assistant();
+        myAssistant = new Assistant(config);
         
 		//Check whether a classification hierarchy is specified in a separate file and apply transformation accordingly
         try { 			  
@@ -119,7 +119,7 @@ public class MapToRdf {
         try {
             if (currentConfig.mode.contains("STREAM")) {
                 //Mode STREAM: consume records and streamline them into a serialization file
-                myConverter = new StreamConverter(currentConfig, outputFile);
+                myConverter = new StreamConverter(currentConfig, myAssistant, outputFile);
                 while (data.hasNext()) {
                     String wkt = null;
                     String geomType = null;
@@ -130,10 +130,10 @@ public class MapToRdf {
                         geomType = wkt.split(" ")[0];
                     }
                     //Export data in a streaming fashion
-                    myConverter.parse(myAssistant, wkt, map, classification, targetSRID, reproject, geomType, partition_index, outputFile);
+                    myConverter.parse(wkt, map, classification, targetSRID, reproject, geomType, partition_index, outputFile);
                 }
                 //Store results to file
-                myConverter.store(myAssistant, outputFile, partition_index);
+                myConverter.store(outputFile, partition_index);
             }
         } catch (Exception e) {
             ExceptionHandler.abort(e, "");

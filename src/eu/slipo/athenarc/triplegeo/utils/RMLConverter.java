@@ -1,5 +1,5 @@
 /*
- * @(#) RMLDatasetConverter.java 	 version 1.8   22/4/2019
+ * @(#) RMLDatasetConverter.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -63,7 +63,7 @@ import org.apache.commons.lang.StringEscapeUtils;
 /**
  * Creates and populates a RML dataset so that data can be serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -72,11 +72,13 @@ import org.apache.commons.lang.StringEscapeUtils;
  * Modified: 18/2/2018; included attribute statistics calculated during transformation
  * Modified: 22/4/2019; included support for spatial filtering over input datasets
  * TODO: This mode does NOT currently include support for the SLIPO Registry.
- * Last modified by: Kostas Patroumpas, 22/4/2019
+ * Last modified by: Kostas Patroumpas, 12/7/2019
  */
 public class RMLConverter implements Converter {
 
 	private static Configuration currentConfig; 
+	
+	private Assistant myAssistant;							//Performs auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	
 //	RMLDataset dataset;
 	RMLPerformer[] performers;
@@ -99,13 +101,16 @@ public class RMLConverter implements Converter {
 	/**
 	 * Constructs a RMLConverter object that will conduct transformation at RML mode.
 	 * @param config  User-specified configuration for the transformation process.
+	 * @param assist  Assistant to perform auxiliary operations.
 	 */
-	public RMLConverter(Configuration config) {
+	public RMLConverter(Configuration config, Assistant assist) {
 		  
 	      super();
 	    
 	      currentConfig = config;       //Configuration parameters as set up by the various conversion utilities (CSV, SHP, DBMS, etc.)  
 
+	      myAssistant = assist;
+	      
 	      attrStatistics = new HashMap<String, Integer>();
 	      
 	      try {
@@ -181,14 +186,13 @@ public class RMLConverter implements Converter {
 	 * Parses each record from a FeatureIterator and streamlines the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping. 
 	 * Applicable in RML transformation mode.
 	 * Input provided via a FeatureIterator (used with input formats: Shapefiles, GeoJSON).
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param iterator  FeatureIterator over spatial features collected from an ESRI shapefile of a GeoJSON file.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, FeatureIterator<?> iterator, Classification classific, MathTransform reproject, int targetSRID, String outputFile)	  
+	public void parse(FeatureIterator<?> iterator, Classification classific, MathTransform reproject, int targetSRID, String outputFile)	  
 	{
 	    SimpleFeatureImpl feature;
 	    Geometry geometry;
@@ -301,7 +305,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);		    
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), null, currentConfig.mode, currentConfig.targetCRS, outputFile, 0);		    
 		  
 	}
 
@@ -310,14 +314,13 @@ public class RMLConverter implements Converter {
 	 * Parses each record from a ResultSet and streamlines the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping. 
 	 * Applicable in RML transformation mode.
 	 * Input provided via a ResultSet (used with input from a DMBS).
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param rs  ResultSet containing spatial features retrieved from a DBMS.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */	  
-	public void parse(Assistant myAssistant, ResultSet rs, Classification classific, MathTransform reproject, int targetSRID, String outputFile) 
+	public void parse(ResultSet rs, Classification classific, MathTransform reproject, int targetSRID, String outputFile) 
 	{
 //      RMLDataset dataset = new StdRMLDataset();
 	    RMLDataset dataset = new SimpleRMLDataset();
@@ -407,7 +410,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);  
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), null, currentConfig.mode, currentConfig.targetCRS, outputFile, 0);  
 	}
 
 
@@ -415,14 +418,13 @@ public class RMLConverter implements Converter {
 	 * Parses each record from a collection of CSV records and streamlines the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping. 
 	 * Applicable in RML transformation mode.
 	 * Input provided by iterating over a collection of CSV records (used with input from CSV).
-	 * @param myAssistant  Instantiation of Assistant class to perform auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
 	 * @param records  Iterator over CSV records collected from a CSV file.
 	 * @param classific  Instantiation of the classification scheme that assigns categories to input features.
 	 * @param reproject  CRS transformation parameters to be used in reprojecting a geometry to a target SRID (EPSG code).
 	 * @param targetSRID  Spatial reference system (EPSG code) of geometries in the output RDF triples.
 	 * @param outputFile  Path to the output file that collects RDF triples.
 	 */
-	public void parse(Assistant myAssistant, Iterator<CSVRecord> records, Classification classific, MathTransform reproject, int targetSRID, String outputFile) 
+	public void parse(Iterator<CSVRecord> records, Classification classific, MathTransform reproject, int targetSRID, String outputFile) 
 	{
 //	    RMLDataset dataset = new StdRMLDataset();
 	    RMLDataset dataset = new SimpleRMLDataset();
@@ -511,7 +513,7 @@ public class RMLConverter implements Converter {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0); 
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), null, currentConfig.mode, currentConfig.targetCRS, outputFile, 0); 
 	}
 	
 
@@ -520,7 +522,7 @@ public class RMLConverter implements Converter {
 	 * Input provided as an individual record (used with input format: OpenStreetMap XML).
 	 * TODO: Implement for RML transformation mode.
 	 */
-	public void parse(Assistant myAssistant, OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) {
+	public void parse(OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) {
 	
 	}
 			
@@ -529,7 +531,7 @@ public class RMLConverter implements Converter {
 	 * Input provided as an individual record (used with input format: GPX, JSON).
 	 * TODO: Implement for RML transformation mode.
 	 */
-	public void parse(Assistant myAssistant, String wkt, Map<String, String> attrValues, Classification classific, int targetSRID, String geomType) {
+	public void parse(String wkt, Map<String, String> attrValues, Classification classific, int targetSRID, String geomType) {
 		
 	}
 
@@ -538,7 +540,7 @@ public class RMLConverter implements Converter {
 	 * Input provided as an individual record. This method may be used when running over Spark/GeoSpark.
 	 * TODO: Implement for RML transformation mode.
 	 */
-	public void parse(Assistant myAssistant, String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile) {
+	public void parse(String wkt, Map<String,String> attrValues, Classification classific, int targetSRID, MathTransform reproject, String geomType, int partition_index, String outputFile) {
 
 	}
 	
@@ -546,7 +548,7 @@ public class RMLConverter implements Converter {
 	 * Stores resulting tuples into a file.	
 	 * Not applicable in RML transformation mode.
 	 */	  
-	public void store(Assistant myAssistant, String outputFile) {
+	public void store(String outputFile) {
   
 	}
 			
@@ -554,7 +556,7 @@ public class RMLConverter implements Converter {
 	 * Finalizes storage of resulting tuples into a file. This method is used when running over Spark/GeoSpark.
 	 * Not applicable in RML transformation mode.
 	 */
-	public void store(Assistant myAssistant, String outputFile, int partition_index) {
+	public void store(String outputFile, int partition_index) {
 
 	}
 	

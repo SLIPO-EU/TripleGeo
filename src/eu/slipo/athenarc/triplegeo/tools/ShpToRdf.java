@@ -1,5 +1,5 @@
 /*
- * @(#) ShpToRdf.java	version 1.8   19/4/2019
+ * @(#) ShpToRdf.java	version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -48,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Entry point to convert ESRI shapefiles into RDF triples.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -60,7 +60,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 13/12/2017, utilizing a streaming iterator in order to avoid loading the entire feature collection into memory
  * Modified: 12/7/2018, checking availability of basic shapefile components before starting any processing
  * Modified: 19/4/2019, included support for spatial filtering over the input shapefile
- * Last modified by: Kostas Patroumpas, 19/4/2019
+ * Last modified by: Kostas Patroumpas, 12/7/2019
  */
 public class ShpToRdf {
 	
@@ -97,7 +97,7 @@ public class ShpToRdf {
 		  this.outputFile = outFile;
 	      this.sourceSRID = sourceSRID;
 	      this.targetSRID = targetSRID;
-	      myAssistant = new Assistant();
+	      myAssistant = new Assistant(config);
 
 	      //Check if a coordinate transform is required for geometries
 	      if (currentConfig.targetCRS != null) 
@@ -138,10 +138,10 @@ public class ShpToRdf {
 			if (currentConfig.mode.contains("GRAPH"))
 			{
 			  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
-			  myConverter = new GraphConverter(currentConfig, outputFile);
+			  myConverter = new GraphConverter(currentConfig, myAssistant, outputFile);
 			
 			  //Export data after constructing a model on disk
-			  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+			  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 			  
 			  //Remove all temporary files as soon as processing is finished
 			  myAssistant.removeDirectory(myConverter.getTDBDir());
@@ -149,18 +149,18 @@ public class ShpToRdf {
 			else if (currentConfig.mode.contains("STREAM"))
 			{
 			  //Mode STREAM: consume records and streamline them into a serialization file
-			  myConverter =  new StreamConverter(currentConfig, outputFile);
+			  myConverter =  new StreamConverter(currentConfig, myAssistant, outputFile);
 			  
 			  //Export data in a streaming fashion
-			  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+			  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 			}
 			else if (currentConfig.mode.contains("RML"))
 			{
 			  //Mode RML: consume records and apply RML mappings in order to get triples
-			  myConverter =  new RMLConverter(currentConfig);
+			  myConverter =  new RMLConverter(currentConfig, myAssistant);
 			  
 			  //Export data in a streaming fashion according to RML mappings
-			  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+			  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 			}
   		} catch (Exception e) {
   			ExceptionHandler.abort(e, "");

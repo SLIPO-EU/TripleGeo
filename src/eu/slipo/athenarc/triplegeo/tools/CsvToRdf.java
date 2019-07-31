@@ -1,5 +1,5 @@
 /*
- * @(#) CsvToRdf.java 	 version 1.8   5/10/2018
+ * @(#) CsvToRdf.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -59,7 +59,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: Currently, only supporting CSV files with header (i.e., named attributes).
  *              Apart from a delimiter, configuration files for CSV records must also specify whether there is a quote character in string values.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -72,7 +72,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 7/11/2017, fixed issue with multiple instances of CRS factory
  * Modified: 24/11/2017, added support for recognizing character encoding for strings
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
- * Last modified by: Kostas Patroumpas, 5/10/2018
+ * Last modified by: Kostas Patroumpas, 12/7/2019
  */
 public class CsvToRdf {
 
@@ -105,7 +105,7 @@ public class CsvToRdf {
 	   */
 	  public CsvToRdf(Configuration config, Classification classific, String inFile, String outFile, int sourceSRID, int targetSRID) {
        
-		  myAssistant = new Assistant();
+		  myAssistant = new Assistant(config);
 		  currentConfig = config;
 		  classification = classific;
 		  inputFile = inFile;
@@ -195,10 +195,10 @@ public class CsvToRdf {
 			if (currentConfig.mode.contains("GRAPH"))
 			{
 			  //Mode GRAPH: write triples into a disk-based Jena model and then serialize them into a file
-			  myConverter = new GraphConverter(currentConfig, outputFile);
+			  myConverter = new GraphConverter(currentConfig, myAssistant, outputFile);
 			
 			  //Export data after constructing a model on disk
-			  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+			  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 			  
 			  //Remove all temporary files as soon as processing is finished
 			  myAssistant.removeDirectory(myConverter.getTDBDir());
@@ -206,20 +206,20 @@ public class CsvToRdf {
 			else if (currentConfig.mode.contains("STREAM"))
 			{
 			  //Mode STREAM: consume records and streamline them into a serialization file
-			  myConverter =  new StreamConverter(currentConfig, outputFile);
+			  myConverter =  new StreamConverter(currentConfig, myAssistant, outputFile);
 			  
 			  //Export data in a streaming fashion
-			  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+			  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 			}
 			else if (currentConfig.mode.contains("RML"))
 			{
 			  //Mode RML: consume records and apply RML mappings in order to get triples
-			  myConverter =  new RMLConverter(currentConfig);
+			  myConverter =  new RMLConverter(currentConfig, myAssistant);
 			  
 			  myConverter.setHeader(csvHeader);
 			  
 			  //Export data in a streaming fashion according to RML mappings
-			  myConverter.parse(myAssistant, rs, classification, reproject, targetSRID, outputFile);
+			  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 			}
       } catch (Exception e) {
     	  ExceptionHandler.abort(e, "");

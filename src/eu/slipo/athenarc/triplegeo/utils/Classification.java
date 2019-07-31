@@ -1,5 +1,5 @@
 /*
- * @(#) Classification.java 	 version 1.8  18/4/2019
+ * @(#) Classification.java 	 version 1.9  11/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -49,7 +49,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Parser for a (possibly multi-tier, hierarchical) classification scheme (category/subcategory/...). 
  * ASSUMPTION: Each category (at any level) must have a unique name, which is being used as its key the derived dictionary.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -59,7 +59,7 @@ import be.ugent.mmlab.rml.model.dataset.SimpleRMLDataset;
  * Modified: 15/2/2018; distinguishing whether the classification scheme is based on identifiers or names of categories
  * Modified: 2/5/2018; supported export of classification scheme into RDF triples in STREAM mode
  * Modified: 11/12/2018; added mapping to an embedded category using a default classification scheme
- * Last modified by: Kostas Patroumpas, 18/4/2019
+ * Last modified by: Kostas Patroumpas, 11/7/2019
  */
 
 public class Classification {
@@ -112,17 +112,17 @@ public class Classification {
 		//Once the classification scheme has been constructed, apply transformation to RDF
 		if (currentConfig.mode.contains("RML"))
 		{	//Mode RML: consume records and apply RML mappings in order to produce triples
-			myConverter = new RMLConverter(currentConfig);
+			myConverter = new RMLConverter(currentConfig, myAssistant);
 			executeParser4RML();
 		}
 		else if (currentConfig.mode.contains("STREAM"))
 		{	//Mode STREAM: Apply a custom mapping specified in YML in order to produce triples
-			myConverter = new StreamConverter(currentConfig, outputFile);
+			myConverter = new StreamConverter(currentConfig, myAssistant, outputFile);
 			executeParser4Stream();
 		}
 		else if (currentConfig.mode.contains("GRAPH"))
 		{	//Mode GRAPH: Apply a custom mapping specified in YML in order to produce triples
-			myConverter = new GraphConverter(currentConfig, outputFile);
+			myConverter = new GraphConverter(currentConfig, myAssistant, outputFile);
 			executeParser4Graph();
 		}
 	}
@@ -540,7 +540,7 @@ public class Classification {
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, null, currentConfig.mode, null, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, null, null, currentConfig.mode, null, outputFile, 0);
 	  }
 
 
@@ -556,7 +556,7 @@ public class Classification {
 	    int numRec = 0;
 	    int numTriples = 0;
 
-	    TripleGenerator myGenerator = new TripleGenerator(currentConfig);     //Will be used to generate all triples for each category
+	    TripleGenerator myGenerator = new TripleGenerator(currentConfig, myAssistant);     //Will be used to generate all triples for each category
 		   
 		try {		   
 			//Iterate through all categories
@@ -605,7 +605,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, myGenerator.getStatistics(), null, currentConfig.mode, null, outputFile, 0);
 	  }
 
 
@@ -633,7 +633,7 @@ public class Classification {
 	    StreamRDF stream = StreamRDFWriter.getWriterStream(outFile, Lang.NT);
 	    stream.start();                //Start issuing streaming triples
 	  		
-	    TripleGenerator myGenerator = new TripleGenerator(currentConfig);     //Will be used to generate all triples for each category
+	    TripleGenerator myGenerator = new TripleGenerator(currentConfig, myAssistant);     //Will be used to generate all triples for each category
 		   
 		try {		   
 			//Iterate through all categories
@@ -673,7 +673,7 @@ public class Classification {
 		
 	    //Measure execution time
 		dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, myGenerator.getStatistics(), currentConfig.mode, null, outputFile, 0);
+	    myAssistant.reportStatistics(dt, numRec, 0, numTriples, currentConfig.serialization, myGenerator.getStatistics(), null, currentConfig.mode, null, outputFile, 0);
 	  }
 
 }

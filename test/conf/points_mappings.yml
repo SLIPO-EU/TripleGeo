@@ -24,6 +24,11 @@ timestamp:
   entity: lastUpdated
   predicate: slipo:lastUpdated
   datatype: timestamp
+GEOHASH:
+  entity: geohash
+  predicate: slipo:geoHash
+  datatype: string
+  generateWith: geometry.getGeoHash             ##Function call to fill-in this value that does NOT exist in the original dataset   
 LONGITUDE:
   entity: lon
   predicate: wgs84_pos:long

@@ -1,5 +1,5 @@
 /*
- * @(#) Configuration.java 	 version 1.8   24/4/2019
+ * @(#) Configuration.java 	 version 1.9   26/6/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -30,14 +30,14 @@ import java.util.logging.Level;
  * Parser of user-specified configuration files to be used during transformation of geospatial features into RDF triples.
  *
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Initially implemented for geometry2rdf utility (source: https://github.com/boricles/geometry2rdf/tree/master/Geometry2RDF)
  * Modified by: Kostas Patroumpas, 8/2/2013; adjusted to TripleGeo functionality
  * Modified by: Georgios Mandilaras, 28/12/2018; added parameterization for executions over Spark
- * Last modified: 24/4/2019
+ * Last modified: 26/6/2019
  */
 public final class Configuration {
 
@@ -167,7 +167,7 @@ public final class Configuration {
   public String tableName;
   
   /**
-   * SQL filter to be applied on the database table.
+   * SQL filter to be applied on the database table; also, thematic filter (in SQL syntax) over geographical files.
    */
   public String filterSQLCondition = null;
   

@@ -97,9 +97,6 @@ AddressInfo.Latitude:
   entity: lat
   predicate: wgs84_pos:lat
   datatype: float
-UserComments.*.Rating:
-  instanceOf: rating
-  predicate: slipo:ratingCount
 _:                              ##SLIPO-specific directive in order to map any other attribute "as-is" using a pair of triples for its key and value      
   entity: otherAttr
   predicate: slipo:otherAttr  

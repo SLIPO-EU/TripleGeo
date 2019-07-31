@@ -1,5 +1,5 @@
 /*
- * @(#) BatchReverseConverter.java	version 1.8   24/4/2019
+ * @(#) BatchReverseConverter.java	version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -45,14 +45,14 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
  * Results can be written to a typical geographical files (currently supported: CSV and ESRI Shapefiles). 
  * Attribute names in the SELECT query will become the column names in the resulting files. 
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 27/9/2017
  * Modified: 10/1/2018; exporting resulting records in batches
  * Modified: 24/4/2019; issuing statistics after processing
- * Last modified: 24/4/2019
+ * Last modified: 12/7/2019
  */
 public class BatchReverseConverter {  
 
@@ -137,7 +137,7 @@ public class BatchReverseConverter {
 		  model.close();
 		  TDBFactory.release(dataset);
 		  //Report statistics from the reverse transformation process
-		  myAssistant.reportStatistics(System.currentTimeMillis()-t_start, numRecs, 0, numTriples, currentConfig.serialization, attrStatistics, "REVERSE", currentConfig.targetCRS, currentConfig.outputFile);
+		  myAssistant.reportStatistics(System.currentTimeMillis()-t_start, numRecs, 0, numTriples, currentConfig.serialization, attrStatistics, myAssistant.getMBR(), "REVERSE", currentConfig.targetCRS, currentConfig.outputFile);
 
 	}
 	

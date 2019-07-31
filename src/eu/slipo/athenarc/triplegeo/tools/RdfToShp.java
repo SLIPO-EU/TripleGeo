@@ -1,5 +1,5 @@
 /*
- * @(#) RdfToShp.java 	 version 1.8   24/4/2019
+ * @(#) RdfToShp.java 	 version 1.9   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -67,7 +67,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  *              - Attribute names are limited in length (max 10 characters); otherwise, they get truncated;
  *              - Not all data types can be supported (e.g., Timestamp values must be represented as Strings).
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -76,7 +76,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
  * Modified: 8/11/2018, included support for also exporting URI resources in attribute values
  * Modified: 1/3/2019, changed method for writing to the shapefile by removing deprecated dependencies
- * Last modified: 24/4/2019
+ * Last modified: 12/7/2019
  */
 public class RdfToShp implements ReverseConverter {
 
@@ -385,4 +385,8 @@ public class RdfToShp implements ReverseConverter {
 		return null;
 	}
 	  
+	@Override
+	public Geometry getGeometry(String g) {
+		return null;
+	}
 }

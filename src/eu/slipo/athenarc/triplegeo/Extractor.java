@@ -1,5 +1,5 @@
 /*
- * @(#) Extractor.java	version 1.8  24/4/2019
+ * @(#) Extractor.java	version 1.9  12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -46,7 +46,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  *         JVM:   java -cp target/triplegeo-1.7-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.Extractor  path-to-configuration-file 
  *         SPARK: spark-submit --class eu.slipo.athenarc.triplegeo.Extractor --master local[*] target/triplegeo-1.7-SNAPSHOT.jar  path-to-configuration-file
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 1.9
  */
 
 /* DEVELOPMENT HISTORY
@@ -58,7 +58,8 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified: 13/7/2018; advanced handling of interrupted or aborted tasks
  * Modified: 5/10/2018; included optional partitioning of .CSV  and .SHP input files to enable concurrent transformation
  * Modified: 15/1/2019 by Georgios Mandilaras; support for execution over Spark/GeoSpark for specific data formats (.CSV, .SHP, GeoJSON)
- * Last modified: 24/4/2019
+ * Modified: 12/7/2019; added notifications for existence of (spatial/thematic) filters 
+ * Last modified: 12/7/2019
  */
 public class Extractor {
 
@@ -116,6 +117,10 @@ public class Extractor {
 	    	//Notify whether a spatial filter will be applied
 	    	if (myAssistant.hasSpatialExtent())
 	    		System.out.println("Spatial filter will be applied. Input geometries contained in user-specified region will only be processed.");
+	    	
+	    	//Notify whether an SQL filter will be applied
+	    	if (myAssistant.hasSQLFilter())
+	    		System.out.println("Thematic filter will be applied. Only qualifying features from the input data will be processed.");
 	    	
 			System.setProperty("org.geotools.referencing.forceXY", "true");
 			
