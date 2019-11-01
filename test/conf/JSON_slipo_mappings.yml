@@ -55,21 +55,16 @@ AddressInfo.RelatedURL:
   entity: homepage
   predicate: slipo:homepage
   datatype: uri
-AddressInfo.Title:
-  instanceOf: name
-  entity: name
-  predicate: slipo:name
-  type: title  
 OperatorInfo.Title:
   instanceOf: name
   entity: name
   predicate: slipo:name
   type: operator
-AddressLine1:
+AddressInfo.AddressLine1:
   partOf: address
   entity: address
   predicate: slipo:street
-AddressLine2:
+AddressInfo.AddressLine2:
   partOf: address
   entity: address
   predicate: slipo:crossStreet
@@ -97,6 +92,42 @@ AddressInfo.Latitude:
   entity: lat
   predicate: wgs84_pos:lat
   datatype: float
+MediaItems.*.ItemURL:
+  instanceOf: media
+  predicate: slipo:media   
+AddressInfo.AccessComments:
+  predicate: slipo:EVaccessComments
+NumberOfPoints:
+  predicate: slipo:EVnumberOfPoints  
+UsageType.IsMembershipRequired:
+  predicate: slipo:EVisMembershipRequired
+Connections.*.Quantity:                           #Wildcard '*' specifies that this property may appear multiple times; each appearance will be mapped to the same RDF property but will generate a separate triple
+  predicate: slipo:EVquantity
+Connections.*.Level.Title:
+  predicate: slipo:EVlevel
+Connections.*.StatusType.Title:
+  predicate: slipo:EVstatusType
+Connections.*.CurrentType.Title:
+  predicate: slipo:EVcurrentType
+Connections.*.CurrentType.Description:
+  predicate: slipo:EVcurrentTypeDescription
+Connections.*.ConnectionType.Title:
+  predicate: slipo:EVconnectionType
+Connections.*.ConnectionType.FormalName:
+  predicate: slipo:EVconnectionFormalName
+Connections.*.Level.Comments:
+  predicate: slipo:EVcomments
+Connections.*.Level.IsFastChargeCapable:
+  predicate: slipo:EVisFastChargeCapable
+Connections.*.Voltage:
+  predicate: slipo:EVvoltage
+Connections.*.Amps:
+  predicate: slipo:EVamps  
+Connections.*.PowerKW:
+  predicate: slipo:EVpowerKW
+UserComments.*.Rating:
+  instanceOf: rating
+  predicate: slipo:ratingCount 
 _:                              ##SLIPO-specific directive in order to map any other attribute "as-is" using a pair of triples for its key and value      
   entity: otherAttr
-  predicate: slipo:otherAttr  
+  predicate: slipo:otherAttr

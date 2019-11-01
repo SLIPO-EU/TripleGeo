@@ -1,5 +1,5 @@
 /*
- * @(#) GpxToRdf.java 	 version 1.9   12/7/2019
+ * @(#) GpxToRdf.java 	 version 2.0   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -53,7 +53,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: Currently supporting WAYPOINT and TRACK features only!
  * GPX manual available at: http://www.topografix.com/gpx_manual.asp
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

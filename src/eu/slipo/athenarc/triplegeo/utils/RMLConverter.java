@@ -1,5 +1,5 @@
 /*
- * @(#) RMLDatasetConverter.java 	 version 1.9   12/7/2019
+ * @(#) RMLDatasetConverter.java  version 2.0  10/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -25,6 +25,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,11 +38,14 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Model;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureImpl;
+import org.geotools.filter.text.cql2.CQL;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.AttributeDescriptor;
+import org.opengis.filter.Filter;
 import org.opengis.referencing.operation.MathTransform;
 import org.openrdf.repository.Repository;
 
+import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 
 import be.ugent.mmlab.rml.mapdochandler.extraction.std.StdRMLMappingFactory;
@@ -58,35 +62,45 @@ import be.ugent.mmlab.rml.processor.concrete.ConcreteRMLProcessorFactory;
 import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringEscapeUtils;
 
 /**
  * Creates and populates a RML dataset so that data can be serialized into a file.
+ * LIMITATIONS: - No support for dynamically executed built-in functions (e.g., for calculating on-the-fly the area or length of geometries). 
+ *              - By convention, attribute names referring to input data must be specified in UPPER-CASE letters in the RML mappings (in .TTL files).
+ *              - Currently, no support for transformation from OSM or GPX or on top of Spark.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
- * Created by: Kostas Patroumpas, 27/9/2013
+ * Created by: Kostas Patroumpas, 27/9/2017
  * Modified: 3/11/2017, added support for system exit codes on abnormal termination
  * Modified: 18/2/2018; included attribute statistics calculated during transformation
  * Modified: 22/4/2019; included support for spatial filtering over input datasets
- * TODO: This mode does NOT currently include support for the SLIPO Registry.
- * Last modified by: Kostas Patroumpas, 12/7/2019
+ * Modified: 9/10/2019; included support for thematic filtering; also exporting basic attributes for the SLIPO Registry.
+ * Last modified by: Kostas Patroumpas, 10/10/2019
  */
 public class RMLConverter implements Converter {
 
 	private static Configuration currentConfig; 
 	
+	private BufferedWriter registryWriter = null;           //Used for the SLIPO Registry
 	private Assistant myAssistant;							//Performs auxiliary operations (geometry transformations, auto-generation of UUIDs, etc.)
+	private FeatureRegister myRegister = null;              //Used in registering features in the SLIPO Registry
 	
 //	RMLDataset dataset;
 	RMLPerformer[] performers;
 	String[] exeTriplesMap = null;
 	Map<String, String> parameters = null;
 	TriplesMap[] maps;
+	String paramFeatureURI = "{UUID}";				//Assuming that a single attribute "UUID" is always used for constructing the URIs of features
+	String templateFeatureURI;
+	String paramCategoryURI = "{CATEGORY_URI}";   	//Assuming that a single attribute "CATEGORY_URI" is always used for constructing the URIs for categories
 	String templateCategoryURI;
-
+	String attrAssignedCategory = "ASSIGNED_CATEGORY";    //Attribute used to denote an embedded category, after mapping of user-defined category to the default classification scheme
+	
 	Map<String, Integer> attrStatistics;   //Statistics for each attribute
 	
 	String[] csvHeader;                    //Used when handling CSV records
@@ -97,13 +111,15 @@ public class RMLConverter implements Converter {
 	private int numRec;            //Number of entities (records) in input dataset
 	private int rejectedRec;       //Number of rejected entities (records) from input dataset after filtering
 	private int numTriples;
+	public Envelope mbr;           //Minimum Bounding Rectangle (in WGS84) of all geometries handled during a given transformation process
 	
 	/**
 	 * Constructs a RMLConverter object that will conduct transformation at RML mode.
 	 * @param config  User-specified configuration for the transformation process.
 	 * @param assist  Assistant to perform auxiliary operations.
+	 * @param outputFile  Output file that will collect resulting triples.
 	 */
-	public RMLConverter(Configuration config, Assistant assist) {
+	public RMLConverter(Configuration config, Assistant assist, String outputFile) {
 		  
 	      super();
 	    
@@ -113,6 +129,10 @@ public class RMLConverter implements Converter {
 	      
 	      attrStatistics = new HashMap<String, Integer>();
 	      
+	      //Initialize MBR of transformed geometries
+	      mbr = new Envelope();
+	      mbr.init();
+			
 	      try {
 				StdRMLMappingFactory mappingFactory = new StdRMLMappingFactory();
 
@@ -138,9 +158,12 @@ public class RMLConverter implements Converter {
 					//Simplified RML processor without reference to logical source (assuming a custom row as input)
 					RMLProcessor subprocessor = factory.create(map);
 					
+					//Identify the template used for URIs of features
+					if ((map.getSubjectMap().getStringTemplate() != null) && (map.getSubjectMap().getStringTemplate().endsWith(paramFeatureURI)))
+						templateFeatureURI = map.getSubjectMap().getStringTemplate();
+					
 					//Identify the template used for URIs regarding classification
-					//FIXME: Assuming that a single attribute "CATEGORY_ID" is always used for constructing the URIs for categories
-					if ((map.getSubjectMap().getStringTemplate() != null) && (map.getSubjectMap().getStringTemplate().contains("CATEGORY_ID")))
+					if ((map.getSubjectMap().getStringTemplate() != null) && (map.getSubjectMap().getStringTemplate().endsWith(paramCategoryURI)))
 						templateCategoryURI = map.getSubjectMap().getStringTemplate();
 						
 					performers[k] = new NodeRMLPerformer(subprocessor);
@@ -149,7 +172,28 @@ public class RMLConverter implements Converter {
 	      } catch(Exception e) { 
 	  	    	ExceptionHandler.abort(e, " An error occurred while creating RML processors with the given triple mappings."); 
 	      }  
-	      
+
+			//******************************************************************
+			//Specify the CSV file that will collect tuples for the SLIPO Registry
+			try
+			{
+				if ((currentConfig.registerFeatures != false))     //Do not proceed unless the user has turned on the option for creating a .CSV file for the SLIPO Registry
+				{
+					myRegister = new FeatureRegister(config);      //Will be used to collect specific attribute values per input feature (record) to be registered in the SLIPO Registry
+					//Include basic attributes from the input dataset with their names
+					//CAUTION! Attribute names are specified in upper case since they are case-sensitive in RML mappings!
+		    		myRegister.includeAttribute(config.attrKey.toUpperCase());
+		    		myRegister.includeAttribute(config.attrName.toUpperCase());
+		    		myRegister.includeAttribute((attrAssignedCategory != null) ? attrAssignedCategory : config.attrCategory.toUpperCase());
+					registryWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(FilenameUtils.removeExtension(outputFile) + ".csv"), StandardCharsets.UTF_8));
+					registryWriter.write(Constants.REGISTRY_CSV_HEADER);
+					registryWriter.newLine();
+				}
+			}
+			catch (Exception e) {
+				 ExceptionHandler.abort(e, "Registry file not specified correctly.");
+			}
+			//******************************************************************
 	      //Initialize performance metrics
 	      t_start = System.currentTimeMillis();
 	      dt = 0;
@@ -180,8 +224,30 @@ public class RMLConverter implements Converter {
 
 		  return attrStatistics;
 	}
-	 
 
+	/**
+	 * Updates the MBR of the geographic dataset as this is being transformed. 	
+	 * @param g  Geometry that will be checked for possible expansion of the MBR of all features processed thus far
+	 */
+	public void updateMBR(Geometry g) {
+		
+		Envelope env = g.getEnvelopeInternal();          //MBR of the given geometry
+		if ((mbr== null) || (mbr.isNull()))
+			mbr = env;
+		else if (!mbr.contains(env))
+			mbr.expandToInclude(env);                    //Expand MBR is the given geometry does not fit in
+	}
+	
+	/**
+	 * Provides the MBR of the geographic dataset that has been transformed.
+	 * @return  The MBR of the transformed geometries.
+	 */
+	public Envelope getMBR() {
+		if ((mbr == null) || (mbr.isNull()))
+			return null;
+		return mbr;
+	}
+	
 	/**
 	 * Parses each record from a FeatureIterator and streamlines the resulting triples (including geometric and non-spatial attributes) according to the given RML mapping. 
 	 * Applicable in RML transformation mode.
@@ -199,17 +265,7 @@ public class RMLConverter implements Converter {
 	    String wkt = "";
 	    boolean schemaFixed = false;
 	    List<String> attrNames = null;
-/*    
-		//Determine the attribute schema of these features  
-		final SimpleFeatureType original = (SimpleFeatureType) featureCollection.getSchema();
-		List<String> attrNames = new ArrayList<String>();
-		for (AttributeDescriptor ad : original.getAttributeDescriptors()) 
-		{
-		    final String name = ad.getLocalName();
-		    if(!"boundedBy".equals(name) && !"metadataProperty".equals(name)) 
-		    	attrNames.add(name);
-		}
-*/    
+	    Filter filter = null;            //Thematic filter (handled using GeoTools for ESRI shapefiles and GeoJSON formats)    
 
 //  	RMLDataset dataset = new StdRMLDataset();
 	    RMLDataset dataset = new SimpleRMLDataset();
@@ -219,6 +275,12 @@ public class RMLConverter implements Converter {
 	    	  
 		try {
 			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFile), "UTF-8"));
+
+			//Examine whether a thematic filter has been specified
+			if (currentConfig.filterSQLCondition != null)
+			{
+				filter = CQL.toFilter(currentConfig.filterSQLCondition);
+			}
 			
 			//Iterate through all features
 			while(iterator.hasNext()) {
@@ -234,7 +296,7 @@ public class RMLConverter implements Converter {
 					for (AttributeDescriptor ad : original.getAttributeDescriptors()) 
 					{
 					    final String name = ad.getLocalName();
-					    if(!"boundedBy".equals(name) && !"metadataProperty".equals(name)) 
+					    if (!"boundedBy".equals(name) && !"metadataProperty".equals(name)) 
 					    	attrNames.add(name);
 					}
 					schemaFixed = true;
@@ -243,8 +305,8 @@ public class RMLConverter implements Converter {
 				//Handle geometry
 				geometry = (Geometry) feature.getDefaultGeometry();
 
-				//Apply spatial filtering (if specified by user)
-				if (!myAssistant.filterContains(geometry.toText()))
+				//Apply spatial or thematic filtering (if specified by user)
+				if ((!myAssistant.filterContains(geometry.toText())) || ((filter != null) && (!filter.evaluate(feature))))
 				{
 					rejectedRec++;
 					continue;
@@ -256,7 +318,11 @@ public class RMLConverter implements Converter {
 		        
 		        //Get WKT representation of the transformed geometry
 		      	wkt = myAssistant.geometry2WKT(geometry, currentConfig.targetGeoOntology.trim());
-		      	
+
+		  	  	//Insert extra attributes concerning lon/lat coordinates for the centroid 
+		  	  	Geometry geomProjected = myAssistant.geomTransformWGS84(wkt, targetSRID);
+		  	  	updateMBR(geomProjected);                 //Keep the MBR of transformed geometries up-to-date
+		  	  	
 		      	//Pass all NOT NULL attribute values into a hash map in order to apply RML mapping(s) directly
 		      	HashMap<String, String> row = new HashMap<>();	
 		      	for (int i=0; i<feature.getNumberOfAttributes(); i++)
@@ -272,27 +338,38 @@ public class RMLConverter implements Converter {
 
 		      	//Include a category identifier, as found in the classification scheme
 		      	if (classific != null)
+		      	{
 		      		row.put("CATEGORY_URI", classific.getUUID(feature.getAttribute(currentConfig.attrCategory).toString()));
-//		      	System.out.println(feature.getAttribute(currentConfig.attrCategory).toString() + " " + classific.findUUID(feature.getAttribute(currentConfig.attrCategory).toString()));
+		      		//Also determine the name of the embedded category assigned in the default classification scheme
+					if (attrAssignedCategory != null)
+						row.put(attrAssignedCategory, classific.getEmbeddedCategory(feature.getAttribute(currentConfig.attrCategory).toString()));
+		      	}
 		      	
 		      	//CAUTION! Also include a UUID as a 128-bit string that will become the basis for the URI assigned to the resulting triples
-		      	row.put("UUID", myAssistant.getUUID(feature.getAttribute(currentConfig.attrKey).toString()).toString());
+		      	String uri = myAssistant.getUUID(feature.getAttribute(currentConfig.attrKey).toString()).toString();
+		      	row.put("UUID", uri);
 		      	
 		        //Apply the transformation according to the given RML mapping		      
 		        this.parseWithRML(row, dataset);
 			  
+				//Get a record with basic attribute that will be used for the SLIPO Registry
+				if (myRegister != null)
+					myRegister.createTuple(templateFeatureURI.replace("{UUID}", uri), row, wkt, targetSRID);
+				
 			    //Periodically, dump results into output file
 				if (numRec % currentConfig.batch_size == 0) 
 				{
 					numTriples += this.writeTriples(dataset, writer, rdfFormat, currentConfig.encoding);
 					dataset = new SimpleRMLDataset();		   //IMPORTANT! Create a new dataset to hold upcoming triples!	
 //					dataset = new StdRMLDataset();		       //IMPORTANT! Create a new dataset to hold upcoming triples!
+					collectTuples4Registry();              //Basic attributes written to a .CSV for the SLIPO Registry
 					myAssistant.notifyProgress(numRec);
 				}
 			}	
 			
 			//Dump any pending results into output file
 			numTriples += this.writeTriples(dataset, writer, rdfFormat, currentConfig.encoding);
+			collectTuples4Registry();              //Also, basic attributes are written to a .CSV for the SLIPO Registry
 			writer.flush();
 			writer.close();
 	    }
@@ -301,11 +378,12 @@ public class RMLConverter implements Converter {
 		}
 		finally {
 			iterator.close();
+			store(outputFile);     //Dump any pending results into output file (under RML mode, this is used for the SLIPO Registry only)
 		}
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), null, currentConfig.mode, currentConfig.targetCRS, outputFile, 0);		    
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), getMBR(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);		    
 		  
 	}
 
@@ -353,11 +431,15 @@ public class RMLConverter implements Converter {
 		      			updateStatistics(rs.getMetaData().getColumnLabel(i).toUpperCase());          //Update count of NOT NULL values transformed for this attribute
 		      		}
 		      	}
-		      	
+
 		      	//Include a category identifier, as found in the classification scheme
 		      	if (classific != null)
+		      	{
 		      		row.put("CATEGORY_URI", classific.getUUID(rs.getString(currentConfig.attrCategory)));
-		      	//System.out.println(classification.getURI(rs.getString(currentConfig.attrCategory)));
+		      		//Also determine the name of the embedded category assigned in the default classification scheme
+					if (attrAssignedCategory != null)
+						row.put(attrAssignedCategory, classific.getEmbeddedCategory(rs.getString(currentConfig.attrCategory)));
+		      	}	      	
 		      	
 		      	String wkt = null;
 		      	//Handle geometry attribute, if specified
@@ -379,14 +461,24 @@ public class RMLConverter implements Converter {
 		      	}
 		      	
 				if (wkt != null)
+				{
+			  	  	//Insert extra attributes concerning lon/lat coordinates for the centroid 
+			  	  	Geometry geomProjected = myAssistant.geomTransformWGS84(wkt, targetSRID);
+			  	  	updateMBR(geomProjected);                 //Keep the MBR of transformed geometries up-to-date
 					row.put("WKT", "<http://www.opengis.net/def/crs/EPSG/0/" + targetSRID + "> " + wkt);   //Update attribute for the geometry as WKT along with the CRS
-			     
+				}
+				
 		      	//CAUTION! Also include a UUID as a 128-bit string that will become the basis for the URI assigned to the resulting triples
-		      	row.put("UUID", myAssistant.getUUID(rs.getString(currentConfig.attrKey)).toString());
+		      	String uri = myAssistant.getUUID(rs.getString(currentConfig.attrKey)).toString();
+		      	row.put("UUID", uri);
 		      	
 		        //Apply the transformation according to the given RML mapping		      
 		        this.parseWithRML(row, dataset);
-		       
+			  
+				//Get a record with basic attribute that will be used for the SLIPO Registry
+				if (myRegister != null)
+					myRegister.createTuple(templateFeatureURI.replace("{UUID}", uri), row, wkt, targetSRID);
+				
 		        ++numRec;
 			  
 			    //Periodically, dump results into output file
@@ -395,22 +487,27 @@ public class RMLConverter implements Converter {
 	    			numTriples += this.writeTriples(dataset, writer, rdfFormat, "UTF-8");
 					dataset = new SimpleRMLDataset();	   //IMPORTANT! Create a new dataset to hold upcoming triples!	
 //					dataset = new StdRMLDataset();		   //IMPORTANT! Create a new dataset to hold upcoming triples!	
+					collectTuples4Registry();              //Basic attributes written to a .CSV for the SLIPO Registry
 					myAssistant.notifyProgress(numRec);
 				}
 			}	
 			
 			//Dump any pending results into output file
 			numTriples += this.writeTriples(dataset, writer, rdfFormat, "UTF-8");
+			collectTuples4Registry();              //Also, basic attributes are written to a .CSV for the SLIPO Registry
 			writer.flush();
 			writer.close();
 	    }
 		catch(Exception e) { 
 			ExceptionHandler.abort(e, "Please check RML mappings.");
 		}
+		finally {
+			store(outputFile);     //Dump any pending results into output file (under RML mode, this is used for the SLIPO Registry only)
+		}
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), null, currentConfig.mode, currentConfig.targetCRS, outputFile, 0);  
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), getMBR(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);  
 	}
 
 
@@ -440,6 +537,13 @@ public class RMLConverter implements Converter {
 				
 	            CSVRecord rs = (CSVRecord) iterator.next();
 		        ++numRec;
+		        
+	            //Skip transformation of any features filtered out by the logical expression over thematic attributes
+	            if (myAssistant.filterThematic(rs.toMap()))   //Custom thematic filtering is case sensitive and is using the original attribute names
+	            {
+			    	rejectedRec++;         
+					continue;
+			    }
 	            
 		      	//Pass all attribute values into a hash map in order to apply RML mapping(s) directly
 		      	HashMap<String, String> row = new HashMap<>();	
@@ -449,10 +553,10 @@ public class RMLConverter implements Converter {
 		      		if (rs.get(i) != null)
 		      		{
 		      			row.put(csvHeader[i].toUpperCase(), rs.get(i));
-		      			updateStatistics(csvHeader[i].toUpperCase());          //Update count of NOT NULL values transformed for this attribute
-		      		}    		
-		      	}
-		      	
+		      			updateStatistics(csvHeader[i].toUpperCase());   //Update count of NOT NULL values transformed for this record
+		      		}
+		      	}		      		          
+	 
 		      	//Handle geometry attribute, if specified
 				String wkt = null;
 				if ((currentConfig.attrGeometry == null) && (currentConfig.attrX != null) && (currentConfig.attrY != null))       
@@ -477,43 +581,61 @@ public class RMLConverter implements Converter {
 			      		wkt = myAssistant.wktTransform(wkt, reproject);     //Get transformed WKT representation
 //					else	
 //					    myAssistant.WKT2Geometry(wkt);                      //This is done only for updating the MBR of all geometries
-			      	
+		
+			  	  	//Insert extra attributes concerning lon/lat coordinates for the centroid 
+			  	  	Geometry geomProjected = myAssistant.geomTransformWGS84(wkt, targetSRID);
+			  	  	updateMBR(geomProjected);                 //Keep the MBR of transformed geometries up-to-date
+			  	  	
 		      		row.put("WKT", "<http://www.opengis.net/def/crs/EPSG/0/" + targetSRID + "> " + wkt);   //Extra attribute for the geometry as WKT
 		      	}
-		      
+
 		      	//Include a category identifier, as found in the classification scheme
 		      	if (classific != null)
+		      	{
 		      		row.put("CATEGORY_URI", classific.getUUID(rs.get(currentConfig.attrCategory)));
-		      	//System.out.println(classification.getURI(rs.getString(currentConfig.attrCategory)));
-
+		      		//Also determine the name of the embedded category assigned in the default classification scheme
+					if (attrAssignedCategory != null)
+						row.put(attrAssignedCategory, classific.getEmbeddedCategory(rs.get(currentConfig.attrCategory)));
+		      	}
+		      	
 		      	//CAUTION! Also include a UUID as a 128-bit string that will become the basis for the URI assigned to the resulting triples
-		      	row.put("UUID", myAssistant.getUUID(rs.get(currentConfig.attrKey)).toString());
+		      	String uri = myAssistant.getUUID(rs.get(currentConfig.attrKey)).toString();
+		      	row.put("UUID", uri);
 		      	
 		        //Apply the transformation according to the given RML mapping		      
 		        this.parseWithRML(row, dataset);
 			  
+				//Get a record with basic attribute that will be used for the SLIPO Registry
+				if (myRegister != null)
+					myRegister.createTuple(templateFeatureURI.replace("{UUID}", uri), row, wkt, targetSRID);			
+				
 			    //Periodically, dump results into output file
 				if (numRec % currentConfig.batch_size == 0) 
 				{
 					numTriples += this.writeTriples(dataset, writer, rdfFormat, "UTF-8");
 					dataset = new SimpleRMLDataset();		   //IMPORTANT! Create a new dataset to hold upcoming triples!	
 //					dataset = new StdRMLDataset();		       //IMPORTANT! Create a new dataset to hold upcoming triples!	
+					collectTuples4Registry();                  //Basic attributes written to a .CSV for the SLIPO Registry
 					myAssistant.notifyProgress(numRec);
 				}
 			}	
 			
 			//Dump any pending results into output file
 			numTriples += this.writeTriples(dataset, writer, rdfFormat, "UTF-8");
+			collectTuples4Registry();              //Also, basic attributes are written to a .CSV for the SLIPO Registry
 			writer.flush();
 			writer.close();
 	    }
 		catch(Exception e) { 
 			ExceptionHandler.abort(e, "Please check RML mappings.");
 		}
+		finally {
+			store(outputFile);     //Dump any pending results into output file (under RML mode, this is used for the SLIPO Registry only)
+		}
 
 	    //Measure execution time
 	    dt = System.currentTimeMillis() - t_start;
-	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), null, currentConfig.mode, currentConfig.targetCRS, outputFile, 0); 
+	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numTriples, currentConfig.serialization, getStatistics(), getMBR(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0); 
 	}
 	
 
@@ -545,11 +667,44 @@ public class RMLConverter implements Converter {
 	}
 	
 	/**
-	 * Stores resulting tuples into a file.	
-	 * Not applicable in RML transformation mode.
+	 * Collects tuples generated from a batch of features (their basic thematic attributes and their geometries) and streamlines them to a file for the SLIPO Registry.
+	 */
+	private void collectTuples4Registry() {
+		try {
+			//******************************************************************
+			//Keep all attribute values required for registering in the SLIPO Registry
+			if ((registryWriter != null) && (!myRegister.getTuples4Registry().isEmpty()))
+			{
+				for (String aTuple: myRegister.getTuples4Registry())
+				{
+					registryWriter.write(aTuple);
+					registryWriter.newLine();
+				}
+			
+				//Clean up tuples for SLIPO Registry, in order to collect the new ones derived from the next batch of features
+				myRegister.clearTuples4Registry();
+			}
+			//******************************************************************	
+		} catch (IOException e) {
+			ExceptionHandler.warn(e, "An error occurred during writing transformed record to the registry.");
+		}
+	}
+	
+	/**
+	 * Stores resulting tuples into a file for the SLIPO Registry.	
+	 * Used only for flushing data to the registry in RML transformation mode.
 	 */	  
 	public void store(String outputFile) {
   
+		//******************************************************************
+		//Close the file that will collect all tuples for the SLIPO Registry
+		try {
+			if (registryWriter != null)
+				registryWriter.close();
+		} catch (IOException e) {
+			ExceptionHandler.abort(e, "An error occurred during creation of the file for the registry.");
+		}
+		//******************************************************************
 	}
 			
 	/**
@@ -622,7 +777,16 @@ public class RMLConverter implements Converter {
 		return templateCategoryURI;
 	}
 
-
+	/**
+	 * Provides the URI template used for all subjects in RDF triples concerning features.
+	 * Applicable in RML transformation mode.
+	 * @return A URI to be used as template for triples of features.
+	 */	
+	public String getURItemplate4Feature()
+	{
+		return templateFeatureURI;
+	}
+	
     /**
      * Serializes the given RML dataset as triples written into a file. 
      * Applicable in RML transformation mode.

@@ -1,5 +1,5 @@
 /*
- * @(#) JsonToRdf.java 	 version 1.9   12/7/2019
+ * @(#) JsonToRdf.java 	 version 2.0   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -55,7 +55,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Main entry point of the utility for extracting RDF triples from JSON documents.
  * LIMITATIONS: The entire JSON document is read in memory before parsing, so large files require suitable configuration of the JVM heap size. 
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

@@ -1,5 +1,5 @@
 /*
- * @(#) OSMWay.java 	 version 1.8   24/2/2018
+ * @(#) OSMWay.java 	 version 2.0   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *

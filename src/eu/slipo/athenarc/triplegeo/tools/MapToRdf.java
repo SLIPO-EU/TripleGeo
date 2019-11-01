@@ -1,5 +1,5 @@
 /*
- * @(#) MapToRdf.java 	 version 1.9   12/7/2019
+ * @(#) MapToRdf.java 	 version 2.0   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -33,7 +33,7 @@ import java.util.Map;
 /**
  * Main entry point of the utility for extracting RDF triples from a Map.
  * @author Georgios Mandilaras
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -53,7 +53,6 @@ public class MapToRdf {
 
     private Iterator<Map<String,String>> data;
     private int partition_index;
-
 
     //Initialize a CRS factory for possible reprojections
     private static final CRSAuthorityFactory crsFactory = ReferencingFactoryFinder

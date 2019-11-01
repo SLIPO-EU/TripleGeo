@@ -1,5 +1,5 @@
 /*
- * @(#) SimpleExpr.java	version 1.9   11/7/2019
+ * @(#) SimpleExpr.java	version 2.0   11/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems  Institute, Athena R.C., Greece.
  *
@@ -26,7 +26,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 /**
  * Handles a simple logical expression consisting of an identifier, a comparison operator and a literal (string or numeric).
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

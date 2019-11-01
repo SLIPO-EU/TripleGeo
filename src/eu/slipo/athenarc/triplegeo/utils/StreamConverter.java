@@ -1,5 +1,5 @@
 /*
- * @(#) StreamConverter.java 	 version 1.9   12/7/2019
+ * @(#) StreamConverter.java  version 2.0   9/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -57,7 +57,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
 /**
  * Provides a set of a streaming RDF triples in memory that can be readily serialized into a file.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -73,7 +73,8 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 18/4/2019; included support for spatial filtering over input datasets
  * Modified: 30/5/2019; correct handling of NULL geometries in CSV input files
  * Modified: 26/6/2019; added support for thematic filtering in geographical files
- * Last modified: 12/7/2019
+ * Modified: 9/10/2019; issuing assigned category to the registry
+ * Last modified: 9/10/2019
  */
 
 public class StreamConverter implements Converter {
@@ -135,7 +136,7 @@ public class StreamConverter implements Converter {
 	    		myRegister = new FeatureRegister(config);      //Will be used to collect specific attribute values per input feature (record) to be registered in the SLIPO Registry
 	    		myRegister.includeAttribute(config.attrKey);   //Include basic attributes from the input dataset, as specified in the configuration
 	    		myRegister.includeAttribute(config.attrName);
-	    		myRegister.includeAttribute(config.attrCategory);
+	    		myRegister.includeAttribute((myGenerator.attrAssignedCategory != null) ? myGenerator.attrAssignedCategory : config.attrCategory);
 	    		registryWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(FilenameUtils.removeExtension(outputFile) + ".csv"), StandardCharsets.UTF_8));
 	    		registryWriter.write(Constants.REGISTRY_CSV_HEADER);
 	    		registryWriter.newLine();

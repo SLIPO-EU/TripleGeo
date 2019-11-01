@@ -1,5 +1,5 @@
 /*
- * @(#) Task.java	version 1.9   11/7/2019
+ * @(#) Task.java	version 2.0   31/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package eu.slipo.athenarc.triplegeo;
+package eu.slipo.athenarc.triplegeo.utils;
 
 import eu.slipo.athenarc.triplegeo.tools.CsvToRdf;
 import eu.slipo.athenarc.triplegeo.tools.GeoJsonToRdf;
@@ -26,16 +26,11 @@ import eu.slipo.athenarc.triplegeo.tools.RdbToRdf;
 import eu.slipo.athenarc.triplegeo.tools.ShpToRdf;
 import eu.slipo.athenarc.triplegeo.tools.OsmXmlToRdf;
 import eu.slipo.athenarc.triplegeo.tools.OsmPbfToRdf;
-import eu.slipo.athenarc.triplegeo.utils.Assistant;
-import eu.slipo.athenarc.triplegeo.utils.Classification;
-import eu.slipo.athenarc.triplegeo.utils.Configuration;
-import eu.slipo.athenarc.triplegeo.utils.Constants;
-import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 
 /**
  * Running a transformation task as a separate thread under the given configuration settings.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -44,7 +39,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Modified: 8/11/2017, added support for system exit codes on abnormal termination
  * Modified: 21/11/2017, added support for user-specified classification schemes for shapefiles, CSV, and DBMS data sources 
  * Modified: 19/7/2018, added support for JSON and OSM PBF data sources 
- * Last modified by: Kostas Patroumpas, 11/7/2019
+ * Last modified by: Kostas Patroumpas, 31/10/2019
  */
 public class Task {
 

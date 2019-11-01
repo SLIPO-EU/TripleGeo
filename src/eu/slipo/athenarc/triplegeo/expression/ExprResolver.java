@@ -1,5 +1,5 @@
 /*
- * @(#) ExprResolver.java	version 1.9   11/7/2019
+ * @(#) ExprResolver.java	version 2.0   11/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems  Institute, Athena R.C., Greece.
  *
@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 /**
  * Resolves the user-specified logical expression and identifies its constituent sub-expressions and logical operators.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 4/7/2019; adjusted and expanded to TripleGeo functionality for thematic filtering against input datasets

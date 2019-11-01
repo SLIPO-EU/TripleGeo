@@ -1,5 +1,5 @@
 /*
- * @(#) RdfToGeoJson.java	version 1.9   12/7/2019
+ * @(#) RdfToGeoJson.java	version 2.0   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -55,7 +55,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  * 				- According to the latest GeoJSON specification (RFC7946), the CRS must be WGS84(lat/long).
  * 				- In case that there are mixed geometry types in input geometries (e.g., some are points while others are polygons), these are retained in the GeoJson file. 
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

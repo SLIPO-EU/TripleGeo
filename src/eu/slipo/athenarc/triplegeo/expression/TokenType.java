@@ -1,5 +1,5 @@
 /*
- * @(#) TokenType.java	version 1.9   11/7/2019
+ * @(#) TokenType.java	version 2.0   11/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems  Institute, Athena R.C., Greece.
  *
@@ -21,7 +21,7 @@ package eu.slipo.athenarc.triplegeo.expression;
 /**
  * All tokens currently recognizable in a logical expression.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

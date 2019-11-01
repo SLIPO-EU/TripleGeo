@@ -1,5 +1,5 @@
 /*
- * @(#) Connector.java	version 1.9   24/2/2018
+ * @(#) Connector.java	version 2.0   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems  Institute, Athena R.C., Greece.
  *
@@ -23,7 +23,7 @@ import java.sql.ResultSet;
 /**
  * Interface that defines all methods to be implemented by a JDBC Database connector.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

@@ -2,6 +2,7 @@ com.topografix.gpx
 eu.slipo.athenarc.triplegeo
 eu.slipo.athenarc.triplegeo.db
 eu.slipo.athenarc.triplegeo.expression
+eu.slipo.athenarc.triplegeo.extra
 eu.slipo.athenarc.triplegeo.osm
 eu.slipo.athenarc.triplegeo.partitioning
 eu.slipo.athenarc.triplegeo.tools

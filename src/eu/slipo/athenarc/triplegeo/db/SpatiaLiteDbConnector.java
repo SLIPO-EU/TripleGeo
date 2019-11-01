@@ -1,5 +1,5 @@
 /*
- * @(#) SpatiaLiteDbConnector.java 	 version 1.9   24/2/2018
+ * @(#) SpatiaLiteDbConnector.java 	 version 2.0   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -33,7 +33,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * SpatiaLite implementation of DbConnector class. Used in establishing a connection to a SpatiaLite database. 
  * IMPORTANT! Native libraries for SpatiaLite (https://www.gaia-gis.it/fossil/libspatialite/index) must be located in the directory at which the Java application is called in order to run smoothly this class.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY 

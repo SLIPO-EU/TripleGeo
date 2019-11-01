@@ -1,5 +1,5 @@
 /*
- * @(#) SparkPartitioner.java	version 1.9   10/4/2019
+ * @(#) SparkPartitioner.java	version 2.0   7/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -18,8 +18,7 @@
  */
 package eu.slipo.athenarc.triplegeo.partitioning;
 
-import com.linuxense.javadbf.DBFField;
-import com.linuxense.javadbf.DBFReader;
+
 import com.vividsolutions.jts.geom.Geometry;
 
 import eu.slipo.athenarc.triplegeo.tools.MapToRdf;
@@ -39,10 +38,13 @@ import org.apache.spark.sql.functions;
 import org.datasyslab.geospark.formatMapper.shapefileParser.ShapefileReader;
 import org.datasyslab.geospark.serde.GeoSparkKryoRegistrator;
 import org.datasyslab.geospark.spatialRDD.SpatialRDD;
+import org.geotools.data.shapefile.dbf.DbaseFileReader;
+
 import scala.collection.mutable.WrappedArray;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.nio.charset.Charset;
 import java.util.*;
 
 import org.apache.log4j.Level;
@@ -51,13 +53,14 @@ import org.apache.log4j.Logger;
 /**
  * Performs a transformation task using Spark, under the given configuration settings
  * @author Georgios Mandilaras
- * @version 1.9
+ * @version 2.0
  *
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Georgios Mandilaras, 20/12/2018
- * Last modified: 10/4/2019
+ * Modified: 7/10/2019 by Kostas Patroumpas; changed handling of .dbf files from shapefile collections
+ * Last modified: 7/10/2019
  */
 public class SparkPartitioner {
 
@@ -73,7 +76,6 @@ public class SparkPartitioner {
         int num_partitions = currentConfig.partitions;
         Assistant myAssistant = new Assistant();
 
-
         //set spark's logger level
         Logger  rootLogger = Logger.getRootLogger();
         if (currentConfig.spark_logger_level.equals("ERROR"))
@@ -82,7 +84,6 @@ public class SparkPartitioner {
             rootLogger.setLevel(Level.INFO);
         else
             rootLogger.setLevel(Level.WARN);
-
 
         // Initialize spark's variables
         SparkConf conf = new SparkConf().setAppName("SparkTripleGeo")
@@ -111,20 +112,20 @@ public class SparkPartitioner {
                 }
 
                 //reads dbf file's headers.
-                String dbf_file = myAssistant.get_ShapeFile("dbf", inFile);
-                DBFReader dbf_reader;
+                String dbf_file = myAssistant.getFileFromShapefile("dbf", inFile);
                 List<String> dbf_fields = new ArrayList<String>();
                 try {
-                    dbf_reader = new DBFReader(new FileInputStream(dbf_file));
-                    int numberOfFields = dbf_reader.getFieldCount();
+                	@SuppressWarnings("resource")
+					DbaseFileReader dbfReader =  new DbaseFileReader((new FileInputStream(dbf_file)).getChannel(), false, Charset.forName(currentConfig.encoding));
+                    
+                    int numberOfFields = dbfReader.getHeader().getNumFields();
                     for (int i = 0; i < numberOfFields; i++) {
-                        DBFField field = dbf_reader.getField(i);
-                        dbf_fields.add(field.getName());
+                        dbf_fields.add(dbfReader.getHeader().getFieldName(i));
                     }
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
-
+                
                 //using GeoSpark in order to read shapefiles.
                 System.setProperty("geospark.global.charset","utf8");
                 SpatialRDD spatialRDD = new SpatialRDD<Geometry>();
@@ -241,7 +242,8 @@ public class SparkPartitioner {
                             System.out.println("RDF results written into the following output files:" + partitions_outputFile.toString());
                         });
             }
-            /*else if(currentFormat.trim().contains("JSON")) {
+/*
+            else if(currentFormat.trim().contains("JSON")) {
                 Dataset df = session.read()
                         .option("multiLine", true)
                         .json(inFile.split(";"));
@@ -274,7 +276,8 @@ public class SparkPartitioner {
                             System.out.println("RDF results written into the following output files:" + partitions_outputFile.toString());
                         });
 
-            }*/
+            }
+*/
             else {
                 throw new IllegalArgumentException(Constants.INCORRECT_SETTING);
             }
@@ -283,7 +286,6 @@ public class SparkPartitioner {
         } catch (Exception e) {
             ExceptionHandler.abort(e, Constants.INCORRECT_SETTING);      //Execution terminated abnormally
         }
-
     }
 }
 

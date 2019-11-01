@@ -1,5 +1,5 @@
 /*
- * @(#) MySqlDbConnector.java 	version 1.9   24/2/2018
+ * @(#) MySqlDbConnector.java 	version 2.0   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -31,7 +31,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * MySQL implementation of DbConnector class.
  * NOTE: JDBC driver automatically uses the encoding specified by the host; no need to specify such parameter in the connection.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY 

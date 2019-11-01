@@ -1,5 +1,5 @@
 /*
- * @(#) SqlServerDbConnector.java 	version 1.9   24/2/2018
+ * @(#) SqlServerDbConnector.java 	version 2.0   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -31,7 +31,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Microsoft SQL Server implementation of DbConnector class. 
  * LIMITATION: SQL Server does NOT inherently support transformation between coordinate reference systems (CRS).
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY 

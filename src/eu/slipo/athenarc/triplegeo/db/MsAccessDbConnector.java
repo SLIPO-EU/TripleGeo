@@ -1,5 +1,5 @@
 /*
- * @(#) MsAccessDbConnector.java 	version 1.9   24/2/2018
+ * @(#) MsAccessDbConnector.java 	version 2.0   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -31,7 +31,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
  * Microsoft Access implementation of DbConnector class.
  * CAUTION: In the execution, include -Dfile.encoding=UTF-8 when applying against geodatabases with UTF-8 encoding; similarly for other encodings.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY 

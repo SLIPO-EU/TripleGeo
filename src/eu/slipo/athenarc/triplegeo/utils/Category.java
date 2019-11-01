@@ -1,5 +1,5 @@
 /*
- * @(#) Category.java 	 version 1.9   14/2/2019
+ * @(#) Category.java 	 version 2.0   25/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -24,13 +24,14 @@ package eu.slipo.athenarc.triplegeo.utils;
  * A category item in the classification scheme utilized in a dataset.
  *
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 7/11/2018
  * Modified: 11/12/2018; added mapping to default (embedded) categories
- * Last modified: 14/2/2019
+ * Modified: 25/10/2019; added similarity score when assigning embedded categories
+ * Last modified: 25/10/2019
  */
 
 public class Category {
@@ -40,6 +41,7 @@ public class Category {
 	private String name;             //Name of the category as specified in the classification scheme
 	private String parent;           //Original identifier of the parent of this category in the classification scheme
 	private String embedCategory;    //Mapping of this category to an embedded one according to a default classification scheme 
+	private double embedScore;       //Similarity score assigned to the embedded category according to a default classification scheme
 	
 	/**
 	 * Constructor of a Category object.
@@ -48,13 +50,15 @@ public class Category {
 	 * @param name  Name of the category as specified in the classification scheme
 	 * @param parent Original identifier of the parent of this category in the classification scheme
 	 * @param embedCategory  Name of its corresponding embedded category in the default (internal) classification scheme
+	 * @param embedScore  Similarity score assigned to the embedded category
 	 */
-	public Category(String UUID, String id, String name, String parent, String embedCategory) {
+	public Category(String UUID, String id, String name, String parent, String embedCategory, double embedScore) {
 		this.UUID = UUID.isEmpty() ? null : UUID;
 		this.id = id.isEmpty() ? null : id;
 		this.name = name.isEmpty() ? null : name;
 		this.parent = parent.isEmpty() ? null : parent;
 		this.embedCategory = ((embedCategory == null) || embedCategory.isEmpty()) ? null : embedCategory;
+		this.setEmbedScore(((embedCategory == null) || embedCategory.isEmpty()) ? 0.0 : embedScore);
 	}
 
 	/**
@@ -112,6 +116,22 @@ public class Category {
 	public String getEmbedCategory() {
 		return embedCategory;
 	}
+
+	/**
+	 * Provides the similarity score assigned to the embedded category according to the default classification scheme
+	 * @return  The similarity score assigned to the embedded category
+	 */
+	public double getEmbedScore() {
+		return embedScore;
+	}
+
+	/**
+	 * Sets or updates the similarity score assigned to the embedded category according to the default classification scheme
+	 * @param embedScore   The similarity score to be assigned to the embedded category
+	 */
+	public void setEmbedScore(double embedScore) {
+		this.embedScore = embedScore;
+	}
 	
 	/**
 	 * Indicates whether a UUID has been assigned to this category
@@ -152,4 +172,5 @@ public class Category {
 	public String printContents() {
 		return id + " " + name + " " + parent;
 	}
+
 }

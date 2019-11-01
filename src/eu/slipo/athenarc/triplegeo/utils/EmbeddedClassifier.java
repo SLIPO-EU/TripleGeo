@@ -1,5 +1,5 @@
 /*
- * @(#) EmbeddedClassifier.java	version 1.9  12/12/2018
+ * @(#) EmbeddedClassifier.java	 version 2.0  25/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -27,21 +27,23 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Assigns a category based on the textual similarity of a given description to a collection of tags characterizing the category.
  * Correspondence between default (embedded) categories and tags is stored in a resource YML file (dictionary).
  * @author Kostas Patroumpas
- * @version 1.9 
+ * @version 2.0 
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 10/12/2018
- * Last modified by: Kostas Patroumpas, 12/12/2018
+ * Modified: 25/10/2019; Also return the similarity score of the assigned category
+ * Last modified by: Kostas Patroumpas, 25/10/2019
  */
 public class EmbeddedClassifier {
 	
-	private Map<String, List<String>> categories;                    //Dictionary with the correspondence of tags to embedded categories
+	private Map<String, List<String>> categories;            //Dictionary with the correspondence of tags to embedded categories
 	                                                         //A tag refers to a single category only; A category may contain multiple tags
 
 	/**
@@ -168,9 +170,9 @@ public class EmbeddedClassifier {
 	/**
 	 * Given a textual description, search the dictionary for the most similar tag and assign the corresponding category.
 	 * @param val   The textual description of a category (may be a single word, or a multi-word characterization)
-	 * @return  The category that has obtained the highest textual similarity score with the given description.
+	 * @return  The category that has obtained the highest textual similarity score with the given description; this score is also returned.
 	 */
-	public String assignCategory(String val) {
+	public Pair<String, Double> assignCategory(String val) {
 		
 			String assignedCategory = null;
 			double assignedScore = 0.0;
@@ -206,6 +208,6 @@ public class EmbeddedClassifier {
 			}		
 //			System.out.println("CATEGORY-> " +  assignedCategory + " score= " + assignedScore);
 			
-			return assignedCategory;
+			return Pair.of(assignedCategory, assignedScore);
 	}		
 }

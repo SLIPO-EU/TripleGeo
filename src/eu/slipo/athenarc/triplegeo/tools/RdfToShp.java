@@ -1,5 +1,5 @@
 /*
- * @(#) RdfToShp.java 	 version 1.9   12/7/2019
+ * @(#) RdfToShp.java 	 version 2.0   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -67,7 +67,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  *              - Attribute names are limited in length (max 10 characters); otherwise, they get truncated;
  *              - Not all data types can be supported (e.g., Timestamp values must be represented as Strings).
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

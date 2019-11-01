@@ -1,5 +1,5 @@
 /*
- * @(#) ReverseExtractor.java	version 1.9   12/7/2019
+ * @(#) ReverseExtractor.java	version 2.0   31/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -34,17 +34,21 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
 
 
 /**
- * Utility for validating RDF datasets and reconverting them into geographical files (reverse transformation).
+ * Utility for validating RDF datasets and exporting them into geographical files (reverse transformation).
  * LIMITATIONS: Currently supporting CSV (delimited) files, ESRI Shapefiles, and GeoJson files.
+ * USAGE: Execution command over JVM:
+ *        java -cp target/triplegeo-2.0-SNAPSHOT.jar eu.slipo.athenarc.triplegeo.ReverseExtractor  <path-to-configuration-file> 
+ * ARGUMENTS: (1) Path to a properties file with the configuration to be used in the reverse transformation.
+ * 
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
  * Created by: Kostas Patroumpas, 27/9/2017
  * Modified: 12/2/2018; handling missing specifications on georeferencing (CRS: Coordinate Reference Systems) 
  * Modified: 12/7/2019; handling also export to GeoJson files
- * Last modified by: Kostas Patroumpas, 12/7/2019
+ * Last modified by: Kostas Patroumpas, 31/10/2019
  */
 public class ReverseExtractor {  
 
@@ -70,16 +74,16 @@ public class ReverseExtractor {
 
 	    	myAssistant = new Assistant();
 	    	
-	    	//Specify a configuration file with properties used in the conversion
+	    	//The only argument must be a configuration file with properties used in the reverse transformation
 	    	currentConfig = new ReverseConfiguration(args[0]);          //Argument like "./test/shp_reverse_options.conf"	
 	    	
 	        try { 	
 				//Check how many input files have been specified
 				if (currentConfig.inputFiles != null)
-					inputFiles = currentConfig.inputFiles.split(";");     //MULTIPLE input files separated by ;			
+					inputFiles = currentConfig.inputFiles.split(";");     //MULTIPLE input files must be separated by ;	in the configuration		
 
 				if (currentConfig.sparqlFile != null)
-					sparqlFile = currentConfig.sparqlFile;                //Specify a file with a valid SELECT query in SPARQL
+					sparqlFile = currentConfig.sparqlFile;                //A file with a valid SELECT query specified in SPARQL
 				else
 				{
 					System.err.println("No file specified in the configuration with a SPARQL query to be applied over the RDF data.");
@@ -157,7 +161,6 @@ public class ReverseExtractor {
 					//CAUTION! This must be a valid SELECT query that reflects the schema and properties of the RDF graph
 					FileInputStream inputStream = new FileInputStream(sparqlFile); 
 					String q = IOUtils.toString(inputStream, "UTF-8");
-					//System.out.println("QUERY:" +  q);
 					  
 					//Submit query against this graph model and store results to the output file
 					myReverseConverter.queryModel(q, conv);

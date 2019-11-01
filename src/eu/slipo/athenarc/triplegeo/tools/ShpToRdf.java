@@ -1,5 +1,5 @@
 /*
- * @(#) ShpToRdf.java	version 1.9   12/7/2019
+ * @(#) ShpToRdf.java	version 2.0   9/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -48,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
 /**
  * Entry point to convert ESRI shapefiles into RDF triples.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -60,7 +60,8 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 13/12/2017, utilizing a streaming iterator in order to avoid loading the entire feature collection into memory
  * Modified: 12/7/2018, checking availability of basic shapefile components before starting any processing
  * Modified: 19/4/2019, included support for spatial filtering over the input shapefile
- * Last modified by: Kostas Patroumpas, 12/7/2019
+ * Modified: 9/10/2019, supporting export to the registry also for RML mode
+ * Last modified by: Kostas Patroumpas, 9/10/2019
  */
 public class ShpToRdf {
 	
@@ -157,7 +158,7 @@ public class ShpToRdf {
 			else if (currentConfig.mode.contains("RML"))
 			{
 			  //Mode RML: consume records and apply RML mappings in order to get triples
-			  myConverter =  new RMLConverter(currentConfig, myAssistant);
+			  myConverter =  new RMLConverter(currentConfig, myAssistant, outputFile);
 			  
 			  //Export data in a streaming fashion according to RML mappings
 			  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);

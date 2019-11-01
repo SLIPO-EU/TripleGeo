@@ -81,6 +81,7 @@
 	
 ######################################################################################
 # Main mapping for Points of Interest (POI)
+# By convention, attribute names referring to input data must be specified in UPPER-CASE letters.
 ######################################################################################
 
 <#POIMapping>
@@ -94,13 +95,21 @@
 	rr:class geo:Feature
   ];
 
+
+    rr:predicateObjectMap [
+    rr:predicate slipo:source;
+    rr:objectMap [
+      rr:parentTriplesMap <#POISource>
+	  ]
+    ];
+	
     rr:predicateObjectMap [
     rr:predicate slipo:name;
     rr:objectMap [
       rr:parentTriplesMap <#POIName>
 	  ]
     ];
-
+	
    rr:predicateObjectMap [
     rr:predicate slipo:category;
     rr:objectMap [
@@ -110,20 +119,71 @@
     ];
 
   rr:predicateObjectMap [
+    rr:predicate slipo:assignedCategory;
+    rr:objectMap [
+      rml:reference "ASSIGNED_CATEGORY";
+      ]
+    ];
+	
+  rr:predicateObjectMap [
     rr:predicate slipo:lastUpdated;
     rr:objectMap [
       rml:reference "TIMESTAMP";
 	  rr:datatype xsd:dateTime
       ]
     ];
+
+  rr:predicateObjectMap [
+    rr:predicate wgs84_pos:long;
+    rr:objectMap [
+      rml:reference "LON";
+	  rr:datatype xsd:float
+      ]
+    ];
+
+  rr:predicateObjectMap [
+    rr:predicate wgs84_pos:lat;
+    rr:objectMap [
+      rml:reference "LAT";
+	  rr:datatype xsd:float
+      ]
+    ];
 	
-	rr:predicateObjectMap [
+  rr:predicateObjectMap [
     rr:predicate geo:hasGeometry;
     rr:objectMap [
       rr:parentTriplesMap <#POIGeometry>
 	  ]
 	].
 
+
+	
+
+<#POISource>
+  rml:logicalSource [
+    rml:source "" ;
+    rml:referenceFormulation ql:CSV 
+  ];
+  rr:subjectMap [
+    rr:template "http://slipo.eu/id/poi/{UUID}/sourceInfo";
+    rr:class slipo:sourceInfo; 
+  ];
+
+  rr:predicateObjectMap [
+    rr:predicate slipo:sourceRef;
+    rr:objectMap [
+      rr:constant "OpenStreetMap"
+      ]
+    ];
+	
+    rr:predicateObjectMap [
+    rr:predicate slipo:poiRef;
+    rr:objectMap [
+      rml:reference "OSM_ID";
+      rr:termType rr:Literal;
+      ]
+    ]. 
+	
 	
 <#POIName>
   rml:logicalSource [
@@ -134,7 +194,7 @@
     rr:template "http://slipo.eu/id/poi/{UUID}/name";
     rr:class slipo:Name
   ];
-  
+ 	
   rr:predicateObjectMap [
     rr:predicate slipo:nameLang;
     rr:objectMap [

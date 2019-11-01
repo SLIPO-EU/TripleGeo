@@ -14,6 +14,10 @@ CATEGORY_URI:                     ##SLIPO-specific constraint: Specifies the URI
   entity: category
   predicate: slipo:category
   datatype: uri
+ASSIGNED_CATEGORY:                 ##SLIPO-specific constraint: Specifies an internal category assigned to each POI; Assuming that a mapping to a default (embedded) classification scheme
+  entity: assignedCategory
+  predicate: slipo:assignedCategory
+  generateWith: getEmbeddedCategory  
 name:
   instanceOf: name
   entity: name
@@ -28,14 +32,21 @@ GEOHASH:
   entity: geohash
   predicate: slipo:geoHash
   datatype: string
-  generateWith: geometry.getGeoHash             ##Function call to fill-in this value that does NOT exist in the original dataset   
+  generateWith: geometry.getGeoHash(10)          ##Function call to fill-in this value that does NOT exist in the original dataset   
 LONGITUDE:
   entity: lon
   predicate: wgs84_pos:long
   datatype: float
-  generateWith: geometry.getLongitude            ##Function call to fill-in this value that does NOT exist in the original dataset 
+  generateWith: geometry.getLongitude           ##Function call to fill-in this value that does NOT exist in the original dataset 
 LATITUDE:
   entity: lat
   predicate: wgs84_pos:lat
   datatype: float
   generateWith: geometry.getLatitude            ##Function call to fill-in this value that does NOT exist in the original dataset 
+TRANSLIT:                                       ##Extra property: generate names transliterated to Latin characters
+  instanceOf: name
+  entity: translit_name
+  predicate: slipo:name
+  type: transliterated
+  language: en
+  generateWith: getTransliteration(name)         ##Function call to fill-in this value that does NOT exist in the original dataset   

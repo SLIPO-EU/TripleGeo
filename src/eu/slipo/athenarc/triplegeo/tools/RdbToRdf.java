@@ -1,5 +1,5 @@
 /*
- * @(#) RdbToRdf.java 	 version 1.9   12/7/2019
+ * @(#) RdbToRdf.java 	 version 2.0   31/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -48,8 +48,10 @@ import eu.slipo.athenarc.triplegeo.utils.Constants;
 
 /**
  * Entry point of the utility for extracting RDF triples from spatially-enabled DBMSs.
+ * IMPORTANT! Include the JDBC drivers necessary for each DBMS in the classpath during execution in order to successfully connect to the database
+ *            In case of MS Access personal geodatabases (.mdb format) with UTF-8 encoding, include -Dfile.encoding=UTF-8 in the Java command for execution.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -68,8 +70,9 @@ import eu.slipo.athenarc.triplegeo.utils.Constants;
  * Modified: 13/11/2017, added support for recognizing a classification scheme (RML mode only)
  * Modified: 24/11/2017, added support for recognizing character encoding for strings
  * Modified: 11/12/2017, added support on UTF-8 encoding in the result of RML conversion.
- * Modified: 14/12/2017, added support for ESRI personal geodatabases (Microsoft Access .mdb format). CAUTION: Include -Dfile.encoding=UTF-8 when applying against geodatabases with UTF-8 encoding.
- * Last modified by: Kostas Patroumpas, 12/7/2019
+ * Modified: 14/12/2017, added support for ESRI personal geodatabases (Microsoft Access .mdb format).
+ * Modified: 9/10/2019, supporting export to the registry also for RML mode
+ * Last modified by: Kostas Patroumpas, 31/10/2019
  */
 public class RdbToRdf {
 
@@ -130,9 +133,11 @@ public class RdbToRdf {
 	        		   currentConfig.dbHost, currentConfig.dbPort, currentConfig.dbName, currentConfig.dbUserName, currentConfig.dbPassword, currentConfig.encoding);
 	          break;
 	        case "SQLSERVER":
-	            databaseConnector = new SqlServerDbConnector(
+	        	databaseConnector = new SqlServerDbConnector(
 	         		   currentConfig.dbHost, currentConfig.dbPort, currentConfig.dbName, currentConfig.dbUserName, currentConfig.dbPassword);
-	           break;  
+	            if (currentConfig.targetCRS != null)
+	            	System.out.println("NOTE: Microsoft SQL Server does not natively support CRS transformation. Reprojection to target CRS " + currentConfig.targetCRS + " will not be applied.");
+	            break;  
 	        case "SPATIALITE":
 	            databaseConnector = new SpatiaLiteDbConnector(currentConfig.dbName, currentConfig.encoding);
 	           break; 
@@ -158,8 +163,7 @@ public class RdbToRdf {
       // Other parameters
       if (myAssistant.isNullOrEmpty(currentConfig.defaultLang)) {
     	  currentConfig.defaultLang = "en";
-      }
-	  
+      }  
   }
 
   
@@ -194,15 +198,14 @@ public class RdbToRdf {
 			  else if (currentConfig.mode.contains("RML"))
 				{
 				  //Mode RML: consume records and apply RML mappings in order to get triples
-				  myConverter =  new RMLConverter(currentConfig, myAssistant);
+				  myConverter =  new RMLConverter(currentConfig, myAssistant, outputFile);
 				  
 				  //Export data in a streaming fashion according to RML mappings
 				  myConverter.parse(rs, classification, reproject, targetSRID, outputFile);
 				}
 			} catch (Exception e) {
 				ExceptionHandler.abort(e, "");
-	  		}
-		
+	  		}		
 	}
 
 
@@ -234,9 +237,10 @@ public class RdbToRdf {
 	    totalRows = rs.getInt("total");    //total records to be exported
 	    System.out.println(myAssistant.getGMTime() + " Number of database records to be processed: " + totalRows);
 	  
-	    //In case no CRS transformation has been specified, assume georeferencing in WGS84
-	    //TODO: Detect CRS directly from the database (if supported by the DBMS)
-	    //E.g., in PostGIS: "SELECT srid FROM geometry_columns WHERE f_table_name = 'osm_pois12';"
+	    //In case no CRS transformation has been specified, assume georeferencing in WGS84.
+	    //Some DBMSs support detection of CRS in the spatial data, but this is not standardized in order to be used transparently.
+	    //E.g., in PostGIS: "SELECT srid FROM geometry_columns WHERE f_table_name = <table_name>;"
+	    //... but in SQL Server: "SELECT <geometry_column_name>.STSrid FROM <table_name>;"
     	if (sourceSRID == 0)
     	{
     		sourceSRID = targetSRID = 4326;
@@ -301,8 +305,7 @@ public class RdbToRdf {
 	  }
 	    
       //Append the rest of the SQL statement
-      sql += " FROM " + currentConfig.tableName + condition;	      
-      //System.out.println(sql);
+      sql += " FROM " + currentConfig.tableName + condition;
       
       //Execute SQL query in the DBMS and fetch all results
       rs = dbConn.executeQuery(sql);

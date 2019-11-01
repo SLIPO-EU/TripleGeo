@@ -1,5 +1,5 @@
 /*
- * @(#) Expr.java	version 1.9   10/7/2019
+ * @(#) Expr.java	version 2.0   10/7/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems  Institute, Athena R.C., Greece.
  *
@@ -23,7 +23,7 @@ import java.util.Map;
 /**
  * Interface for evaluating a logical (boolean) expression.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

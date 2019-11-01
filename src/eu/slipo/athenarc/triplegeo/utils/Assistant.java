@@ -1,5 +1,5 @@
 /*
- * @(#) Assistant.java 	 version 1.9  31/7/2019
+ * @(#) Assistant.java 	 version 2.0  18/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -91,7 +91,7 @@ import eu.slipo.athenarc.triplegeo.expression.ExprResolver;
 /**
  * Assistance class with various helper methods used in transformation or reverse transformation.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -108,7 +108,7 @@ import eu.slipo.athenarc.triplegeo.expression.ExprResolver;
  * Modified: 18/4/2019; added support for topological filtering of geometries; currently based on spatial containment in a user-specified geometry
  * Modified: 14/6/2019; support for GeoHash strings encoding (centroids of) geometries
  * Modified: 4/7/2019; added built-in function to support date format conversions
- * Last modified by: Kostas Patroumpas, 31/7/2019
+ * Last modified by: Kostas Patroumpas, 18/10/2019
  */
 
 public class Assistant {
@@ -131,10 +131,16 @@ public class Assistant {
 	
 	private DecimalFormat decDateFormatter;
 	
+	private Transliterator latinTransliterator;
+	
 	/**
 	 * Constructor of the class without explicit declaration of configuration settings.
 	 */
 	public Assistant() {	
+        //Initialize a transliterator to Latin if required
+        String LANG = "Any-Latin";    //"el-el_Latn/BGN";           //Convert from any language/alphabet (Greek, Cyrillic, Arab, etc.) into Latin
+        String NORMALIZE = "NFD; [:Nonspacing Mark:] Remove; NFC";  //Used to remove accents from original strings before transliteration     		
+        latinTransliterator = Transliterator.getInstance(LANG + ";" + NORMALIZE);
 	}
 
 	/**
@@ -143,7 +149,7 @@ public class Assistant {
 	public Assistant(Configuration config) {
 		
 		currentConfig = config;
-				
+		
 		//Specify time zone in time notifications
 		gmtDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
 
@@ -151,6 +157,11 @@ public class Assistant {
 		NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
 		decDateFormatter = (DecimalFormat)nf;
         decDateFormatter.applyPattern("#.000");
+
+        //Initialize a transliterator to Latin in case this is specified in attribute mappings
+        String LANG = "Any-Latin";    //"el-el_Latn/BGN";           //Convert from any language/alphabet (Greek, Cyrillic, Arab, etc.) into Latin
+        String NORMALIZE = "NFD; [:Nonspacing Mark:] Remove; NFC";  //Used to remove accents from original strings before transliteration     		
+        latinTransliterator = Transliterator.getInstance(LANG + ";" + NORMALIZE);
         
 		//Specify a spatial filter
 		if (currentConfig.spatialExtent != null)
@@ -288,7 +299,7 @@ public class Assistant {
 	 * @return True, if SQL filter has been specified; False, otherwise.
 	 */
 	public boolean hasSQLFilter() {
-		return (logicalFilter != null);
+		return (logicalFilter != null) || (currentConfig.filterSQLCondition != null);
 		
 	}
 	
@@ -694,7 +705,7 @@ public class Assistant {
         		CoordinateReferenceSystem finalCRS = CRS.decode("EPSG:4326");      //CRS for WGS84
         		//Define a MathTransform object and apply it
         		MathTransform transform = CRS.findMathTransform(origCRS, finalCRS);
-        		g = JTS.transform(g, transform); 	        		
+        		g = JTS.transform(g, transform);
         	}
         }
         catch (Exception e) {
@@ -925,15 +936,15 @@ public class Assistant {
 	/** 
 	 * Built-in function that returns the area of a polygon geometry from its the Well-Known Text representation.
 	 * @param polygonWKT  WKT of the polygon
-	 * @param targetSRID  EPSG code of the coordinate reference system (CRS) of the geometry
+	 * @param srid  EPSG code of the coordinate reference system (CRS) of the geometry
 	 * @return  calculated area in square meters (NOT in the units of the CRS of the geometry)
 	 */
-	public double getArea(String polygonWKT, int targetSRID) {
+	public double getArea(String polygonWKT, int srid) {
 			
 		Geometry g = WKT2Geometry(polygonWKT);
-		Geometry gProjected = geomFlatTransform(g, targetSRID);     //Geometry projected to a flat Cartesian plane
+		Geometry gProjected = geomFlatTransform(g, srid);     //Geometry projected to a flat Cartesian plane
 		if (gProjected != null)
-			return gProjected.getArea();		                    //Calculate the area of the projected (multi)polygon in SQUARE METERS
+			return gProjected.getArea();		              //Calculate the area of the projected (multi)polygon in SQUARE METERS
 	    
 	    return 0.0;            //This is not a polygon geometry, so it has no area 	
 	}
@@ -952,15 +963,15 @@ public class Assistant {
 	/** 
 	 * Built-in function that returns the length of a linestring or the perimeter of a polygon geometry from its the Well-Known Text representation.
 	 * @param wkt WKT of the linestring or polygon
-	 * @param targetSRID  EPSG code of the coordinate reference system (CRS) of the geometry
-	 * @return  calculated length/perimeter in square meters (NOT in the units of the CRS of the geometry)
+	 * @param srid  EPSG code of the coordinate reference system (CRS) of the geometry
+	 * @return  calculated length/perimeter in meters (NOT in the units of the CRS of the geometry)
 	 */	
-	public double getLength(String wkt, int targetSRID) {
+	public double getLength(String wkt, int srid) {
 		
 		Geometry g = WKT2Geometry(wkt);
-		Geometry gProjected = geomFlatTransform(g, targetSRID);     //Geometry projected to a flat Cartesian plane
+		Geometry gProjected = geomFlatTransform(g, srid);  	//Geometry projected to a flat Cartesian plane
 		if (gProjected != null)
-			return gProjected.getLength();	//Calculate the length of the given (multi)linestring or the perimeter of the given (multi)polygon in SQUARE METERS
+			return gProjected.getLength();					//Calculate the length of the given (multi)linestring or the perimeter of the given (multi)polygon in METERS
 
 		return 0.0;   //This is not a line or polygon geometry, so it has no length or perimeter
 	}
@@ -968,12 +979,12 @@ public class Assistant {
 	/** 
 	 * Built-in function that returns a pair of lon/lat coordinates (in WGS84) of a geometry as calculated from its the Well-Known Text representation.
 	 * @param wkt   WKT of the geometry
-	 * @param targetSRID   the EPSG code of the CRS of this geometry 
+	 * @param srid   the EPSG code of the CRS of this geometry 
 	 * @return  An array with the pair of lon/lat coordinates
 	 */
-	public double[] getLonLatCoords(String wkt, int targetSRID) {
+	public double[] getLonLatCoords(String wkt, int srid) {
 
-	    Geometry g = geomTransformWGS84(wkt, targetSRID);
+	    Geometry g = geomTransformWGS84(wkt, srid);
 	    if (g != null)
 	    {	
         	//Update the MBR of all geometries processed so far
@@ -1031,10 +1042,12 @@ public class Assistant {
 	 * Encode a geographic location into a short string of letters and digits, according to http://geohash.org/ 
 	 * @param lon  Longitude of the location
 	 * @param lat  Latitude of the location
-	 * @return  A 12-character long string with the GeoHash encoding of the geometry.
+	 * @param precision The length of the geohash string
+	 * @return  A string with the GeoHash encoding of the geometry.
 	 */
-	public String getGeoHash(double lon, double lat) {
-		return GeoHash.withCharacterPrecision(lat, lon, 12).toBase32();   //A string of 12 characters will be returned	
+	public String getGeoHash(double lon, double lat, int precision) {
+		precision = ((precision < 1) || (precision > 12)) ? 8 : precision;   		//Default value for precision is set to 8
+		return GeoHash.withCharacterPrecision(lat, lon, precision).toBase32();   	//A string of up to 12 characters will be returned	
 	}
 	
 	/**
@@ -1103,10 +1116,7 @@ public class Assistant {
 	 */
 	public String getTransliteration(String val) {
 		
-		String LANG = "Any-Latin";    //"el-el_Latn/BGN";          //Convert from any language/alphabet (Greek, Cyrillic, Arab, etc.) into Latin
-		String NORMALIZE = "NFD; [:Nonspacing Mark:] Remove; NFC";  //Used to remove accents from original strings before transliteration
-		
-		return Transliterator.getInstance(LANG + ";" + NORMALIZE).transform(val);
+		return latinTransliterator.transform(val);
 	}
 
 	/**
@@ -1438,12 +1448,12 @@ public class Assistant {
 	}
 
 	/**
-	 * Returns the absolute path of the requested file.
-	 * @param extension: the extension of the file that will search for.
+	 * Returns the absolute path of the requested file from the shapefile collection.
+	 * @param extension: the extension of the file that will search for in the collection.
 	 * @param inputFolder the path to the input folder.
 	 * @return the absolute path of the requested file
 	 */
-	public String get_ShapeFile(String extension, String inputFolder) {
+	public String getFileFromShapefile(String extension, String inputFolder) {
 		File dir = new File(inputFolder);
 		File[] directoryListing = dir.listFiles();
 		if (directoryListing != null) {

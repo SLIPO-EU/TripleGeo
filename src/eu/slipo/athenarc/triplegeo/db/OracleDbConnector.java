@@ -1,5 +1,5 @@
 /*
- * @(#) OracleDbConnector.java 	 version 1.9   24/2/2018
+ * @(#) OracleDbConnector.java 	 version 2.0   24/2/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -31,7 +31,7 @@ import eu.slipo.athenarc.triplegeo.utils.ExceptionHandler;
 /**
  * Oracle implementation of DbConnector class.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -80,7 +80,7 @@ public class OracleDbConnector implements DbConnector {
   @Override
   public String getDatabaseUrl() 
   {
-	//In Windows, it can be used something like: "jdbc:oracle:thin:@//localhost:1521/orcl"
+	//In Windows, it can work with something like: "jdbc:oracle:thin:@//localhost:1521/orcl"
 	//In either Windows or Linux, it works with something like: "jdbc:oracle:thin:@localhost:1521:orcl" 
     return Constants.BASE_URL[Constants.ORACLE] + "@" + host + ":" + port + ":" + dbName;
   }   

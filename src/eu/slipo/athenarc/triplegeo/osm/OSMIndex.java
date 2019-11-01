@@ -1,5 +1,5 @@
 /*
- * @(#) OSMIndex.java 	 version 1.8   11/7/2018
+ * @(#) OSMIndex.java 	 version 2.0   11/7/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -25,7 +25,7 @@ import com.vividsolutions.jts.geom.Geometry;
 /**
  * Interface for indexing of OSM elements.
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

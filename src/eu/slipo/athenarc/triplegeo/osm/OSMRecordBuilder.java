@@ -1,5 +1,5 @@
 /*
- * @(#) OsmRecordBuilder.java	version 1.8   24/10/2018
+ * @(#) OsmRecordBuilder.java	version 2.0   24/10/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -36,7 +36,7 @@ import com.vividsolutions.jts.operation.linemerge.LineMerger;
 /**
  * Creates OSM record objects that contain all geospatial and thematic information from OSM elements (nodes, ways, relations).
  * @author Kostas Patroumpas
- * @version 1.8
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

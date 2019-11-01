@@ -1,11 +1,14 @@
 ##############################
-## Template for configuring TripleGeo ver.1.9 in order to transform data from geographical files into RDF triples.
+## Template for configuring TripleGeo ver.2.0 in order to transform data from geographical files into RDF triples.
 ## Specify parameters according to the examples for your specific input file(s).
 ##############################
 
 ##############################
 # Execution environment parameters
 ##############################
+
+## Optional parameters regarding execution platform and on-the-fly data partitioning.
+## CAUTION! Applicable for transformation of ESRI shapefiles and CSV data only.
 
 ##Specify one of the following execution platforms:
 ##     JVM (for single- or multi-threaded execution; this is the DEFAULT value);

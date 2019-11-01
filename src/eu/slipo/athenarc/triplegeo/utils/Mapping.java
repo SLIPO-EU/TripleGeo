@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java 	 version 1.9   5/7/2019
+ * @(#) TripleGenerator.java  version 2.0  7/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -34,7 +34,7 @@ import org.yaml.snakeyaml.Yaml;
 /**
  * Retains mappings of feature attributes (input) to RDF predicates (output) that will be used in generation of triples.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -46,8 +46,9 @@ import org.yaml.snakeyaml.Yaml;
  * Modified: 11/5/2018; included specification for literals with language tags; built-in functions with arguments 
  * Modified: 9/10/2018; included specification for custom URIs
  * Modified: 10/5/2019; extended support for multi-faceted properties with wild char '*'
- * Modified: 4/7/2019; allowing literal values (quoted strings) to be given as arguments in built-in functions
- * Last modified: 5/7/2019
+ * Modified: 4/7/2019; allowing literal values (quoted strings) to be given as arguments in thematic built-in functions
+ * Modified: 7/10/2019; allowing literal values (quoted strings) as arguments in geometric built-in functions
+ * Last modified: 7/10/2019
  */
 
 public class Mapping {
@@ -375,7 +376,18 @@ public class Mapping {
 			   case 4:  props.setInstance(mappings[i]); break;
 			   case 5:  props.setPart(mappings[i]); break;
 			   case 6:  if (mappings[i].startsWith("geometry")) {
-				            props.setGeneratorFunction(mappings[i].substring(9));    //Strip off the "geometry." prefix from the function
+				   			String func = mappings[i].substring(9);  				 //Strip off the "geometry." prefix from the function name
+						 	//Special handling in order to identify possible arguments to be used by the built-in function
+			            	int p = func.indexOf('(');
+			            	if (p >= 0)
+			            	{
+			            		props.setGeneratorFunction(func.substring(0, p));    //Keep only the name of the function
+			            		String[] args = func.substring(p+1, func.length()-1).split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+			            		for (String arg: args)
+			            			props.setFunctionArgument(arg.trim());   	//Specify the arguments
+			            	}
+			            	else  
+			            		props.setGeneratorFunction(func);    			//No arguments given by user
 			            	this.extraGeometricAttrs.add(key);
 			            }
 			            else
@@ -460,7 +472,18 @@ public class Mapping {
 						   case "generateWith":  
 						   		if (map.get(key).get(subkey).startsWith("geometry"))                     //Prefix for any geometry-based built-in function to be applied
 						   		{
-						   			props.setGeneratorFunction(map.get(key).get(subkey).substring(9));   //Strip off the "geometry." prefix from the function
+						   			String func = map.get(key).get(subkey).substring(9);  				 //Strip off the "geometry." prefix from the function name
+						   			//Special handling in order to identify possible arguments to be used by the built-in function
+					            	int p = func.indexOf('(');
+					            	if (p >= 0)
+					            	{
+					            		props.setGeneratorFunction(func.substring(0, p));    //Keep only the name of the function
+					            		String[] args = func.substring(p+1, func.length()-1).split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+					            		for (String arg: args)
+					            			props.setFunctionArgument(arg);      	//Specify the arguments
+					            	}
+					            	else            	
+					            		props.setGeneratorFunction(func);   		//No arguments given by user
 						   			this.extraGeometricAttrs.add(key);
 						   		}
 						   		else

@@ -1,5 +1,5 @@
 /*
- * @(#) BatchReverseConverter.java	version 1.9   12/7/2019
+ * @(#) BatchReverseConverter.java	version 2.0   12/7/2019
  *
  * Copyright (C) 2013-2019 Information Systems Management Institute, Athena R.C., Greece.
  *
@@ -45,7 +45,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConfiguration;
  * Results can be written to a typical geographical files (currently supported: CSV and ESRI Shapefiles). 
  * Attribute names in the SELECT query will become the column names in the resulting files. 
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY

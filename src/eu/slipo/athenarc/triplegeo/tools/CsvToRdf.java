@@ -1,5 +1,5 @@
 /*
- * @(#) CsvToRdf.java 	 version 1.9   12/7/2019
+ * @(#) CsvToRdf.java 	 version 2.0   15/10/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -59,7 +59,7 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * LIMITATIONS: Currently, only supporting CSV files with header (i.e., named attributes).
  *              Apart from a delimiter, configuration files for CSV records must also specify whether there is a quote character in string values.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 
 /* DEVELOPMENT HISTORY
@@ -72,7 +72,8 @@ import eu.slipo.athenarc.triplegeo.utils.StreamConverter;
  * Modified: 7/11/2017, fixed issue with multiple instances of CRS factory
  * Modified: 24/11/2017, added support for recognizing character encoding for strings
  * Modified: 12/12/2017, fixed issue with string encodings; verified that UTF characters read and written correctly
- * Last modified by: Kostas Patroumpas, 12/7/2019
+ * Modified: 9/10/2019, supporting export to the registry also for RML mode
+ * Last modified by: Kostas Patroumpas, 15/10/2019
  */
 public class CsvToRdf {
 
@@ -123,7 +124,7 @@ public class CsvToRdf {
 	  	        CoordinateReferenceSystem targetCRS = crsFactory.createCoordinateReferenceSystem(currentConfig.targetCRS);    
 	  	        reproject = CRS.findMathTransform(sourceCRS, targetCRS, lenient);
 	  	        
-	  	        //Needed for parsing original geometry in WTK representation
+	  	        //Needed for parsing original geometry in WKT representation
 	  	        GeometryFactory geomFactory = new GeometryFactory(new PrecisionModel(), sourceSRID);
 	  	        myAssistant.wktReader = new WKTReader(geomFactory);
 	  	        
@@ -214,7 +215,7 @@ public class CsvToRdf {
 			else if (currentConfig.mode.contains("RML"))
 			{
 			  //Mode RML: consume records and apply RML mappings in order to get triples
-			  myConverter =  new RMLConverter(currentConfig, myAssistant);
+			  myConverter =  new RMLConverter(currentConfig, myAssistant, outputFile);
 			  
 			  myConverter.setHeader(csvHeader);
 			  

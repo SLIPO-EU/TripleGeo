@@ -1,7 +1,8 @@
 PREFIX slipo: <http://slipo.eu/def#> 
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>
 PREFIX sf: <http://www.opengis.net/ont/sf#>
-SELECT ?osm_id ?shape ?type ?name ?timestamp
+PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+SELECT ?osm_id ?shape ?type ?name ?lon ?lat ?timestamp
 WHERE { 
 		OPTIONAL {
 			?uri slipo:source ?poiSourceInfo .
@@ -9,14 +10,17 @@ WHERE {
 		}
 
 		OPTIONAL {
-			?uri slipo:category ?category .
-			?category slipo:value ?type .
+			?uri slipo:category ?category_uri .
+			?category_uri slipo:value ?type .
 		}
 		
 		OPTIONAL {
 			?uri geo:hasGeometry ?geometry .
 			?geometry geo:asWKT ?shape .
 		}
+
+		OPTIONAL {?uri wgs84:long ?lon . }
+		OPTIONAL {?uri wgs84:lat ?lat . }
 		
 		OPTIONAL {
 			?uri slipo:name ?fName . 

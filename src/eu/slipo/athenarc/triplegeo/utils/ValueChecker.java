@@ -1,5 +1,5 @@
 /*
- * @(#) ValueChecker.java 	 version 1.9   25/10/2018
+ * @(#) ValueChecker.java 	 version 2.0   25/10/2018
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -56,7 +56,7 @@ class Pattern {
  * Removes or replaces illegal characters from a literal value.
  * LIMITATIONS: Currently handling only some basic cases that may cause trouble (e.g., line breaks) in literals included in RDF triples.
  * @author Kostas Patroumpas
- * @version 1.9
+ * @version 2.0
  */
 public class ValueChecker {
 
@@ -68,13 +68,6 @@ public class ValueChecker {
 	public ValueChecker() {
 		 	
 		replacements = new HashMap<String, Pattern>();
-		
-		//Utilized an external resource file where correspondence between unwanted characters and their replacements can be specified by the user.
-//		replacements = new HashMap<String, String>();
-//		replacements.put(Constants.REGISTRY_CSV_DELIMITER, " ");     //Replace predefined delimiter with a BLANK character 
-//		replacements.put("\\s+",""); 
-//		replacements.put("\"", "'");
-//		replacements.put("[\\\t|\\\n|\\\r]"," "); 
 
 		try {		
 			//The resource XML file where correspondence between unwanted characters and their replacements is specified by the user.
@@ -82,10 +75,8 @@ public class ValueChecker {
 
 			//Obtain the entire tree of patterns from the given XML input
 			Patterns f = JAXB.unmarshal(in, Patterns.class);
-			for (Pattern p : f.patterns)
-			{
+			for (Pattern p : f.patterns) {
 				replacements.put(p.key, p);       //Store patterns in the dictionary
-//				System.out.println("Adding pattern " + p.key + ": " + p.search + " --> " + p.replace);
 			}
 		} 
 		catch (Exception e) {
@@ -117,7 +108,7 @@ public class ValueChecker {
 		  
 		  if (val != null)
 			  return findReplaceSubstring(val, replacements.get("CSV_DEFAULT_DELIMITER"));   //Replace delimiter with a SEMICOLON
-//			  return val.replace(Constants.REGISTRY_CSV_DELIMITER, ";");     //Replace delimiter with a SEMICOLON
+
 		  return "";                                                         //In case of NULL values, return an empty string
 	  }
 		
@@ -133,9 +124,7 @@ public class ValueChecker {
 			  val = findReplacePattern(val, replacements.get("WHITE_SPACE"));       //Eliminate white spaces and invalid characters 
 			  val = findReplaceSubstring(val, replacements.get("URL_BACKSLASH"));   //Backslash characters '\' are not allowed in URLs
 			  val = findReplacePattern(val, replacements.get("VALIDATE_URL"));      //Any invalid characters like <, >, |, " are eliminated from this URL			  
-			  //val = val.replaceAll("\\s+","");                                //Eliminate white spaces and invalid characters             
-			  //val = val.replace("\\","/");                                    //Backslash characters '\' are not allowed in URLs	  
-			  //val = val.replaceAll("[^a-zA-Z0-9-._~:/?#@!$&'()*+,;=]", "");   //Any invalid characters like <, >, |, " are eliminated from this URL
+
 			  if (!val.toLowerCase().matches("^\\w+://.*"))     //This value should be a URL, so put HTTP as its prefix
 				  val = "http://" + val;                        //In case that no protocol has been specified, assume that this is HTTP
 		  }
@@ -150,8 +139,8 @@ public class ValueChecker {
 	  public String replaceWhiteSpace(String val) {
 		  
 		  if (val != null)
-			  return findReplaceSubstring(val, replacements.get("WHITE_SPACE"));		  
-//			  return val.replace("\\s+", Constants.REPLACEMENT);
+			  return findReplaceSubstring(val, replacements.get("WHITE_SPACE"));
+		  
 		  return val;
 	  }
 	  
