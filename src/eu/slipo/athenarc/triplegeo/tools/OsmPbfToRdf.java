@@ -1,5 +1,5 @@
 /*
- * @(#) OsmPbfToRdf.java	version 2.0   12/7/2019
+ * @(#) OsmPbfToRdf.java	version 2.0   5/12/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -88,7 +88,8 @@ import eu.slipo.athenarc.triplegeo.utils.ValueChecker;
  * Modified: 4/7/2018; reorganized identification of categories based on OSM tags
  * Modified: 27/9/2018; excluded creation of linear ring geometries for roads and barriers; polygons are created instead
  * Modified; 24/10/2018; allowing transformation to proceed even in case that no filters (using OSM tags) have been specified; no classification scheme will be used in this case.
- * Last modified by: Kostas Patroumpas, 12/7/2019
+ * Modified; 5/12/2019; allowing extraction of unnamed entities; also enabling control whether to transform closed linear rings into polygons
+ * Last modified by: Kostas Patroumpas, 5/12/2019
  */
 public class OsmPbfToRdf implements Sink {
 
@@ -101,10 +102,13 @@ public class OsmPbfToRdf implements Sink {
 	  private Configuration currentConfig;  //User-specified configuration settings
 	  private String inputFile;             //Input OSM XML file
 	  private String outputFile;            //Output RDF file
-	
+
+	  private boolean keepUnnamed = true;   		//Controls whether unnamed entities will be transformed
+	  private boolean closedRings2Polygons = false;	//Controls whether closed rings (i.e., first vertex coincides with the last) will be converted to polygons
+	  
 	  OsmosisReader reader;                 //Osmosis reader for parsing the OSM PBF file
 	  
-	  Classification classification = null;        //Classification hierarchy for assigning categories to features
+	  Classification classification = null; //Classification hierarchy for assigning categories to features
 	  
 	  //Initialize a CRS factory for possible reprojections
 	  private static final CRSAuthorityFactory crsFactory = ReferencingFactoryFinder
@@ -211,14 +215,14 @@ public class OsmPbfToRdf implements Sink {
 	    		recBuilder.nodeIndex = new OSMMemoryIndex(); 
 	    		recBuilder.wayIndex = new OSMMemoryIndex();
 	    		recBuilder.relationIndex = new OSMMemoryIndex();
-		        System.out.println("Buidling in-memory indices over OSM elements...");
+		        System.out.println("Building in-memory indices over OSM elements...");
 	    	}
 	    	else {                                               //For larger OSM files, resort to disk-based indexing of their referenced elements
 	    		//OPTION #2: Disk-based structures for indexing
 	    		recBuilder.nodeIndex = new OSMDiskIndex(currentConfig.tmpDir, "nodeIndex");
 	    		recBuilder.wayIndex = new OSMDiskIndex(currentConfig.tmpDir, "wayIndex");
 	    		recBuilder.relationIndex = new OSMDiskIndex(currentConfig.tmpDir, "relationIndex");
-		        System.out.println("Buidling disk-based indices over OSM elements...");
+		        System.out.println("Building disk-based indices over OSM elements...");
 	    	}
 	    	
 	    	//This list will hold OSM relations that depend on other relations, so these must be checked once the entire OSM file is exhausted.
@@ -262,8 +266,9 @@ public class OsmPbfToRdf implements Sink {
 	            	OSMRecord rec = recBuilder.createOSMRecord(r);
 	            	if (rec != null)                    //Incomplete relations are accepted in this second pass, consisting of their recognized parts   
 	            	{
-	            		if (r.getTagKeyValue().containsKey("name"))
-	            		{
+	            		if (keepUnnamed)
+	            			myConverter.parse(rec, classification, reproject, targetSRID);
+	            		else if (r.getTagKeyValue().containsKey("name")) {  //CAUTION: Only named entities will be transformed
 	            			myConverter.parse(rec, classification, reproject, targetSRID);
 	            			numNamedEntities++;
 	            		}
@@ -350,10 +355,15 @@ public class OsmPbfToRdf implements Sink {
 	            Geometry geom = geometryFactory.createPoint(new Coordinate(myNode.getLongitude(), myNode.getLatitude()));
 	            nodeTmp.setGeometry(geom);
 
-	            if ((keepIndexed) && (nodeTmp.getTagKeyValue().containsKey("name")))
+	            //Convert entity
+	            if (keepIndexed)
 	            {
-	            	myConverter.parse(recBuilder.createOSMRecord(nodeTmp), classification, reproject, targetSRID);
-	            	numNamedEntities++;
+	            	if (keepUnnamed)
+	            		myConverter.parse(recBuilder.createOSMRecord(nodeTmp), classification, reproject, targetSRID);
+	            	else if (nodeTmp.getTagKeyValue().containsKey("name"))  {  //CUATION! Only named entities will be transformed
+	            		myConverter.parse(recBuilder.createOSMRecord(nodeTmp), classification, reproject, targetSRID);
+	            		numNamedEntities++;
+	            	}
 	            }
 	            
 	            if (recBuilder.nodeIndex.containsKey(nodeTmp.getID()))
@@ -416,7 +426,7 @@ public class OsmPbfToRdf implements Sink {
 		            
 		            //Check if the beginning and ending node are the same and the number of nodes are more than 3. 
 		            //These nodes must be more than 3, because JTS does not allow construction of a linear ring with less than 3 points
-		            if((wayTmp.getNodeGeometries().size() > 3) && wayTmp.getNodeGeometries().get(0).equals(wayTmp.getNodeGeometries().get(wayTmp.getNodeGeometries().size()-1)))
+		            if ((closedRings2Polygons) && (wayTmp.getNodeGeometries().size() > 3) && wayTmp.getNodeGeometries().get(0).equals(wayTmp.getNodeGeometries().get(wayTmp.getNodeGeometries().size()-1)))
 		            {
 		               //Always construct a polygon when a linear ring is detected
 		               LinearRing linear = geometryFactory.createLinearRing(geom.getCoordinates());
@@ -450,11 +460,15 @@ public class OsmPbfToRdf implements Sink {
 		                wayTmp.setGeometry(point);
 		            }
 		            
-		            //CAUTION! Only named entities will be transformed
-		            if ((keepIndexed) && (wayTmp.getTagKeyValue().containsKey("name")))  
+		            //Convert this entity
+		            if (keepIndexed)  
 		            {
-		            	myConverter.parse(recBuilder.createOSMRecord(wayTmp), classification, reproject, targetSRID);
-		            	numNamedEntities++;
+		            	if (keepUnnamed)
+		            		myConverter.parse(recBuilder.createOSMRecord(wayTmp), classification, reproject, targetSRID);
+		            	else if (wayTmp.getTagKeyValue().containsKey("name")) {  //CAUTION! Only named entities will be transformed
+		            		myConverter.parse(recBuilder.createOSMRecord(wayTmp), classification, reproject, targetSRID);
+		            		numNamedEntities++;
+		            	}
 		            }
 		            
 		            if (recBuilder.wayIndex.containsKey(wayTmp.getID()))
@@ -519,11 +533,15 @@ public class OsmPbfToRdf implements Sink {
 		 	         OSMRecord rec = recBuilder.createOSMRecord(relationTmp);
 	 	        	 if (rec!= null)                  //No records created for incomplete relations during the first pass
 		          	 {
-	 	        		 //CAUTION! Only named entities will be transformed
-		         		 if ((keepIndexed) && (relationTmp.getTagKeyValue().containsKey("name")))
+	 	        		 //Convert entity
+		         		 if (keepIndexed)
 		        		 {
-		        			 myConverter.parse(rec, classification, reproject, targetSRID);
-		        			 numNamedEntities++;
+		         			 if (keepUnnamed)
+		         				myConverter.parse(rec, classification, reproject, targetSRID);
+		         			 else if (relationTmp.getTagKeyValue().containsKey("name")) {   //CAUTION! Only named entities will be transformed
+		         				 myConverter.parse(rec, classification, reproject, targetSRID);
+		         				 numNamedEntities++;
+		         			 }
 		        		 }
 		        		
 		         		 if (recBuilder.relationIndex.containsKey(relationTmp.getID()))
@@ -597,8 +615,11 @@ public class OsmPbfToRdf implements Sink {
 	    	  ExceptionHandler.abort(e, "");
 	  	  }
 
-	      System.out.println(myAssistant.getGMTime() + " Original OSM file contains: " + numNodes + " nodes, " + numWays + " ways, " + numRelations + " relations. In total, " + numNamedEntities + " entities had a name and only those were given as input to transformation.");      		
-		
+	      System.out.println(myAssistant.getGMTime() + " Original OSM file contains: " + numNodes + " nodes, " + numWays + " ways, " + numRelations + " relations.");
+	      if (!keepUnnamed)
+	    	  System.out.println(" In total, " + numNamedEntities + " entities had a name and only those were given as input to transformation.");      		
+	      else
+	    	  System.out.println();		
 		}
 
 }

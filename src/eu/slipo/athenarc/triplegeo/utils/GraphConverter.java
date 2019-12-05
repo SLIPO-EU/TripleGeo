@@ -1,5 +1,5 @@
 /*
- * @(#) GraphConverter.java  version 2.0  9/10/2019
+ * @(#) GraphConverter.java  version 2.0  5/12/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -73,7 +73,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 30/5/2019; correct handling of NULL geometries in CSV input files
  * Modified: 26/6/2019; added support for thematic filtering in geographical files
  * Modified: 9/10/2019; issuing assigned category to the registry
- * Last modified: 9/10/2019
+ * Last modified: 5/12/2019
  */
 public class GraphConverter implements Converter {
 
@@ -420,9 +420,7 @@ public class GraphConverter implements Converter {
 	 */		
 	public void parse(OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) 
 	{	
-		try {	
-			++numRec;
-			
+		try {				
 			//CAUTION! On-the-fly generation of a UUID for this feature, giving as seed the data source and the identifier of that feature
 			//String uuid = myAssistant.getUUID(currentConfig.featureSource + rs.getID()).toString();
 			
@@ -483,7 +481,7 @@ public class GraphConverter implements Converter {
 			
 	      	//Collect RDF triples resulting from this tuple into the graph
 	      	collectTriples();
-	      	
+			++numRec;
 			myAssistant.notifyProgress(numRec);
 				
 		} catch (Exception e) {

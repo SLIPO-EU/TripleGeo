@@ -1,5 +1,5 @@
 /*
- * @(#) StreamConverter.java  version 2.0   9/10/2019
+ * @(#) StreamConverter.java  version 2.0   5/12/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -74,7 +74,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 30/5/2019; correct handling of NULL geometries in CSV input files
  * Modified: 26/6/2019; added support for thematic filtering in geographical files
  * Modified: 9/10/2019; issuing assigned category to the registry
- * Last modified: 9/10/2019
+ * Last modified: 5/12/2019
  */
 
 public class StreamConverter implements Converter {
@@ -439,9 +439,7 @@ public class StreamConverter implements Converter {
 	 */	
 	public void parse(OSMRecord rs, Classification classific, MathTransform reproject, int targetSRID) 
 	{	
-		try {
-			++numRec;
-            
+		try {            
   	        //Parse geometric representation
 			String wkt = null;
 			if ((rs.getGeometry() != null) && (!rs.getGeometry().isEmpty()))
@@ -499,11 +497,12 @@ public class StreamConverter implements Converter {
 				myRegister.createTuple(uri, attrValues, wkt, targetSRID);
 				  
 		    //Periodically, collect RDF triples resulting from this batch and dump results into output file
+			++numRec;
 			if (numRec % currentConfig.batch_size == 0) 
 			{
 				collectTriples();
 				myAssistant.notifyProgress(numRec);
-			}
+			}		
 				
 		} catch (Exception e) {
 			System.out.println("Problem at element with OSM id: " + rs.getID() + ". Excluded from transformation.");

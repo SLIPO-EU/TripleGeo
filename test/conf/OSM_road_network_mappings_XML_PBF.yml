@@ -1,0 +1,3 @@
+﻿URI:                                     ##Specifies a URI of each feature, in this case by keeping the original identifier                
+  entity: uri
+  generateWith: keepOriginalID(osm_id)

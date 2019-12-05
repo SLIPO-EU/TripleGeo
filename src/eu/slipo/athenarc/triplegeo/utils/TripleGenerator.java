@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java  version 2.0   31/10/2019
+ * @(#) TripleGenerator.java  version 2.0   5/12/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -65,7 +65,8 @@ import eu.slipo.athenarc.triplegeo.utils.Mapping.mapProperties;
  * Modified: 14/6/2019; support for GeoHash strings encoding (centroids of) geometries
  * Modified: 4/7/2019; allowing string literals as arguments in dynamically executed built-in functions
  * Modified: 5/7/2019; allowing built-in functions to dynamically generate the resource type based on user mappings
- * Last modified: 31/10/2019
+ * Modified: 5/12/2019; allowing mapping files with URI definition only; a flat mapping will be applied to all thematic attributes (i.e., attribute name will become a property)
+ * Last modified: 5/12/2019
  */
 
 public class TripleGenerator {
@@ -82,6 +83,8 @@ public class TripleGenerator {
 	String attrCategoryURI = null;         //Attribute used for the URI of categories, as specified in the mapping of thematic attributes
 	String attrDataSource = null;          //Attribute used for the name of data source, as specified in the mapping of thematic attributes
 	String attrAssignedCategory = null;    //Attribute used to denote an embedded category, after mapping of user-defined category to the default classification scheme
+
+	boolean flatMapping = false;        //Boolean value representing whether flat mappings will be generated based on the attribute names 
 	
 	Map<String, Integer> attrStatistics;   //Statistics for each attribute
 	
@@ -129,8 +132,11 @@ public class TripleGenerator {
 		    //Identify the extra attributes for category URIs and name of data source as specified in the mapping file
 		    for (String key: attrMappings.getKeys())
 		    {
-		    	if ((attrMappings.find(key).entityType != null) && (attrMappings.find(key).entityType.equalsIgnoreCase("uri")))
+		    	if ((attrMappings.find(key).entityType != null) && (attrMappings.find(key).entityType.equalsIgnoreCase("uri"))) {
 		    		attrURI = key;
+		    		if (attrMappings.countMappings() == 1)    //Mapping specification contains URI definition only, so a flat mapping will be applied to all thematic attributes
+		    			flatMapping = true;		    			
+		    	}
 		    	if ((attrMappings.find(key).entityType != null) && (attrMappings.find(key).entityType.contains("category")))
 		    		attrCategoryURI = key;
 		    	if ((attrMappings.find(key).predicate != null) && (attrMappings.find(key).predicate.contains("sourceRef")))
@@ -139,6 +145,9 @@ public class TripleGenerator {
 		    		attrAssignedCategory = key;
 		    }
 	    }
+	    else
+	    	flatMapping = false;
+	    
 	    //Otherwise, give default names to these extra attributes, as needed for the registry
 	    if (attrURI == null)
 	    	attrURI = "URI";
@@ -326,7 +335,7 @@ public class TripleGenerator {
 	        }
 	        
   	        //Finally, transform thematic (non-spatial) attributes
-	        if (attrMappings != null) 
+	        if (!flatMapping) 
 	        {  	//Handling based on user-specified attribute mappings to an ontology
 	        	transformCustomThematic2RDF(uri, row, classific);
 	        }
@@ -498,7 +507,7 @@ public class TripleGenerator {
 			{
 				valCategory = attrValues.get(cat);
 				//The first NOT NULL classification value will be used to assign a category to this feature
-				if ((valCategory != null) && (classific.getUUID(valCategory) != null))
+				if ((valCategory != null) && (!valCategory.trim().isEmpty()) && (classific.getUUID(valCategory) != null))
 				{
 					attrValues.put(attrCategoryURI, currentConfig.featureClassNS + classific.getUUID(valCategory));     //The URI corresponding to this category
 					//Determine the name of the embedded category assigned in the default classification scheme

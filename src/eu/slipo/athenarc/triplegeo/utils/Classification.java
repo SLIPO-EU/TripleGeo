@@ -372,7 +372,7 @@ public class Classification {
 							emdeddedScore = parentScore;
 						}
 						
-						//System.out.println("KEY:" +  id + " CATEGORY: *" + name + "*" + " -> " + embeddedCategory);
+//						System.out.println("KEY:" +  id + " CATEGORY: *" + name + "*" + " -> " + embeddedCategory);
 
 						//Create a new category
 						Category category = new Category(uuid, id, name, parent, embeddedCategory, emdeddedScore); 

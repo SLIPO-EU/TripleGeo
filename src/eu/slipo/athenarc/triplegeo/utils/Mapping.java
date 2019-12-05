@@ -1,5 +1,5 @@
 /*
- * @(#) TripleGenerator.java  version 2.0  7/10/2019
+ * @(#) TripleGenerator.java  version 2.0  5/12/2019
  *
  * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
  *
@@ -48,7 +48,7 @@ import org.yaml.snakeyaml.Yaml;
  * Modified: 10/5/2019; extended support for multi-faceted properties with wild char '*'
  * Modified: 4/7/2019; allowing literal values (quoted strings) to be given as arguments in thematic built-in functions
  * Modified: 7/10/2019; allowing literal values (quoted strings) as arguments in geometric built-in functions
- * Last modified: 7/10/2019
+ * Last modified: 5/12/2019
  */
 
 public class Mapping {
@@ -624,5 +624,14 @@ public class Mapping {
 	public List<String> getExtraGeometricAttributes() {
 		
 		return this.extraGeometricAttrs;
+	}
+	
+	/**
+	 * Count the specified mappings stored in an instance of this class. 
+	 * @return  An integer value representing the number of specified mappings.
+	 */
+	public int countMappings() {
+		
+		return this.attrMappings.size();
 	}
 }
