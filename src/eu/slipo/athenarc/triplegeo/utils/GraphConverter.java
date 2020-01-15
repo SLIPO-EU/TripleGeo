@@ -1,7 +1,7 @@
 /*
- * @(#) GraphConverter.java  version 2.0  5/12/2019
+ * @(#) GraphConverter.java  version 2.0  15/1/2020
  *
- * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2020 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ import eu.slipo.athenarc.triplegeo.osm.OSMRecord;
  * Modified: 30/5/2019; correct handling of NULL geometries in CSV input files
  * Modified: 26/6/2019; added support for thematic filtering in geographical files
  * Modified: 9/10/2019; issuing assigned category to the registry
- * Last modified: 5/12/2019
+ * Last modified: 15/1/2020
  */
 public class GraphConverter implements Converter {
 
@@ -82,7 +82,8 @@ public class GraphConverter implements Converter {
 	/**
 	 * The disk-based model that will contain all RDF triples generated during transformation.
 	 */
-	public Model model;
+	private Model model;
+	Dataset rdfDataset;
 
 	String pathTDB;                                         //Path to the local directory to hold the disk-based RDF graph for this transformation process 
 	
@@ -113,13 +114,12 @@ public class GraphConverter implements Converter {
 	    myGenerator = new TripleGenerator(config, assist);     //Will be used to generate all triples per input feature (record)
 	      
 	    //Create a temporary directory to hold intermediate data for this graph
-	    Assistant tmpAssistant = new Assistant();
-	    pathTDB = tmpAssistant.createDirectory(currentConfig.tmpDir);
+	    pathTDB = myAssistant.createDirectory(currentConfig.tmpDir);
 	    	
-	    Dataset dataset = TDBFactory.createDataset(pathTDB) ;
-	      
+	    rdfDataset = TDBFactory.createDataset(pathTDB);
+	    
 	    //The graph model to be used in the disk-based transformation process
-	    this.model = dataset.getDefaultModel() ;
+	    this.model = rdfDataset.getDefaultModel() ;
 	      
 	    //Preset some of the most common prefixes
 	    this.model.setNsPrefix("geo", Constants.NS_GEO);
@@ -602,16 +602,40 @@ public class GraphConverter implements Converter {
 	    int numStmt = this.getModel().getGraph().size();
 	    try {
 		    //Export model to a suitable serialization format
-		    FileOutputStream out = new FileOutputStream(outputFile);
+	    	FileOutputStream out = new FileOutputStream(outputFile);
 		    this.getModel().write(out, currentConfig.serialization);
+		    out.close();
 	    }
 	    catch(Exception e) { 
 			ExceptionHandler.abort(e, "Serialized output cannot be written into a file. Please check configuration file.");
 		}
-//	    finally {
-//	    	//Remove all files created in the temporary directory
-//	    	myAssistant.removeDirectory(pathTDB);
-//	    }
+	    finally {
+	    	this.getModel().close();
+	    	TDBFactory.release(this.rdfDataset);
+//	    	this.rdfDataset.close();
+/*	    	
+	    	try {
+				FileUtils.deleteDirectory(new File(pathTDB));
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+*/	    	
+/*	    	
+	    	try {
+				TimeUnit.SECONDS.sleep(1);
+//				boolean flag = myAssistant.removeFile(pathTDB + "/tdb.lock");
+//				System.out.println("LOCK file deleted: " + flag);
+				//Remove all files created in the temporary directory
+//		    	myAssistant.removeDirectory(pathTDB);
+		    	myAssistant.cleanupFilesInDir(pathTDB);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+*/	    	
+	    	
+	    }
 	    
 		//******************************************************************
 		//Close the file that will collect all tuples for the SLIPO Registry
@@ -627,6 +651,23 @@ public class GraphConverter implements Converter {
 	    dt = System.currentTimeMillis() - t_start;
 	    myAssistant.reportStatistics(dt, numRec, rejectedRec, numStmt, currentConfig.serialization, myGenerator.getStatistics(), myGenerator.getMBR(), currentConfig.mode, currentConfig.targetCRS, outputFile, 0);
 	    myGenerator.getStatistics();
+/*	    
+//	    System.out.println("TEMP DIR: " + pathTDB);
+    	//Remove all files created in the temporary directory
+//    	myAssistant.removeDirectory(pathTDB);
+	    try {
+	    	this.getModel().close();
+	    	//Remove all files created in the temporary directory
+	    	if (this.getModel().isClosed()) {    		
+				TimeUnit.SECONDS.sleep(5);
+	    		myAssistant.cleanupFilesInDir(pathTDB);
+	    	}
+	    	else
+	    		System.out.println("Graph is not closed!");
+	    } catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+*/
 	}
 			
 	/**
@@ -660,6 +701,7 @@ public class GraphConverter implements Converter {
 	 * @return  Path to the local directory. 
 	 */
 	public String getTDBDir() {
+		
 		return pathTDB;
 	}
 	

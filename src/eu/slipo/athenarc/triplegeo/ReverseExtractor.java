@@ -1,7 +1,7 @@
 /*
- * @(#) ReverseExtractor.java	version 2.0   31/10/2019
+ * @(#) ReverseExtractor.java	version 2.0   15/1/2020
  *
- * Copyright (C) 2013-2019 Information Management Systems Institute, Athena R.C., Greece.
+ * Copyright (C) 2013-2020 Information Management Systems Institute, Athena R.C., Greece.
  *
  * This library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ import eu.slipo.athenarc.triplegeo.utils.ReverseConverter;
  * Created by: Kostas Patroumpas, 27/9/2017
  * Modified: 12/2/2018; handling missing specifications on georeferencing (CRS: Coordinate Reference Systems) 
  * Modified: 12/7/2019; handling also export to GeoJson files
- * Last modified by: Kostas Patroumpas, 31/10/2019
+ * Last modified by: Kostas Patroumpas, 15/1/2020
  */
 public class ReverseExtractor {  
 
@@ -147,10 +147,7 @@ public class ReverseExtractor {
 					 ExceptionHandler.abort(e, "Instantiating a reverse converter failed.");	
 				}
 				
-				try {
-					//Remove any intermediate files possibly remained in the temporary directory after previous executions
-					myAssistant.removeDirectory(currentConfig.tmpDir);
-					  
+				try {			  
 		    	  	//Call reverse converter
 		    	  	myReverseConverter =  new BatchReverseConverter(currentConfig, inputFiles);
 
@@ -170,6 +167,9 @@ public class ReverseExtractor {
 				  
 					//... and the output file
 					conv.close();
+					
+					//Remove any intermediate files possibly remained in the temporary directory after this execution
+					myAssistant.cleanupFilesInDir(currentConfig.tmpDir);
 					
 				} catch (Exception e) {
 					ExceptionHandler.abort(e, "Failed to instantiate a reverse converter.");
