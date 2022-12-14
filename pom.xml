@@ -98,7 +98,7 @@
    <dependency>
 	  <groupId>org.yaml</groupId>
 	  <artifactId>snakeyaml</artifactId>
-      <version>1.19</version>
+      <version>1.32</version>
    </dependency>
 
  <!--  JDBC drivers for connectivity to several DBMSs. Either enable the one that you are going to use or include the respective JDBC driver in the classpath at runtime.-->
